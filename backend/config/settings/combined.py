@@ -66,9 +66,14 @@ STATICFILES_DIRS = [
 TEMPLATES[0]["DIRS"] = [BASE_DIR / "frontend_build"]  # noqa: F405
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# All origins are allowed inside the single container because the browser talks
-# to the same host/port for both the API and the React app.
-CORS_ALLOW_ALL_ORIGINS = True
+# In the default single-container setup the browser talks to the same host/port
+# for both the API and the React app, so CORS is irrelevant.  Allow all origins
+# by default, but let operators restrict this via an environment variable.
+_cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+if _cors_origins:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # ── Security (relaxed for single-container / ShinyProxy deployments) ──────────
 # TLS termination is handled upstream (ShinyProxy / reverse-proxy).

@@ -66,8 +66,8 @@ services:
       dockerfile: Dockerfile
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.combined
-      # Override SECRET_KEY in production.
-      SECRET_KEY: change-me-in-production
+      # Set a strong random SECRET_KEY before deploying to production, e.g.:
+      #   SECRET_KEY: your-random-secret-key-here
       ALLOWED_HOSTS: "*"
     ports:
       - "8080:8080"
