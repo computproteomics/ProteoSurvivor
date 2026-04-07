@@ -158,20 +158,25 @@ def _simulate_veit(params: dict) -> dict:
     hits = sum(1 for kw in keywords if kw.lower() in report.lower())
     quality = "Excellent" if hits >= 4 else ("Good" if hits >= 2 else "Needs improvement")
 
+    if quality == "Excellent":
+        feedback = "Great work! Your report covers the key findings of the proteomics experiment."
+    elif quality == "Good":
+        feedback = "Good effort. Try to mention specific pathways and regulated proteins."
+    else:
+        feedback = "Your report is missing key details. Describe which proteins were regulated and why."
+
+    recommendation = (
+        "Experiment complete — return to the world map."
+        if quality != "Needs improvement"
+        else "Revise your report and try again."
+    )
+
     return {
         "summary": "Veit has reviewed your report.",
         "report_quality": quality,
         "keywords_found": hits,
-        "feedback": (
-            "Great work! Your report covers the key findings of the proteomics experiment."
-            if quality == "Excellent"
-            else (
-                "Good effort. Try to mention specific pathways and regulated proteins."
-                if quality == "Good"
-                else "Your report is missing key details. Describe which proteins were regulated and why."
-            )
-        ),
-        "recommendation": "Experiment complete — return to the world map." if quality != "Needs improvement" else "Revise your report and try again.",
+        "feedback": feedback,
+        "recommendation": recommendation,
     }
 
 
