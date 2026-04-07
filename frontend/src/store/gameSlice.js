@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 
 const useGameStore = create((set, get) => ({
-  // State
+  // Proteomics lab state
+  completedStations: [],
+  sessionId: null,
+
+  // Generic data-analysis game state (kept for future levels)
   levels: [],
   leaderboard: [],
   currentLevel: null,
@@ -13,7 +17,14 @@ const useGameStore = create((set, get) => ({
   error: null,
   startTime: null,
 
-  // Actions
+  // Proteomics actions
+  setSessionId: (id) => set({ sessionId: id }),
+  markStationComplete: (stationId) =>
+    set((state) => ({
+      completedStations: [...new Set([...state.completedStations, stationId])],
+    })),
+
+  // Generic actions
   setLevels: (levels) => set({ levels }),
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setCurrentLevel: (level) => set({ currentLevel: level }),
@@ -32,6 +43,8 @@ const useGameStore = create((set, get) => ({
 
   reset: () =>
     set({
+      completedStations: [],
+      sessionId: null,
       currentLevel: null,
       currentSession: null,
       dataset: null,

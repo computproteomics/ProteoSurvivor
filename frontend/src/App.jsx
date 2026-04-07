@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Game from './pages/Game';
-import Results from './pages/Results';
+import Intro from './screens/Intro';
+import WorldMap from './screens/WorldMap';
+import StationView from './screens/StationView';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/game/:levelId" element={<Game />} />
-        <Route path="/results/:sessionId" element={<Results />} />
+        <Route path="/" element={<Intro />} />
+        <Route path="/world" element={<WorldMap />} />
+        <Route path="/station/:stationId" element={<StationView />} />
       </Routes>
     </BrowserRouter>
   );

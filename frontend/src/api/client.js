@@ -5,6 +5,13 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Proteomics lab station endpoints
+export const enterStation = (stationId, sessionId) =>
+  api.post(`/stations/${stationId}/enter/`, { session_id: sessionId });
+export const completeStation = (stationId, sessionId) =>
+  api.post(`/stations/${stationId}/complete/`, { session_id: sessionId });
+
+// Data analysis game endpoints
 export const getLevels = () => api.get('/levels/');
 export const getLevelDataset = (levelId) => api.get(`/levels/${levelId}/dataset/`);
 export const createSession = (levelId) => api.post('/sessions/', { level_id: levelId });
