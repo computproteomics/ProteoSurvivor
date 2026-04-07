@@ -6,3 +6,5 @@ pandas
 numpy
 faker
 psycopg2-binary
+whitenoise[brotli]
+gunicorn

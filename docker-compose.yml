@@ -46,5 +46,32 @@ services:
     depends_on:
       - backend
 
+  # ── Combined single-container service (frontend + backend in one image) ────
+  # Use this target for ShinyProxy or any deployment that requires a single
+  # container.  It bundles the React production build inside Django/gunicorn and
+  # uses SQLite by default (no external database required).
+  #
+  # Build & run:
+  #   docker compose up combined
+  #   # or standalone:
+  #   docker build -t proteosurvivor .
+  #   docker run -p 8080:8080 proteosurvivor
+  #
+  # To use PostgreSQL instead of SQLite pass environment variables:
+  #   DB_ENGINE=django.db.backends.postgresql
+  #   DB_NAME / DB_USER / DB_PASSWORD / DB_HOST / DB_PORT
+  combined:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.combined
+      # Override SECRET_KEY in production.
+      SECRET_KEY: change-me-in-production
+      ALLOWED_HOSTS: "*"
+    ports:
+      - "8080:8080"
+
 volumes:
   postgres_data:
+
