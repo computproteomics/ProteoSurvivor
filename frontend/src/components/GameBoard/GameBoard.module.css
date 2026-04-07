@@ -1,0 +1,47 @@
+.board {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.task {
+  color: #4a5568;
+  margin-top: 0.25rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.tabs button {
+  padding: 0.4rem 1rem;
+  border: none;
+  background: none;
+  font-size: 0.95rem;
+  color: #718096;
+  border-radius: 6px 6px 0 0;
+}
+
+.tabs button.active {
+  color: #3182ce;
+  font-weight: 600;
+  border-bottom: 2px solid #3182ce;
+}
+
+.content {
+  overflow-x: auto;
+}

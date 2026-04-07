@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.tox/
+venv/
+.venv/
+env/
+.env
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+
+# Node / React
+node_modules/
+dist/
+.vite/
+*.local
+
+# Environment files (keep examples, ignore real .env)
+.env
+!.env.example
+
+# Docker
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

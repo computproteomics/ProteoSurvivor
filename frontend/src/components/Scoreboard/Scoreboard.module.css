@@ -1,0 +1,40 @@
+.board {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+}
+
+.title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.list {
+  list-style: decimal inside;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.entry {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.player {
+  font-weight: 600;
+}
+
+.level {
+  color: #718096;
+  flex: 1;
+  text-align: center;
+}
+
+.points {
+  color: #38a169;
+  font-weight: 700;
+}

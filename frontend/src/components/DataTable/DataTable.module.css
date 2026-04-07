@@ -1,0 +1,46 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.table th {
+  background: #edf2f7;
+  font-weight: 600;
+}
+
+.table tr:hover {
+  background: #ebf8ff;
+  cursor: pointer;
+}
+
+.selected {
+  background: #bee3f8 !important;
+}
+
+.null {
+  color: #a0aec0;
+}
+
+.submitBtn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.4rem;
+  background: #38a169;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.submitBtn:hover {
+  background: #2f855a;
+}
