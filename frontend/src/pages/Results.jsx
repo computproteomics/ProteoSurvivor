@@ -8,8 +8,10 @@ export default function Results() {
   const { score, currentLevel, reset } = useGameStore();
 
   useEffect(() => {
-    return () => reset();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      reset();
+    };
+  }, [reset]);
 
   return (
     <div className={styles.page}>

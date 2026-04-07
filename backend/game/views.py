@@ -7,6 +7,7 @@ from .models import Level, GameSession, Score
 from .serializers import (
     LevelSerializer,
     GameSessionSerializer,
+    ScoreSerializer,
     SubmitAnswerSerializer,
     LeaderboardEntrySerializer,
 )
@@ -62,8 +63,6 @@ def submit_answer(request, pk):
         serializer.validated_data["answer"],
         serializer.validated_data["time_taken_seconds"],
     )
-    from .serializers import ScoreSerializer
-
     return Response(ScoreSerializer(score).data, status=status.HTTP_201_CREATED)
 
 

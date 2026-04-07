@@ -12,11 +12,11 @@ export default function Scoreboard() {
   useEffect(() => {
     getLeaderboard()
       .then((res) => {
-        if (typeof setLeaderboard === 'function') {
-          setLeaderboard(res.data.results ?? res.data);
-        }
+        setLeaderboard(res.data.results ?? res.data);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load leaderboard:', err);
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!leaderboard?.length) return null;

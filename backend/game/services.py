@@ -1,7 +1,6 @@
 """
 Game logic: scoring and answer evaluation per challenge type.
 """
-import random
 from django.utils import timezone
 from .models import GameSession, Score
 
