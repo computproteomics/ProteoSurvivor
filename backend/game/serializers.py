@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Level, GameSession, Score
+from .models import Level, GameSession, Score, StationRun
 
 
 class LevelSerializer(serializers.ModelSerializer):
@@ -30,6 +30,16 @@ class GameSessionSerializer(serializers.ModelSerializer):
 class SubmitAnswerSerializer(serializers.Serializer):
     answer = serializers.JSONField()
     time_taken_seconds = serializers.IntegerField(min_value=0)
+
+
+class RunStationSerializer(serializers.Serializer):
+    params = serializers.JSONField()
+
+
+class StationRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StationRun
+        fields = ["id", "station_id", "params", "results", "status", "created_at"]
 
 
 class LeaderboardEntrySerializer(serializers.ModelSerializer):

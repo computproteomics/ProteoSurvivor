@@ -4,6 +4,8 @@ const useGameStore = create((set, get) => ({
   // Proteomics lab state
   completedStations: [],
   sessionId: null,
+  stationParams: {},
+  stationResults: null,
 
   // Generic data-analysis game state (kept for future levels)
   levels: [],
@@ -23,6 +25,11 @@ const useGameStore = create((set, get) => ({
     set((state) => ({
       completedStations: [...new Set([...state.completedStations, stationId])],
     })),
+  setStationParams: (stationId, params) =>
+    set((state) => ({
+      stationParams: { ...state.stationParams, [stationId]: params },
+    })),
+  setStationResults: (results) => set({ stationResults: results }),
 
   // Generic actions
   setLevels: (levels) => set({ levels }),
@@ -45,6 +52,8 @@ const useGameStore = create((set, get) => ({
     set({
       completedStations: [],
       sessionId: null,
+      stationParams: {},
+      stationResults: null,
       currentLevel: null,
       currentSession: null,
       dataset: null,

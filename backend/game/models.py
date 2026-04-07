@@ -47,6 +47,40 @@ class GameSession(models.Model):
         return f"Session {self.pk} — {self.level} [{self.status}]"
 
 
+class StationRun(models.Model):
+    """Records one execution of a proteomics lab station with its parameters and results."""
+
+    STATION_CHOICES = [
+        ("sample_prep", "Sample Preparation"),
+        ("mass_spec", "Mass Spectrometer"),
+        ("search_setup", "Search Engine Setup"),
+        ("data_analysis", "Data Analysis"),
+        ("veit", "Veit"),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    player = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="station_runs"
+    )
+    station_id = models.CharField(max_length=50, choices=STATION_CHOICES)
+    params = models.JSONField(default=dict)
+    results = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"StationRun {self.pk} — {self.station_id} [{self.status}]"
+
+
 class Score(models.Model):
     """Stores the result of a completed game session."""
 

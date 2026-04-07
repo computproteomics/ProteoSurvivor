@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { enterStation, completeStation } from '../api/client';
+import { enterStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import styles from './StationView.module.css';
 
@@ -46,7 +46,7 @@ const FALLBACK_CONTENT = {
 export default function StationView() {
   const { stationId } = useParams();
   const navigate = useNavigate();
-  const { sessionId, markStationComplete } = useGameStore();
+  const { sessionId } = useGameStore();
 
   const [stationData, setStationData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +63,7 @@ export default function StationView() {
     enterStation(stationId, sessionId)
       .then((res) => setStationData(res.data))
       .catch(() => {
-        // Backend station endpoints not yet implemented — use placeholder data
+        // Backend enter endpoint not yet implemented — use placeholder data
         setStationData({
           message: `Entered station '${stationId}' successfully.`,
           station_id: stationId,
@@ -71,20 +71,6 @@ export default function StationView() {
       })
       .finally(() => setLoading(false));
   }, [stationId, sessionId]);
-
-  async function handleComplete() {
-    setLoading(true);
-    setError('');
-
-    try {
-      await completeStation(stationId, sessionId);
-    } catch {
-      // Backend station endpoints not yet implemented — proceed locally
-    } finally {
-      markStationComplete(stationId);
-      navigate('/world');
-    }
-  }
 
   return (
     <div className={styles.page}>
@@ -111,8 +97,12 @@ export default function StationView() {
           <button className={styles.secondaryButton} onClick={() => navigate('/world')}>
             Back to map
           </button>
-          <button className={styles.primaryButton} onClick={handleComplete} disabled={loading}>
-            Complete station
+          <button
+            className={styles.primaryButton}
+            onClick={() => navigate(`/station/${stationId}/params`)}
+            disabled={loading}
+          >
+            Configure &amp; Run →
           </button>
         </div>
       </div>

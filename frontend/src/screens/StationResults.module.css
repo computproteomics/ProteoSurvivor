@@ -1,0 +1,137 @@
+.page {
+  min-height: 100vh;
+  background: #f4f6f8;
+  padding: 2rem;
+  display: grid;
+  place-items: start center;
+  font-family: Arial, sans-serif;
+}
+
+.card {
+  width: min(720px, 92vw);
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  margin-top: 2rem;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stationBadge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.completeBadge {
+  font-size: 0.85rem;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.title {
+  margin: 0 0 1.25rem;
+  font-size: 1.6rem;
+}
+
+.text {
+  color: #475569;
+  margin-bottom: 1.5rem;
+}
+
+.summaryBox {
+  background: #f0fdf4;
+  border-left: 4px solid #22c55e;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.summaryText {
+  margin: 0;
+  color: #166534;
+  line-height: 1.5;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.92rem;
+}
+
+.row:nth-child(even) {
+  background: #f8fafc;
+}
+
+.key {
+  padding: 0.55rem 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  width: 45%;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.value {
+  padding: 0.55rem 0.75rem;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.recommendationBox {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.recommendationText {
+  margin: 0.4rem 0 0;
+  color: #1d4ed8;
+  line-height: 1.5;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.primaryButton {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  background: #0f172a;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.primaryButton:hover {
+  background: #1e293b;
+}
+
+.secondaryButton {
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.secondaryButton:hover {
+  background: #f8fafc;
+}

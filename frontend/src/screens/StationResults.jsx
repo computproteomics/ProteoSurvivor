@@ -1,0 +1,111 @@
+import { useParams, useNavigate } from 'react-router-dom';
+import useGameStore from '../store/gameSlice';
+import styles from './StationResults.module.css';
+
+const STATION_TITLES = {
+  sample_prep: 'Sample Preparation',
+  mass_spec: 'Mass Spectrometer',
+  search_setup: 'Search Engine Setup',
+  data_analysis: 'Data Analysis',
+  veit: 'Veit',
+};
+
+// Fields that should never be shown in the "Details" table
+const HIDDEN_KEYS = new Set(['summary', 'recommendation']);
+
+export default function StationResults() {
+  const { stationId } = useParams();
+  const navigate = useNavigate();
+  const { stationResults, markStationComplete } = useGameStore();
+
+  const title = STATION_TITLES[stationId] ?? 'Station';
+
+  function handleBackToMap() {
+    markStationComplete(stationId);
+    navigate('/world');
+  }
+
+  function handleRetry() {
+    navigate(`/station/${stationId}/params`);
+  }
+
+  if (!stationResults) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>No Results</h1>
+          <p className={styles.text}>No results are available for this station yet.</p>
+          <button className={styles.primaryButton} onClick={() => navigate(`/station/${stationId}`)}>
+            Back to station
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { summary, recommendation, ...detailFields } = stationResults;
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <div className={styles.headerRow}>
+          <span className={styles.stationBadge}>{title}</span>
+          <span className={styles.completeBadge}>✅ Run complete</span>
+        </div>
+
+        <h1 className={styles.title}>Results</h1>
+
+        {summary && (
+          <div className={styles.summaryBox}>
+            <p className={styles.summaryText}>{summary}</p>
+          </div>
+        )}
+
+        {Object.keys(detailFields).length > 0 && (
+          <table className={styles.table}>
+            <tbody>
+              {Object.entries(detailFields)
+                .filter(([key]) => !HIDDEN_KEYS.has(key))
+                .map(([key, value]) => (
+                  <tr key={key} className={styles.row}>
+                    <td className={styles.key}>{formatKey(key)}</td>
+                    <td className={styles.value}>{formatValue(value)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+
+        {recommendation && (
+          <div className={styles.recommendationBox}>
+            <strong>💡 Recommendation:</strong>
+            <p className={styles.recommendationText}>{recommendation}</p>
+          </div>
+        )}
+
+        <div className={styles.buttonRow}>
+          <button className={styles.secondaryButton} onClick={handleRetry}>
+            ← Adjust parameters
+          </button>
+          <button className={styles.primaryButton} onClick={handleBackToMap}>
+            Back to map ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatKey(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatValue(value) {
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number') return value.toLocaleString();
+  if (typeof value === 'object' && value !== null) return JSON.stringify(value);
+  return String(value);
+}

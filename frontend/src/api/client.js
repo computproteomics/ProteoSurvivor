@@ -10,6 +10,8 @@ export const enterStation = (stationId, sessionId) =>
   api.post(`/stations/${stationId}/enter/`, { session_id: sessionId });
 export const completeStation = (stationId, sessionId) =>
   api.post(`/stations/${stationId}/complete/`, { session_id: sessionId });
+export const runStation = (stationId, params) =>
+  api.post(`/stations/${stationId}/run/`, { params });
 
 // Data analysis game endpoints
 export const getLevels = () => api.get('/levels/');

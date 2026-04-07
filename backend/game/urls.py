@@ -7,4 +7,5 @@ urlpatterns = [
     path("sessions/", views.GameSessionCreateView.as_view(), name="session-create"),
     path("sessions/<int:pk>/submit/", views.submit_answer, name="session-submit"),
     path("leaderboard/", views.LeaderboardView.as_view(), name="leaderboard"),
+    path("stations/<str:station_id>/run/", views.run_station_view, name="station-run"),
 ]

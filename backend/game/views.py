@@ -10,8 +10,10 @@ from .serializers import (
     ScoreSerializer,
     SubmitAnswerSerializer,
     LeaderboardEntrySerializer,
+    RunStationSerializer,
+    StationRunSerializer,
 )
-from .services import evaluate_answer
+from .services import evaluate_answer, run_station
 from data.generators import generate_dataset_for_level
 
 
@@ -73,3 +75,28 @@ class LeaderboardView(generics.ListAPIView):
         "-points", "time_taken_seconds"
     )[:50]
     serializer_class = LeaderboardEntrySerializer
+
+
+VALID_STATION_IDS = {"sample_prep", "mass_spec", "search_setup", "data_analysis", "veit"}
+
+
+@api_view(["POST"])
+def run_station_view(request, station_id):
+    """POST /api/stations/<station_id>/run/ — run a proteomics station with given parameters."""
+    if station_id not in VALID_STATION_IDS:
+        return Response(
+            {"detail": f"Unknown station '{station_id}'."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    serializer = RunStationSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    player = request.user if request.user.is_authenticated else None
+    station_run = run_station(
+        station_id=station_id,
+        params=serializer.validated_data["params"],
+        player=player,
+    )
+    return Response(StationRunSerializer(station_run).data, status=status.HTTP_201_CREATED)
