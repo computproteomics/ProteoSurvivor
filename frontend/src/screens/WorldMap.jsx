@@ -19,7 +19,7 @@ import styles from './WorldMap.module.css';
 export default function WorldMap() {
   const navigate = useNavigate();
   const completedStations = useGameStore((s) => s.completedStations);
-  const player = useGameStore((s) => s.mapPlayerPosition ?? PLAYER_START);
+  const player = useGameStore((s) => s.mapPlayerPosition);
   const setMapPlayerPosition = useGameStore((s) => s.setMapPlayerPosition);
   const canvasRef = useRef(null);
 
@@ -82,7 +82,7 @@ export default function WorldMap() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, player.col, player.row]);
+  }, [navigate, player.col, player.row, setMapPlayerPosition]);
 
   function handleCanvasClick(event) {
     const canvas = canvasRef.current;

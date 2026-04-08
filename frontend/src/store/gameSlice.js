@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { PLAYER_START } from '../screens/MapSetup';
 
 const useGameStore = create((set, get) => ({
   // Proteomics lab state
@@ -6,7 +7,7 @@ const useGameStore = create((set, get) => ({
   sessionId: null,
   stationParams: {},
   stationResults: null,
-  mapPlayerPosition: { col: 2, row: 2 },
+  mapPlayerPosition: PLAYER_START,
 
   // Generic data-analysis game state (kept for future levels)
   levels: [],
@@ -62,7 +63,7 @@ const useGameStore = create((set, get) => ({
       sessionId: null,
       stationParams: {},
       stationResults: null,
-      mapPlayerPosition: { col: 2, row: 2 },
+      mapPlayerPosition: PLAYER_START,
       currentLevel: null,
       currentSession: null,
       dataset: null,
