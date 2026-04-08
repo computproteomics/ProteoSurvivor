@@ -1,5 +1,4 @@
 {
-  "stations": {
     "sample_prep": {
       "id": "sample_prep",
       "title": "Sample Preparation",
@@ -259,5 +258,4 @@
       "title": "Veit",
       "description": "Hand in your comprehensive report with findings and interpretations."
     }
-  }
 }
