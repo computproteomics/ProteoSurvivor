@@ -44,19 +44,19 @@ export const MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-const STATION_POSITIONS = [
-  { col: 16, row: 3 },
-  { col: 8, row: 3 },
-  { col: 12, row: 6 },
-  { col: 8, row: 6 },
-  { col: 8, row: 10 },
-  { col: 4, row: 3 },
-  { col: 12, row: 3 },
-  { col: 16, row: 6 },
-  { col: 4, row: 10 },
-  { col: 4, row: 6 },
-  { col: 12, row: 10 },
-];
+const STATION_POSITIONS_BY_ID = {
+  sample_prep: { col: 16, row: 3 },
+  mass_spec: { col: 8, row: 3 },
+  spectral_search: { col: 12, row: 6 },
+  filtering: { col: 8, row: 6 },
+  transform: { col: 8, row: 10 },
+  normalize: { col: 4, row: 3 },
+  imputer: { col: 12, row: 3 },
+  multiple_testing_corrector: { col: 16, row: 6 },
+  the_cutter: { col: 4, row: 10 },
+  statistical_analysis: { col: 4, row: 6 },
+  veit: { col: 12, row: 10 },
+};
 
 const STATION_COLORS = {
   sample_prep: '#f8b85a',
@@ -73,10 +73,10 @@ const STATION_COLORS = {
 };
 
 // Station definitions with position on map and color
-export const STATIONS = STATION_IDS.map((id, index) => ({
+export const STATIONS = STATION_IDS.map((id) => ({
   id,
   label: getStationTitle(id),
-  ...STATION_POSITIONS[index],
+  ...STATION_POSITIONS_BY_ID[id],
   color: STATION_COLORS[id],
 }));
 
