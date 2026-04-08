@@ -2,9 +2,9 @@
 
 A browser-based proteomics education game where players step into the role of a
 computational proteomics researcher.  
-Guide samples through a full lab workflow — from sample preparation through mass
-spectrometry, database search, and data analysis — then report your findings to
-your supervisor.
+Navigate a 2D lab map, visit stations in any order, configure each step of the
+workflow — from sample preparation through mass spectrometry, database search,
+and statistical analysis — then hand in your report to your supervisor.
 
 Built with **React + Vite** (frontend) and **Django + Django REST Framework** (backend).
 
@@ -42,7 +42,6 @@ python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activa
 pip install -r requirements.txt
 cp .env.example .env          # edit SECRET_KEY and DB settings
 python manage.py migrate
-python manage.py loaddata data/fixtures/initial_datasets.json
 python manage.py runserver
 ```
 
@@ -65,14 +64,16 @@ The frontend dev server starts on **http://localhost:5173**.
 ProteoSurviver/
 ├── backend/
 │   ├── config/          Django settings (base / development / production)
-│   ├── api/             API entry-point urls & shared utilities
-│   ├── game/            Models (Level, GameSession, StationRun, Score), views, services
-│   └── data/            Synthetic dataset generators, fixtures
+│   ├── game/            Model (StationRun), views, serializers, station simulators
+│   └── data/            Reference datasets (e.g. ParameterSet_001.tsv)
 ├── frontend/
 │   └── src/
-│       ├── api/         Axios client (station & game endpoints)
-│       ├── screens/     Intro, WorldMap, StationView, ParametrizationView, StationResults
-│       └── store/       Zustand state (gameSlice.js)
+│       ├── api/         Axios client (client.js)
+│       ├── assets/      Station config (stations.json, stationConfig.js)
+│       ├── screens/     Intro, WorldMap, MapSetup, StationView,
+│       │                ParametrizationView, StationResults
+│       ├── store/       Zustand state (gameSlice.js)
+│       └── styles/      Global CSS
 └── Dockerfile
 ```
 
@@ -80,11 +81,9 @@ ProteoSurviver/
 
 ## API Endpoints
 
-| Method | Endpoint                          | Description                               |
-|--------|-----------------------------------|-------------------------------------------|
-| POST   | `TODO`                            | Run a proteomics station with parameters  |
-| POST   | `/api/sessions/`                  | Start a new game session                  |
-| GET    | `/api/leaderboard/`               | Top 50 scores                             |
+| Method | Endpoint                            | Description                              |
+|--------|-------------------------------------|------------------------------------------|
+| POST   | `/api/stations/<station_id>/run/`   | Run a proteomics station with parameters |
 
 ---
 
@@ -92,30 +91,40 @@ ProteoSurviver/
 
 1. The **Intro** screen introduces the scenario: an infected cell sample needs to
    be analysed.
-2. The **World Map** lists the five lab stations. Completed stations are marked.
-3. The player clicks a station to read its **description** and **objective**.
+2. The **World Map** shows a 2D canvas lab with a player character the user can
+   move using arrow keys or WASD.  Station tiles are highlighted; completed
+   stations display a green "OK" badge.
+3. The player walks up to (or clicks) a station tile to open the **Station** screen
+   with a description and objective.
 4. Clicking *Configure & Run* opens the **Parametrization** screen where
    station-specific settings are chosen (enzyme, acquisition mode, FDR threshold,
    etc.).
 5. Parameters are sent to the backend which **simulates** realistic lab results.
 6. The **Results** screen shows a summary, key metrics, and a recommendation.
 7. The player confirms results and returns to the World Map to continue.
-8. After completing all stations the player writes a report in the **Veit**
+8. After completing all stations the player hands in their report at the **Veit**
    station, which evaluates the quality of the findings and closes the experiment.
 
 ---
 
 ## Lab Stations
 
-TODO:
+Station definitions live in `frontend/src/assets/stations.json`; the backend
+reads the same file at startup via `STATIONS_CONFIG`.
 
-| Station ID      | Name                | Description                                              |
-|-----------------|---------------------|----------------------------------------------------------|
-| `sample_prep`   | Sample Preparation  | Lysis, reduction, alkylation, and tryptic digestion      |
-| `mass_spec`     | Mass Spectrometer   | DDA / DIA acquisition with configurable gradient & resolution |
-| `search_setup`  | Search Engine Setup | Database search with enzyme, missed cleavages, and FDR   |
-| `data_analysis` | Data Analysis       | Normalisation, statistical testing, fold-change analysis |
-| `veit`          | Veit                | Supervisor who reviews the final written report          |
+| Station ID                  | Name                        | Description                                                       |
+|-----------------------------|-----------------------------|-------------------------------------------------------------------|
+| `sample_prep`               | Sample Preparation          | Prepare infected and control samples for mass spectrometry        |
+| `mass_spec`                 | Mass Spectrometer           | Run samples on the mass spectrometer (DDA acquisition)            |
+| `spectral_search`           | Spectral Search Station     | Match spectra against a protein sequence database                 |
+| `filtering`                 | Filtering Station           | Remove low-confidence identifications and contaminants            |
+| `transform`                 | Transform Station           | Log-transform intensity values to stabilize variance              |
+| `normalize`                 | Normalize Station           | Correct systematic intensity shifts between samples               |
+| `imputer`                   | Imputer Station             | Handle missing values from low abundance / stochastic sampling    |
+| `multiple_testing_corrector`| Multiple Testing Corrector  | Control false discoveries across many statistical tests           |
+| `the_cutter`                | The Cutter                  | Set fold-change and FDR cutoffs for the final candidate list      |
+| `statistical_analysis`      | Statistical Analysis        | Compare conditions and identify significantly regulated proteins  |
+| `veit`                      | Veit                        | Supervisor who reviews the final written report                   |
 
 ---
 
