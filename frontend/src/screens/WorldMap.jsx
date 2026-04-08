@@ -34,25 +34,19 @@ export default function WorldMap() {
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
 
+    function drawScene() {
+      renderWorld(context, player, completedSet);
+    }
+
     function fitCanvas() {
       fitCanvasToViewport(canvas);
+      drawScene();
     }
 
     fitCanvas();
     window.addEventListener('resize', fitCanvas);
 
-    let rafId;
-
-    function drawScene() {
-      renderWorld(context, player, completedSet);
-
-      rafId = window.requestAnimationFrame(drawScene);
-    }
-
-    drawScene();
-
     return () => {
-      window.cancelAnimationFrame(rafId);
       window.removeEventListener('resize', fitCanvas);
     };
   }, [completedSet, player]);
