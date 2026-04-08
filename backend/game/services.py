@@ -2,7 +2,6 @@
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 import random
-from django.utils import timezone
 from .models import StationRun
 
 
