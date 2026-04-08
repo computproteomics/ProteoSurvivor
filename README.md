@@ -4,7 +4,7 @@ A browser-based proteomics education game where players step into the role of a
 computational proteomics researcher.  
 Guide samples through a full lab workflow — from sample preparation through mass
 spectrometry, database search, and data analysis — then report your findings to
-your supervisor Veit.
+your supervisor.
 
 Built with **React + Vite** (frontend) and **Django + Django REST Framework** (backend).
 
@@ -82,11 +82,8 @@ ProteoSurviver/
 
 | Method | Endpoint                          | Description                               |
 |--------|-----------------------------------|-------------------------------------------|
-| POST   | `/api/stations/{id}/run/`         | Run a proteomics station with parameters  |
-| GET    | `/api/levels/`                    | List active challenge levels              |
-| GET    | `/api/levels/{id}/dataset/`       | Fetch a synthetic dataset for a level     |
+| POST   | `TODO`                            | Run a proteomics station with parameters  |
 | POST   | `/api/sessions/`                  | Start a new game session                  |
-| POST   | `/api/sessions/{id}/submit/`      | Submit an answer → receive score          |
 | GET    | `/api/leaderboard/`               | Top 50 scores                             |
 
 ---
@@ -95,7 +92,7 @@ ProteoSurviver/
 
 1. The **Intro** screen introduces the scenario: an infected cell sample needs to
    be analysed.
-2. The **World Map** lists the five lab stations. Completed stations are marked ✅.
+2. The **World Map** lists the five lab stations. Completed stations are marked.
 3. The player clicks a station to read its **description** and **objective**.
 4. Clicking *Configure & Run* opens the **Parametrization** screen where
    station-specific settings are chosen (enzyme, acquisition mode, FDR threshold,
@@ -109,6 +106,8 @@ ProteoSurviver/
 ---
 
 ## Lab Stations
+
+TODO:
 
 | Station ID      | Name                | Description                                              |
 |-----------------|---------------------|----------------------------------------------------------|
