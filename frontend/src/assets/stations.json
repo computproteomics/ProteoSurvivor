@@ -1,0 +1,263 @@
+{
+  "stations": {
+    "sample_prep": {
+      "id": "sample_prep",
+      "title": "Sample Preparation",
+      "description": "Prepare the infected and control samples for mass spectrometry."
+    },
+
+    "mass_spec": {
+      "id": "mass_spec",
+      "title": "Mass Spectrometer",
+      "description": "Run the samples on the mass spectrometer. Acquisition method: DDA."
+    },
+
+    "spectral_search": {
+      "id": "spectral_search",
+      "title": "Spectral Search Station",
+      "description": "Identify peptides by matching spectra against a protein sequence database.",
+      "parameters": [
+        {
+          "id": "tool",
+          "label": "Search Tool",
+          "type": "select",
+          "options": ["fraqpipe", "maxquant"],
+          "optionLabels": {
+            "fraqpipe": "FraqPipe",
+            "maxquant": "MaxQuant"
+          },
+          "defaultValue": "fraqpipe"
+        },
+        {
+          "id": "match_between_runs",
+          "label": "Match Between Runs",
+          "type": "select",
+          "options": ["true", "false"],
+          "defaultValue": "false"
+        },
+        {
+          "id": "precursor_mass_tolerance",
+          "label": "Precursor Mass Tolerance (ppm)",
+          "type": "select",
+          "options": ["5", "10", "20"],
+          "optionLabels": {
+            "5": "5 ppm",
+            "10": "10 ppm",
+            "20": "20 ppm"
+          },
+          "defaultValue": "10"
+        },
+        {
+          "id": "fragment_tolerance",
+          "label": "Fragment Mass Tolerance",
+          "type": "select",
+          "options": ["0.01da", "0.02da", "0.03da"],
+          "optionLabels": {
+            "0.01da": "0.01 Da",
+            "0.02da": "0.02 Da",
+            "0.03da": "0.03 Da"
+            },
+          "defaultValue": "0.02da"
+        },
+        {
+          "id": "enzyme",
+          "label": "Enzyme",
+          "type": "select",
+          "options": ["trypsin", "trypsin_p"],
+          "optionLabels": {
+            "trypsin": "Trypsin",
+            "trypsin_p": "Trypsin/P"
+          },
+          "defaultValue": "trypsin"
+        },
+        {
+          "id": "missed_cleavages",
+          "label": "Missed Cleavages",
+          "type": "select",
+          "options": ["1", "2"],
+          "defaultValue": "2"
+        },
+        {
+          "id": "min_peptide_length",
+          "label": "Minimum Peptide Length",
+          "type": "select",
+          "options": ["5", "7"],
+          "defaultValue": "7"
+        },
+        {
+          "id": "max_peptide_length",
+          "label": "Maximum Peptide Length",
+          "type": "select",
+          "options": ["27", "35", "40", "50"],
+          "defaultValue": "35"
+        }
+      ],
+      "fixedParameters": {
+        "precursor_charge": "1-4",
+        "static_modifications": ["Carbamidomethyl (C)"],
+        "variable_modifications": ["Oxidation (M)", "Acetyl (protein N-term)"]
+      }
+    },
+    "filtering": {
+      "id": "filtering",
+      "title": "Filtering Station",
+      "description": "Filter identifications to remove low-confidence or contaminant entries.",
+      "parameters": [
+        {
+          "id": "remove_contaminants",
+          "label": "Remove Contaminants",
+          "type": "select",
+          "options": ["yes", "no"],
+          "defaultValue": "yes"
+        },
+        {
+          "id": "remove_missing_proteins",
+          "label": "Remove Missing Proteins",
+          "type": "select",
+          "options": ["0", "1", "2", "3", "4", "5", "6"],
+          "defaultValue": "0"
+        }
+      ]
+    },
+    "transform": {
+      "id": "transform",
+      "title": "Transform Station",
+      "description": "Transform intensity values to stabilize variance before comparison.",
+      "parameters": [
+        {
+          "id": "transform_method",
+          "label": "Transform Method",
+          "type": "select",
+          "options": ["none", "ln", "log2"],
+          "optionLabels": {
+            "none": "No log transformation",
+            "ln": "Natural logarithm (ln)",
+            "log2": "Log2"
+          },
+          "defaultValue": "none"
+        }
+      ]
+    },
+    "normalize": {
+      "id": "normalize",
+      "title": "Normalize Station",
+      "description": "Correct systematic intensity shifts between samples.",
+      "parameters": [
+        {
+          "id": "normalization",
+          "label": "Normalization Method",
+          "type": "select",
+          "options": ["none", "median", "total_intensity", "reference_sample", "vsn", "quantile", "zscore"],
+          "optionLabels": {
+            "none": "No normalization and no scaling",
+            "median": "Median centering per sampling",
+            "total_intensity": "Total intensity normalization",
+            "reference_sample": "Reference sample normalization (control)",
+            "vsn": "Variance stabilizing normalization",
+            "quantile": "Quantile normalization",
+            "zscore": "Standardization (Z-scores)"
+          },
+          "defaultValue": "none"
+        }
+      ]
+    },
+    "imputer": {
+      "id": "imputer",
+      "title": "Imputer Station",
+      "description": "Handle missing values introduced by low abundance and stochastic sampling.",
+      "parameters": [
+        {
+          "id": "imputation_method",
+          "label": "Imputation Method",
+          "type": "select",
+          "options": ["none", "knn", "regression", "randomforest", "bayesian", "minprob", "median", "mean"],
+          "optionLabels": {
+            "none": "No imputation",
+            "knn": "KNN (k-nearest neighbors)",
+            "regression": "Regression",
+            "randomforest": "Random Forest",
+            "bayesian": "Bayesian",
+            "minprob": "MinProb",
+            "median": "Median",
+            "mean": "Mean"
+          },
+          "defaultValue": "none"
+        }
+      ]
+    },
+    "multiple_testing_corrector": {
+      "id": "multiple_testing_corrector",
+      "title": "Multiple Testing Corrector",
+      "description": "Control false discoveries after running many statistical tests.",
+      "parameters": [
+        {
+          "id": "correction_method",
+          "label": "Multiple Testing Correction",
+          "type": "select",
+          "options": ["none", "bh", "bt", "storey", "bonferroni", "holm"],
+          "optionLabels": {
+            "none": "No correction",
+            "bh": "Benjamini-Hochberg",
+            "bt": "Benjamini-Tekutieli",
+            "storey": "Storey's q-value",
+            "bonferroni": "Bonferroni",
+            "holm": "Holm-Bonferroni"
+          },
+          "defaultValue": "none"
+        }
+      ]
+    },
+    "the_cutter": {
+      "id": "the_cutter",
+      "title": "The Cutter",
+      "description": "Set fold-change and confidence cutoffs to define your final candidate list.",
+      "parameters": [
+        {
+          "id": "fold_change_cutoff",
+          "label": "Fold-Change Cutoff (log2 scale)",
+          "type": "slider",
+          "min": 0,
+          "max": 7,
+          "step": 1,
+          "defaultValue": 1
+        },
+        {
+          "id": "pvalue_cutoff",
+          "label": "Adjusted p-value (FDR) Cutoff",
+          "type": "slider",
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "defaultValue": 0.05
+        }
+      ]
+    },
+    "statistical_analysis": {
+      "id": "statistical_analysis",
+      "title": "Statistical Analysis",
+      "description": "Compare conditions and identify significantly regulated proteins and pathways.",
+      "parameters": [
+        {
+          "id": "statistical_test",
+          "label": "Statistical Test",
+          "type": "select",
+          "options": ["none", "polystest", "student", "welch", "limma", "anova"],
+          "optionLabels": {
+            "none": "No test",
+            "polystest": "PolySTest",
+            "student": "T-test (Student)",
+            "welch": "Welch t-test",
+            "limma": "Limma",
+            "anova": "ANOVA"
+          },
+          "defaultValue": "none"
+        }
+      ]
+    },
+    "veit": {
+      "id": "veit",
+      "title": "Veit",
+      "description": "Hand in your comprehensive report with findings and interpretations."
+    }
+  }
+}
