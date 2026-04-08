@@ -1,20 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
+import { getStationTitle } from '../assets/stationConfig';
 import styles from './StationResults.module.css';
-
-const STATION_TITLES = {
-  sample_prep: 'Sample Preparation',
-  mass_spec: 'Mass Spectrometer',
-  spectral_search: 'Spectral Search Station',
-  filtering: 'Filtering Station',
-  transform: 'Transform Station',
-  normalize: 'Normalize Station',
-  imputer: 'Imputer Station',
-  multiple_testing_corrector: 'Multiple Testing Corrector',
-  the_cutter: 'The Cutter',
-  statistical_analysis: 'Statistical Analysis',
-  veit: 'Veit',
-};
 
 // Fields that should never be shown in the "Details" table
 const HIDDEN_KEYS = new Set(['summary', 'recommendation']);
@@ -24,7 +11,7 @@ export default function StationResults() {
   const navigate = useNavigate();
   const { stationResults, markStationComplete } = useGameStore();
 
-  const title = STATION_TITLES[stationId] ?? 'Station';
+  const title = getStationTitle(stationId);
 
   function handleBackToMap() {
     markStationComplete(stationId);
