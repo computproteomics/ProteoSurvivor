@@ -1,6 +1,7 @@
 """
 Base Django settings shared across all environments.
 """
+import json
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -82,3 +83,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+STATIONS_CONFIG_PATH = BASE_DIR.parent / "frontend" / "src" / "assets" / "stations.json"
+
+with open(STATIONS_CONFIG_PATH) as f:
+    STATIONS_CONFIG = json.load(f)
