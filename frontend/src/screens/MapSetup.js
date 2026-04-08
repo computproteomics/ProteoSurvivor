@@ -1,3 +1,5 @@
+import { STATION_IDS, getStationTitle } from '../assets/stationConfig';
+
 // Map Configuration
 export const TILE = 48;
 export const COLS = 22;
@@ -42,26 +44,41 @@ export const MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-// Station definitions with position on map and color
-export const STATIONS = [
-  { id: 'normalize', label: 'Normalize Station', col: 4, row: 3, color: '#58c87a' },
-  { id: 'mass_spec', label: 'Mass Spectrometer', col: 8, row: 3, color: '#5ad4f8' },
-  { id: 'imputer', label: 'Imputer Station', col: 12, row: 3, color: '#b87af8' },
-  { id: 'sample_prep', label: 'Sample Preparation', col: 16, row: 3, color: '#f8b85a' },
-  { id: 'statistical_analysis', label: 'Statistical Analysis', col: 4, row: 6, color: '#f86a6a' },
-  { id: 'filtering', label: 'Filtering Station', col: 8, row: 6, color: '#f89d5a' },
-  { id: 'spectral_search', label: 'Spectral Search Station', col: 12, row: 6, color: '#7dd3fc' },
-  {
-    id: 'multiple_testing_corrector',
-    label: 'Multiple Testing Corrector',
-    col: 16,
-    row: 6,
-    color: '#c4b5fd',
-  },
-  { id: 'the_cutter', label: 'The Cutter', col: 4, row: 10, color: '#fca5a5' },
-  { id: 'transform', label: 'Transform Station', col: 8, row: 10, color: '#86efac' },
-  { id: 'veit', label: 'Veit', col: 12, row: 10, color: '#fde68a' },
+const STATION_POSITIONS = [
+  { col: 16, row: 3 },
+  { col: 8, row: 3 },
+  { col: 12, row: 6 },
+  { col: 8, row: 6 },
+  { col: 8, row: 10 },
+  { col: 4, row: 3 },
+  { col: 12, row: 3 },
+  { col: 16, row: 6 },
+  { col: 4, row: 10 },
+  { col: 4, row: 6 },
+  { col: 12, row: 10 },
 ];
+
+const STATION_COLORS = {
+  sample_prep: '#f8b85a',
+  mass_spec: '#5ad4f8',
+  spectral_search: '#7dd3fc',
+  filtering: '#f89d5a',
+  transform: '#86efac',
+  normalize: '#58c87a',
+  imputer: '#b87af8',
+  multiple_testing_corrector: '#c4b5fd',
+  the_cutter: '#fca5a5',
+  statistical_analysis: '#f86a6a',
+  veit: '#fde68a',
+};
+
+// Station definitions with position on map and color
+export const STATIONS = STATION_IDS.map((id, index) => ({
+  id,
+  label: getStationTitle(id),
+  ...STATION_POSITIONS[index],
+  color: STATION_COLORS[id],
+}));
 
 // Movement keys and their corresponding column/row deltas
 export const MOVE_KEYS = {
