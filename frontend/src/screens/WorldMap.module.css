@@ -1,46 +1,127 @@
 .page {
   min-height: 100vh;
-  padding: 2rem;
-  background: #f4f6f8;
-  font-family: Arial, sans-serif;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 20% 20%, #d9e7f5 0%, transparent 28%),
+    radial-gradient(circle at 80% 10%, #c9dcf0 0%, transparent 24%),
+    linear-gradient(160deg, #edf4fa 0%, #d9e8f5 100%);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
+  color: #1c2d40;
 }
 
 .title {
-  margin-bottom: 2rem;
-  font-size: 2rem;
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  letter-spacing: 0.03em;
 }
 
-.stationList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.headerRow {
   display: flex;
-  flex-direction: column;
+  width: min(1140px, 100%);
+  justify-content: space-between;
+  align-items: baseline;
   gap: 1rem;
-  width: min(480px, 92vw);
+  margin-bottom: 1rem;
+}
+
+.help {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #40546a;
+}
+
+.canvasFrame {
+  width: min(1140px, 100%);
+  display: flex;
+  justify-content: center;
+  padding: 0.8rem;
+  border-radius: 16px;
+  border: 1px solid #9bb2c9;
+  background: linear-gradient(180deg, #f7fbff 0%, #e8f1f9 100%);
+  box-shadow: 0 20px 45px rgba(32, 58, 86, 0.18);
+}
+
+.canvas {
+  border: 1px solid #7d98b5;
+  border-radius: 10px;
+  image-rendering: crisp-edges;
+  cursor: crosshair;
+}
+
+.statusRow {
+  width: min(1140px, 100%);
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.statusText {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(247, 251, 255, 0.75);
+  border: 1px solid #b6c9db;
+  font-size: 0.9rem;
+}
+
+.legend {
+  margin-top: 1rem;
+  width: min(1140px, 100%);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem;
 }
 
 .stationButton {
   width: 100%;
-  padding: 1rem 1.5rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  background: white;
-  font-size: 1rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #b8c8d8;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.95rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
   text-align: left;
-  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .stationButton:hover {
-  background: #f1f5f9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(25, 46, 70, 0.16);
+  border-color: #8ea8c0;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(20, 30, 40, 0.3);
+  flex-shrink: 0;
 }
 
 .stationButton.done {
-  color: #64748b;
-  border-color: #94a3b8;
+  color: #4a5e73;
+  border-color: #88a9a2;
+  background: linear-gradient(180deg, rgba(234, 247, 238, 0.95) 0%, rgba(225, 242, 232, 0.95) 100%);
+}
+
+@media (max-width: 860px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .headerRow {
+  flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .statusRow {
+    flex-direction: column;
+  }
 }
