@@ -4,7 +4,6 @@ import useGameStore from '../store/gameSlice';
 import {
   WIDTH,
   HEIGHT,
-  PLAYER_START,
   STATIONS,
   MOVE_KEYS,
   canMove,
