@@ -3,22 +3,23 @@ import useGameStore from '../store/gameSlice';
 import { getStationTitle } from '../assets/stationConfig';
 import styles from './StationResults.module.css';
 
-// Fields that should never be shown in the "Details" table
-const HIDDEN_KEYS = new Set(['summary', 'recommendation']);
-
 export default function StationResults() {
+  // Read the current station from the route.
   const { stationId } = useParams();
   const navigate = useNavigate();
+  // Pull the latest station output and completion action from shared state.
   const { stationResults, markStationComplete } = useGameStore();
 
   const title = getStationTitle(stationId);
 
   function handleBackToMap() {
+    // Mark the station done before returning to the map.
     markStationComplete(stationId);
     navigate('/world');
   }
 
   function handleRetry() {
+    // Let the user adjust the same station parameters again.
     navigate(`/station/${stationId}/params`);
   }
 
@@ -50,6 +51,7 @@ export default function StationResults() {
 
         {summary && (
           <div className={styles.summaryBox}>
+            {/* Short summary shown above the raw result fields. */}
             <p className={styles.summaryText}>{summary}</p>
           </div>
         )}
@@ -57,14 +59,13 @@ export default function StationResults() {
         {Object.keys(detailFields).length > 0 && (
           <table className={styles.table}>
             <tbody>
-              {Object.entries(detailFields)
-                .filter(([key]) => !HIDDEN_KEYS.has(key))
-                .map(([key, value]) => (
-                  <tr key={key} className={styles.row}>
-                    <td className={styles.key}>{formatKey(key)}</td>
-                    <td className={styles.value}>{formatValue(value)}</td>
-                  </tr>
-                ))}
+              {/* Render every remaining field as a simple key/value row. */}
+              {Object.entries(detailFields).map(([key, value]) => (
+                <tr key={key} className={styles.row}>
+                  <td className={styles.key}>{formatKey(key)}</td>
+                  <td className={styles.value}>{formatValue(value)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
