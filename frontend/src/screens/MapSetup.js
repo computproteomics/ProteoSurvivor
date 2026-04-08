@@ -42,7 +42,7 @@ export const MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-// Stations, with position on map and color
+// Station definitions with position on map and color
 export const STATIONS = [
   { id: 'sample_prep', label: 'Sample Preparation', col: 3, row: 3, color: '#58c87a' },
   { id: 'mass_spec', label: 'Mass Spectrometer', col: 8, row: 3, color: '#5ad4f8' },
