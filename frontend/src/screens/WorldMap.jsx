@@ -23,6 +23,10 @@ export default function WorldMap() {
   const canvasRef = useRef(null);
 
   const completedSet = useMemo(() => new Set(completedStations), [completedStations]);
+  const mapOrderedStations = useMemo(
+    () => [...STATIONS].sort((a, b) => a.row - b.row || a.col - b.col),
+    []
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -114,7 +118,7 @@ export default function WorldMap() {
 
           <div className={styles.legendSpacer} />
 
-          {STATIONS.map((station) => {
+          {mapOrderedStations.map((station) => {
             const done = completedSet.has(station.id);
             return (
               <button

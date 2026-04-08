@@ -17,17 +17,46 @@ const STATION_CONTENT = {
       'Run the samples on the mass spectrometer and choose an acquisition method.',
     objective: 'Choose between DDA and DIA and start the acquisition.',
   },
-  search_setup: {
-    title: 'Search Engine Setup',
-    description: 'Configure the search engine settings for your acquired data.',
-    objective:
-      'Choose enzyme, missed cleavages, and peptide length range before processing.',
+  spectral_search: {
+    title: 'Spectral Search Station',
+    description: 'Identify peptides by matching spectra against a protein sequence database.',
+    objective: 'Set search constraints and run peptide-spectrum matching.',
   },
-  data_analysis: {
-    title: 'Data Analysis',
+  filtering: {
+    title: 'Filtering Station',
+    description: 'Filter identifications to remove low-confidence or contaminant entries.',
+    objective: 'Apply quality thresholds and keep only robust identifications.',
+  },
+  transform: {
+    title: 'Transform Station',
+    description: 'Transform intensity values to stabilize variance before comparison.',
+    objective: 'Choose a transformation and prepare values for downstream modeling.',
+  },
+  normalize: {
+    title: 'Normalize Station',
+    description: 'Correct systematic intensity shifts between samples.',
+    objective: 'Apply normalization to improve cross-sample comparability.',
+  },
+  imputer: {
+    title: 'Imputer Station',
+    description: 'Handle missing values introduced by low abundance and stochastic sampling.',
+    objective: 'Select a missing-value strategy and impute the matrix.',
+  },
+  multiple_testing_corrector: {
+    title: 'Multiple Testing Corrector',
+    description: 'Control false discoveries after running many statistical tests.',
+    objective: 'Apply correction and choose a threshold for significance calls.',
+  },
+  the_cutter: {
+    title: 'The Cutter',
+    description: 'Set fold-change and confidence cutoffs to define your final candidate list.',
+    objective: 'Cut the result space to a biologically interpretable shortlist.',
+  },
+  statistical_analysis: {
+    title: 'Statistical Analysis',
     description:
-      'Inspect results, identify regulated proteins, and determine which pathways are affected.',
-    objective: 'Interpret the data and prepare conclusions for Veit.',
+      'Compare conditions and identify significantly regulated proteins and pathways.',
+    objective: 'Run the analysis and summarize the most relevant biological signals.',
   },
   veit: {
     title: 'Veit',

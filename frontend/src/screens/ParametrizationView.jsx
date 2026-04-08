@@ -71,7 +71,7 @@ const PARAM_SCHEMAS = {
     },
   ],
 
-  search_setup: [
+  spectral_search: [
     {
       id: 'database',
       label: 'Protein Database',
@@ -122,7 +122,7 @@ const PARAM_SCHEMAS = {
     },
   ],
 
-  data_analysis: [
+  statistical_analysis: [
     {
       id: 'normalization',
       label: 'Normalisation Method',
@@ -153,6 +153,91 @@ const PARAM_SCHEMAS = {
     },
   ],
 
+  filtering: [
+    {
+      id: 'min_confidence_score',
+      label: 'Minimum Confidence Score',
+      type: 'number',
+      min: 0,
+      max: 100,
+      step: 1,
+      defaultValue: 70,
+    },
+    {
+      id: 'remove_contaminants',
+      label: 'Remove Contaminants',
+      type: 'select',
+      options: ['yes', 'no'],
+      defaultValue: 'yes',
+    },
+  ],
+
+  transform: [
+    {
+      id: 'transform_method',
+      label: 'Transform Method',
+      type: 'select',
+      options: ['log2', 'log10', 'none'],
+      defaultValue: 'log2',
+    },
+  ],
+
+  normalize: [
+    {
+      id: 'normalization',
+      label: 'Normalisation Method',
+      type: 'select',
+      options: ['median', 'quantile', 'none'],
+      defaultValue: 'median',
+    },
+  ],
+
+  imputer: [
+    {
+      id: 'imputation_method',
+      label: 'Imputation Method',
+      type: 'select',
+      options: ['knn', 'minprob', 'zero_fill'],
+      defaultValue: 'knn',
+    },
+  ],
+
+  multiple_testing_corrector: [
+    {
+      id: 'correction_method',
+      label: 'Correction Method',
+      type: 'select',
+      options: ['Benjamini-Hochberg', 'Bonferroni', 'Holm'],
+      defaultValue: 'Benjamini-Hochberg',
+    },
+    {
+      id: 'alpha',
+      label: 'Significance Alpha',
+      type: 'select',
+      options: ['0.01', '0.05', '0.10'],
+      defaultValue: '0.05',
+    },
+  ],
+
+  the_cutter: [
+    {
+      id: 'fold_change_threshold',
+      label: 'Fold-change Threshold',
+      type: 'select',
+      options: ['1.5', '2.0', '3.0'],
+      defaultValue: '2.0',
+    },
+    {
+      id: 'keep_top_n',
+      label: 'Keep Top N Hits',
+      type: 'number',
+      min: 10,
+      max: 500,
+      step: 10,
+      defaultValue: 100,
+    },
+  ],
+
   veit: [
     {
       id: 'report_text',
@@ -168,8 +253,14 @@ const PARAM_SCHEMAS = {
 const STATION_TITLES = {
   sample_prep: 'Sample Preparation',
   mass_spec: 'Mass Spectrometer',
-  search_setup: 'Search Engine Setup',
-  data_analysis: 'Data Analysis',
+  spectral_search: 'Spectral Search Station',
+  filtering: 'Filtering Station',
+  transform: 'Transform Station',
+  normalize: 'Normalize Station',
+  imputer: 'Imputer Station',
+  multiple_testing_corrector: 'Multiple Testing Corrector',
+  the_cutter: 'The Cutter',
+  statistical_analysis: 'Statistical Analysis',
   veit: 'Veit',
 };
 
