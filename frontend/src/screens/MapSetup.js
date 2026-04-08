@@ -48,7 +48,7 @@ export const STATIONS = [
   { id: 'mass_spec', label: 'Mass Spectrometer', col: 8, row: 3, color: '#5ad4f8' },
   { id: 'search_setup', label: 'Search Engine Setup', col: 13, row: 3, color: '#b87af8' },
   { id: 'data_analysis', label: 'Data Analysis', col: 13, row: 10, color: '#f86a6a' },
-  { id: 'Veit', label: 'Veit', col: 18, row: 10, color: '#f8b85a' },
+  { id: 'veit', label: 'Veit', col: 18, row: 10, color: '#f8b85a' },
 ];
 
 // Movement keys and their corresponding column/row deltas

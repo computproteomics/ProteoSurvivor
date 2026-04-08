@@ -6,6 +6,7 @@ const useGameStore = create((set, get) => ({
   sessionId: null,
   stationParams: {},
   stationResults: null,
+  mapPlayerPosition: { col: 2, row: 2 },
 
   // Generic data-analysis game state (kept for future levels)
   levels: [],
@@ -30,6 +31,13 @@ const useGameStore = create((set, get) => ({
       stationParams: { ...state.stationParams, [stationId]: params },
     })),
   setStationResults: (results) => set({ stationResults: results }),
+  setMapPlayerPosition: (nextPosition) =>
+    set((state) => ({
+      mapPlayerPosition:
+        typeof nextPosition === 'function'
+          ? nextPosition(state.mapPlayerPosition)
+          : nextPosition,
+    })),
 
   // Generic actions
   setLevels: (levels) => set({ levels }),
@@ -54,6 +62,7 @@ const useGameStore = create((set, get) => ({
       sessionId: null,
       stationParams: {},
       stationResults: null,
+      mapPlayerPosition: { col: 2, row: 2 },
       currentLevel: null,
       currentSession: null,
       dataset: null,

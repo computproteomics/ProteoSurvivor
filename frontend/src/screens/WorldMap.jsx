@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import {
@@ -19,8 +19,9 @@ import styles from './WorldMap.module.css';
 export default function WorldMap() {
   const navigate = useNavigate();
   const completedStations = useGameStore((s) => s.completedStations);
+  const player = useGameStore((s) => s.mapPlayerPosition ?? PLAYER_START);
+  const setMapPlayerPosition = useGameStore((s) => s.setMapPlayerPosition);
   const canvasRef = useRef(null);
-  const [player, setPlayer] = useState(PLAYER_START);
 
   const completedSet = useMemo(() => new Set(completedStations), [completedStations]);
 
@@ -72,7 +73,7 @@ export default function WorldMap() {
 
       event.preventDefault();
 
-      setPlayer((prev) => {
+      setMapPlayerPosition((prev) => {
         const nextCol = prev.col + delta[0];
         const nextRow = prev.row + delta[1];
         return canMove(nextCol, nextRow) ? { col: nextCol, row: nextRow } : prev;
@@ -96,7 +97,7 @@ export default function WorldMap() {
     }
 
     if (canMove(col, row)) {
-      setPlayer({ col, row });
+      setMapPlayerPosition({ col, row });
     }
   }
 
