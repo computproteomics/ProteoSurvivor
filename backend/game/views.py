@@ -12,6 +12,8 @@ from .services import run_station
 @api_view(["POST"])
 def run_station_view(request, station_id):
     """POST /api/stations/<station_id>/run/ — run a proteomics station with given parameters."""
+
+    print(f"Received request to run station '{station_id}' with data: {request.data}")
     if station_id not in settings.STATIONS_CONFIG:
         return Response(
             {"detail": f"Unknown station '{station_id}'."},
