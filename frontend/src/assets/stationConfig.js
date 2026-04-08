@@ -7,7 +7,7 @@ const DEFAULT_STATION_CONFIG = {
   parameters: [],
 };
 
-export const STATION_BY_ID = stationData?.stations ?? {};
+export const STATION_BY_ID = stationData ?? {};
 export const STATION_IDS = Object.keys(STATION_BY_ID);
 
 export function getStationConfig(stationId) {
