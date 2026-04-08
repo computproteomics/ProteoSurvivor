@@ -1,11 +1,14 @@
+// Map Configuration
 export const TILE = 48;
 export const COLS = 22;
 export const ROWS = 16;
 export const WIDTH = COLS * TILE;
 export const HEIGHT = ROWS * TILE;
 
+// Player start position
 export const PLAYER_START = { col: 2, row: 2 };
 
+// Colors
 export const COLORS = {
   floorA: '#d0dce8',
   floorB: '#c4d4e2',
@@ -19,6 +22,7 @@ export const COLORS = {
   ring: '#f8e45a',
 };
 
+// Map Layout
 export const MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
@@ -38,14 +42,16 @@ export const MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
+// Stations, with position on map and color
 export const STATIONS = [
   { id: 'sample_prep', label: 'Sample Preparation', col: 3, row: 3, color: '#58c87a' },
-  { id: 'mass_spec', label: 'LC/MS-MS', col: 8, row: 3, color: '#5ad4f8' },
-  { id: 'search_setup', label: 'Database Search', col: 13, row: 3, color: '#b87af8' },
-  { id: 'data_analysis', label: 'Statistical Testing', col: 13, row: 10, color: '#f86a6a' },
-  { id: 'veit', label: 'Veit', col: 18, row: 10, color: '#f8b85a' },
+  { id: 'mass_spec', label: 'Mass Spectrometer', col: 8, row: 3, color: '#5ad4f8' },
+  { id: 'search_setup', label: 'Search Engine Setup', col: 13, row: 3, color: '#b87af8' },
+  { id: 'data_analysis', label: 'Data Analysis', col: 13, row: 10, color: '#f86a6a' },
+  { id: 'Veit', label: 'Veit', col: 18, row: 10, color: '#f8b85a' },
 ];
 
+// Movement keys and their corresponding column/row deltas
 export const MOVE_KEYS = {
   arrowup: [0, -1],
   w: [0, -1],
@@ -57,12 +63,14 @@ export const MOVE_KEYS = {
   d: [1, 0],
 };
 
+// Returns true only for in-bounds, walkable tiles (not walls or benches).
 export function canMove(col, row) {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
   const tile = MAP[row][col];
   return tile !== 1 && tile !== 3;
 }
 
+// Uses Manhattan distance so a station is reachable from adjacent tiles.
 export function getNearbyStation(playerCol, playerRow) {
   return STATIONS.find((station) => {
     const distance = Math.abs(station.col - playerCol) + Math.abs(station.row - playerRow);
@@ -70,18 +78,22 @@ export function getNearbyStation(playerCol, playerRow) {
   });
 }
 
+// Finds a station exactly on one tile, used for direct click-to-enter.
 export function getStationAtTile(col, row) {
   return STATIONS.find((station) => station.col === col && station.row === row);
 }
 
+// Scales the logical canvas into the viewport while preserving aspect ratio.
 export function fitCanvasToViewport(canvas) {
   const scale = Math.min((window.innerWidth * 0.9) / WIDTH, (window.innerHeight * 0.75) / HEIGHT);
   canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
   canvas.style.height = `${Math.floor(HEIGHT * scale)}px`;
 }
 
+// Converts screen-space pointer coordinates to map tile coordinates.
 export function pointerToTile(canvas, clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
+  // The canvas is visually scaled with CSS, so convert back to logical pixels.
   const scaleX = WIDTH / rect.width;
   const scaleY = HEIGHT / rect.height;
   const x = (clientX - rect.left) * scaleX;
@@ -93,11 +105,13 @@ export function pointerToTile(canvas, clientX, clientY) {
   };
 }
 
+// Draws one tile variant (wall, bench, or floor checker tile).
 function drawTile(context, col, row, tileType) {
   const x = col * TILE;
   const y = row * TILE;
 
   if (tileType === 1) {
+    // Layered rectangles give walls a simple top-light/shadow depth.
     context.fillStyle = COLORS.wallShadow;
     context.fillRect(x, y, TILE, TILE);
     context.fillStyle = COLORS.wall;
@@ -108,6 +122,7 @@ function drawTile(context, col, row, tileType) {
   }
 
   if (tileType === 3) {
+    // Bench tiles are drawn on top of floor so they read as obstacles.
     context.fillStyle = COLORS.floorA;
     context.fillRect(x, y, TILE, TILE);
     context.fillStyle = COLORS.bench;
@@ -121,6 +136,7 @@ function drawTile(context, col, row, tileType) {
   context.fillRect(x, y, TILE, TILE);
 }
 
+// Draws a station marker and completion badge if it has been cleared.
 function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
@@ -139,6 +155,7 @@ function drawStation(context, station, done) {
   }
 }
 
+// Draws the player and a ring around the nearest interactable station.
 function drawPlayer(context, player) {
   const px = player.col * TILE;
   const py = player.row * TILE;
@@ -163,6 +180,7 @@ function drawPlayer(context, player) {
   }
 }
 
+// Renders the whole world in draw order: terrain -> stations -> player.
 export function renderWorld(context, player, completedSet) {
   context.clearRect(0, 0, WIDTH, HEIGHT);
 
