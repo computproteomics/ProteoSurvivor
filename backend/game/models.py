@@ -53,8 +53,14 @@ class StationRun(models.Model):
     STATION_CHOICES = [
         ("sample_prep", "Sample Preparation"),
         ("mass_spec", "Mass Spectrometer"),
-        ("search_setup", "Search Engine Setup"),
-        ("data_analysis", "Data Analysis"),
+        ("spectral_search", "Spectral Search Station"),
+        ("filtering", "Filtering Station"),
+        ("transform", "Transform Station"),
+        ("normalize", "Normalize Station"),
+        ("imputer", "Imputer Station"),
+        ("multiple_testing_corrector", "Multiple Testing Corrector"),
+        ("the_cutter", "The Cutter"),
+        ("statistical_analysis", "Statistical Analysis"),
         ("veit", "Veit"),
     ]
 

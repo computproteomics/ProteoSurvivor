@@ -14,8 +14,14 @@ def run_station(station_id: str, params: dict, player=None) -> StationRun:
     simulators = {
         "sample_prep": _simulate_sample_prep,
         "mass_spec": _simulate_mass_spec,
-        "search_setup": _simulate_search_setup,
-        "data_analysis": _simulate_data_analysis,
+        "spectral_search": _simulate_spectral_search,
+        "filtering": _simulate_filtering,
+        "transform": _simulate_transform,
+        "normalize": _simulate_normalize,
+        "imputer": _simulate_imputer,
+        "multiple_testing_corrector": _simulate_multiple_testing_corrector,
+        "the_cutter": _simulate_the_cutter,
+        "statistical_analysis": _simulate_statistical_analysis,
         "veit": _simulate_veit,
     }
     simulate = simulators.get(station_id, _simulate_default)
@@ -90,7 +96,7 @@ def _simulate_mass_spec(params: dict) -> dict:
     }
 
 
-def _simulate_search_setup(params: dict) -> dict:
+def _simulate_spectral_search(params: dict) -> dict:
     db = params.get("database", "SwissProt")
     enzyme = params.get("enzyme", "trypsin")
     missed = int(params.get("missed_cleavages", 2))
@@ -105,7 +111,7 @@ def _simulate_search_setup(params: dict) -> dict:
 
     return {
         "summary": (
-            f"Search completed against {db} ({db_size:,} entries) "
+            f"Spectral search completed against {db} ({db_size:,} entries) "
             f"with {enzyme}, up to {missed} missed cleavages at {fdr*100:.0f}% FDR."
         ),
         "protein_groups_identified": protein_groups,
@@ -121,7 +127,81 @@ def _simulate_search_setup(params: dict) -> dict:
     }
 
 
-def _simulate_data_analysis(params: dict) -> dict:
+def _simulate_filtering(params: dict) -> dict:
+    confidence = int(params.get("min_confidence_score", 70))
+    contaminants = params.get("remove_contaminants", "yes")
+
+    retained = random.randint(3500, 5200)
+    removed = random.randint(120, 650)
+
+    return {
+        "summary": (
+            f"Filtering completed with minimum confidence {confidence} and "
+            f"contaminant removal set to {contaminants}."
+        ),
+        "entries_retained": retained,
+        "entries_removed": removed,
+        "recommendation": "Proceed to data transform.",
+    }
+
+
+def _simulate_transform(params: dict) -> dict:
+    method = params.get("transform_method", "log2")
+    return {
+        "summary": f"Data transformation completed using {method}.",
+        "skewness_before": round(random.uniform(1.4, 2.9), 2),
+        "skewness_after": round(random.uniform(0.2, 0.8), 2),
+        "recommendation": "Proceed to normalization.",
+    }
+
+
+def _simulate_normalize(params: dict) -> dict:
+    method = params.get("normalization", "median")
+    return {
+        "summary": f"Normalization completed with {method} method.",
+        "cv_before_pct": round(random.uniform(18, 31), 1),
+        "cv_after_pct": round(random.uniform(8, 15), 1),
+        "recommendation": "Proceed to imputation.",
+    }
+
+
+def _simulate_imputer(params: dict) -> dict:
+    method = params.get("imputation_method", "knn")
+    missing_before = random.randint(900, 2600)
+    missing_after = random.randint(0, 40)
+    return {
+        "summary": f"Missing values imputed using {method}.",
+        "missing_values_before": missing_before,
+        "missing_values_after": missing_after,
+        "recommendation": "Proceed to statistical analysis.",
+    }
+
+
+def _simulate_multiple_testing_corrector(params: dict) -> dict:
+    method = params.get("correction_method", "Benjamini-Hochberg")
+    alpha = float(params.get("alpha", 0.05))
+    significant = random.randint(120, 520)
+    return {
+        "summary": (
+            f"Multiple-testing correction completed using {method} at alpha={alpha:.2f}."
+        ),
+        "significant_features": significant,
+        "recommendation": "Proceed to The Cutter.",
+    }
+
+
+def _simulate_the_cutter(params: dict) -> dict:
+    fc = float(params.get("fold_change_threshold", 2.0))
+    top_n = int(params.get("keep_top_n", 100))
+    kept = min(top_n, random.randint(30, 220))
+    return {
+        "summary": f"The Cutter applied fold-change threshold {fc}x.",
+        "candidates_kept": kept,
+        "recommendation": "Proceed to Statistical Analysis.",
+    }
+
+
+def _simulate_statistical_analysis(params: dict) -> dict:
     normalization = params.get("normalization", "median")
     test = params.get("statistical_test", "t-test")
     fdr = float(params.get("fdr_threshold", 0.05))

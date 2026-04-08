@@ -77,7 +77,19 @@ class LeaderboardView(generics.ListAPIView):
     serializer_class = LeaderboardEntrySerializer
 
 
-VALID_STATION_IDS = {"sample_prep", "mass_spec", "search_setup", "data_analysis", "veit"}
+VALID_STATION_IDS = {
+    "sample_prep",
+    "mass_spec",
+    "spectral_search",
+    "filtering",
+    "transform",
+    "normalize",
+    "imputer",
+    "multiple_testing_corrector",
+    "the_cutter",
+    "statistical_analysis",
+    "veit",
+}
 
 
 @api_view(["POST"])
