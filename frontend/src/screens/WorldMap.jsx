@@ -110,39 +110,41 @@ export default function WorldMap() {
         <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
       </div>
 
-      <div className={styles.canvasFrame}>
-        <canvas
-          ref={canvasRef}
-          className={styles.canvas}
-          onClick={handleCanvasClick}
-          role="img"
-          aria-label="2D world map"
-        />
-      </div>
+      <div className={styles.mapContainer}>
+        <div className={styles.legend}>
+          <div className={styles.nearbyStationBox}>
+            <p className={styles.nearbyLabel}>Nearby Station</p>
+            <p className={styles.nearbyValue}>
+              {nearbyStation ? nearbyStation.label : 'None'}
+            </p>
+          </div>
 
-      <div className={styles.statusRow}>
-        <p className={styles.statusText}>
-          Player tile: ({player.col}, {player.row})
-        </p>
-        <p className={styles.statusText}>
-          Nearby station: {nearbyStation ? nearbyStation.label : 'None'}
-        </p>
-      </div>
+          <div className={styles.legendSpacer} />
 
-      <div className={styles.legend}>
-        {STATIONS.map((station) => {
-          const done = completedSet.has(station.id);
-          return (
-            <button
-              key={station.id}
-              className={`${styles.stationButton} ${done ? styles.done : ''}`}
-              onClick={() => navigate(`/station/${station.id}`)}
-            >
-              <span className={styles.swatch} style={{ backgroundColor: station.color }} />
-              <span>{station.label}</span>
-            </button>
-          );
-        })}
+          {STATIONS.map((station) => {
+            const done = completedSet.has(station.id);
+            return (
+              <button
+                key={station.id}
+                className={`${styles.stationButton} ${done ? styles.done : ''}`}
+                onClick={() => navigate(`/station/${station.id}`)}
+              >
+                <span className={styles.swatch} style={{ backgroundColor: station.color }} />
+                <span className={styles.buttonLabel}>{station.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={styles.canvasFrame}>
+          <canvas
+            ref={canvasRef}
+            className={styles.canvas}
+            onClick={handleCanvasClick}
+            role="img"
+            aria-label="2D world map"
+          />
+        </div>
       </div>
     </div>
   );
