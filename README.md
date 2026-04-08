@@ -1,6 +1,11 @@
-# Data Analysis Game
+# ProteoSurviver
 
-A browser-based game that teaches data analysis skills.  
+A browser-based proteomics education game where players step into the role of a
+computational proteomics researcher.  
+Guide samples through a full lab workflow — from sample preparation through mass
+spectrometry, database search, and data analysis — then report your findings to
+your supervisor.
+
 Built with **React + Vite** (frontend) and **Django + Django REST Framework** (backend).
 
 ---
@@ -9,16 +14,21 @@ Built with **React + Vite** (frontend) and **Django + Django REST Framework** (b
 
 ### Option A — Docker (recommended)
 
+The repository ships with a single multi-stage `Dockerfile` that builds the
+React bundle and serves it via **nginx** on port **8080**, proxying API and admin
+requests to the Django backend running on port 8000 inside the same container.
+
 ```bash
-cp backend/.env.example backend/.env
-docker-compose up --build
+cp backend/.env.example backend/.env   # set SECRET_KEY at minimum
+docker build -t proteosurvivor .
+docker run --env-file backend/.env -p 8080:8080 proteosurvivor
 ```
 
-| Service  | URL                       |
-|----------|---------------------------|
-| Frontend | http://localhost:3000      |
-| Backend  | http://localhost:8000/api  |
-| Admin    | http://localhost:8000/admin|
+| Service  | URL                        |
+|----------|----------------------------|
+| App      | http://localhost:8080       |
+| API      | http://localhost:8080/api   |
+| Admin    | http://localhost:8080/admin |
 
 ---
 
@@ -45,67 +55,75 @@ cp .env.example .env          # set VITE_API_URL=http://localhost:8000/api
 npm run dev
 ```
 
+The frontend dev server starts on **http://localhost:5173**.
+
 ---
 
 ## Project Structure
 
 ```
-data-analysis-game/
+ProteoSurviver/
 ├── backend/
 │   ├── config/          Django settings (base / development / production)
 │   ├── api/             API entry-point urls & shared utilities
-│   ├── game/            Models (Level, GameSession, Score), views, scoring logic
-│   └── data/            Dataset models, synthetic data generators, fixtures
+│   ├── game/            Models (Level, GameSession, StationRun, Score), views, services
+│   └── data/            Synthetic dataset generators, fixtures
 ├── frontend/
 │   └── src/
-│       ├── api/         Axios client
-│       ├── components/  GameBoard, DataTable, ChartViewer, Scoreboard, LevelSelector
-│       ├── pages/       Home, Game, Results
+│       ├── api/         Axios client (station & game endpoints)
+│       ├── screens/     Intro, WorldMap, StationView, ParametrizationView, StationResults
 │       └── store/       Zustand state (gameSlice.js)
-├── docker-compose.yml
-└── README.md
+└── Dockerfile
 ```
 
 ---
 
 ## API Endpoints
 
-| Method | Endpoint                       | Description                      |
-|--------|-------------------------------|----------------------------------|
-| GET    | `/api/levels/`                | List active levels               |
-| GET    | `/api/levels/{id}/dataset/`   | Fetch synthetic dataset          |
-| POST   | `/api/sessions/`              | Start a new game session         |
-| POST   | `/api/sessions/{id}/submit/`  | Submit answer → receive score    |
-| GET    | `/api/leaderboard/`           | Top 50 scores                    |
+| Method | Endpoint                          | Description                               |
+|--------|-----------------------------------|-------------------------------------------|
+| POST   | `TODO`                            | Run a proteomics station with parameters  |
+| POST   | `/api/sessions/`                  | Start a new game session                  |
+| GET    | `/api/leaderboard/`               | Top 50 scores                             |
 
 ---
 
-## Game Loop
+## Game Flow
 
-1. Player picks a **level** from the home screen (outlier, correlation, clean, trend).
-2. The frontend fetches a **synthetic dataset** from the API and starts a timer.
-3. Player examines the data in the **Table** or **Chart** view and selects an answer.
-4. On submit the backend **scores** the answer and returns points + feedback.
-5. Results page shows the score; the leaderboard updates.
+1. The **Intro** screen introduces the scenario: an infected cell sample needs to
+   be analysed.
+2. The **World Map** lists the five lab stations. Completed stations are marked.
+3. The player clicks a station to read its **description** and **objective**.
+4. Clicking *Configure & Run* opens the **Parametrization** screen where
+   station-specific settings are chosen (enzyme, acquisition mode, FDR threshold,
+   etc.).
+5. Parameters are sent to the backend which **simulates** realistic lab results.
+6. The **Results** screen shows a summary, key metrics, and a recommendation.
+7. The player confirms results and returns to the World Map to continue.
+8. After completing all stations the player writes a report in the **Veit**
+   station, which evaluates the quality of the findings and closes the experiment.
 
 ---
 
-## Challenge Types
+## Lab Stations
 
-| Type          | Description                                           |
-|---------------|-------------------------------------------------------|
-| `outlier`     | Identify rows with anomalous values                   |
-| `correlation` | Determine whether two variables are positively/negatively correlated or uncorrelated |
-| `clean`       | Flag rows containing invalid / missing data           |
-| `trend`       | Classify a time-series as increasing, decreasing, stable, or cyclic |
+TODO:
+
+| Station ID      | Name                | Description                                              |
+|-----------------|---------------------|----------------------------------------------------------|
+| `sample_prep`   | Sample Preparation  | Lysis, reduction, alkylation, and tryptic digestion      |
+| `mass_spec`     | Mass Spectrometer   | DDA / DIA acquisition with configurable gradient & resolution |
+| `search_setup`  | Search Engine Setup | Database search with enzyme, missed cleavages, and FDR   |
+| `data_analysis` | Data Analysis       | Normalisation, statistical testing, fold-change analysis |
+| `veit`          | Veit                | Supervisor who reviews the final written report          |
 
 ---
 
 ## Tech Stack
 
-| Layer     | Technology                                        |
-|-----------|---------------------------------------------------|
-| Frontend  | React 18, Vite, React Router 6, Recharts, Zustand |
-| Backend   | Django 4.2, Django REST Framework, pandas, numpy, Faker |
-| Database  | SQLite (dev) / PostgreSQL (prod)                  |
-| Container | Docker + docker-compose                           |
+| Layer     | Technology                                              |
+|-----------|---------------------------------------------------------|
+| Frontend  | React 18, Vite, React Router 6, Recharts, Zustand, Axios |
+| Backend   | Django 4.2, Django REST Framework, pandas, numpy, Faker  |
+| Database  | SQLite (dev) / PostgreSQL (prod)                        |
+| Container | Docker (single multi-stage image, nginx + supervisord)  |
