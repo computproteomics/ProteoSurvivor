@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import { getStationTitle } from '../assets/stationConfig';
+import { getStationResultsRenderer } from './resultRenderer';
 import styles from './StationResults.module.css';
 
 export default function StationResults() {
@@ -37,7 +38,7 @@ export default function StationResults() {
     );
   }
 
-  const { summary, recommendation, ...detailFields } = stationResults;
+  const StationResultContent = getStationResultsRenderer(stationId);
 
   return (
     <div className={styles.page}>
@@ -48,34 +49,7 @@ export default function StationResults() {
         </div>
 
         <h1 className={styles.title}>Results</h1>
-
-        {summary && (
-          <div className={styles.summaryBox}>
-            {/* Short summary shown above the raw result fields. */}
-            <p className={styles.summaryText}>{summary}</p>
-          </div>
-        )}
-
-        {Object.keys(detailFields).length > 0 && (
-          <table className={styles.table}>
-            <tbody>
-              {/* Render every remaining field as a simple key/value row. */}
-              {Object.entries(detailFields).map(([key, value]) => (
-                <tr key={key} className={styles.row}>
-                  <td className={styles.key}>{formatKey(key)}</td>
-                  <td className={styles.value}>{formatValue(value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {recommendation && (
-          <div className={styles.recommendationBox}>
-            <strong>💡 Recommendation:</strong>
-            <p className={styles.recommendationText}>{recommendation}</p>
-          </div>
-        )}
+        <StationResultContent stationResults={stationResults} />
 
         <div className={styles.buttonRow}>
           <button className={styles.secondaryButton} onClick={handleRetry}>
@@ -88,18 +62,4 @@ export default function StationResults() {
       </div>
     </div>
   );
-}
-
-function formatKey(key) {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatValue(value) {
-  if (Array.isArray(value)) return value.join(', ');
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'number') return value.toLocaleString();
-  if (typeof value === 'object' && value !== null) return JSON.stringify(value);
-  return String(value);
 }
