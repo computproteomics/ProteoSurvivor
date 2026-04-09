@@ -278,25 +278,46 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_multiple_testing_corrector(dataset: dict, params: dict) -> dict:
+def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("correction_method", "none")
-
-    raw_hits = random.randint(200, 800)
-
-    if method == "bonferroni":
-        adjusted = int(raw_hits * 0.3)
-    elif method in ["bh", "holm"]:
-        adjusted = int(raw_hits * 0.6)
-    elif method == "storey":
-        adjusted = int(raw_hits * 0.7)
+    if dataset is None:
+        df = pd.DataFrame()
     else:
-        adjusted = raw_hits
+        df = dataset.copy()
+    
+    success = False
+    feedback = None
+
+    if method == "none":
+        df["p_adjusted"] = df["p_value"] # No adjustment, just copy p-values
+        success = True
+        feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
+
+    elif method == "bh":
+        success = True
+        feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+    elif method == "bt":
+        success = True
+        feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+    elif method == "storey":
+        success = True
+        feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+    elif method == "bonferroni":
+        success = True
+        feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+    elif method == "holm":
+        success = True
+        feedback = "Holm-Bonferroni correction applied. Controls the FWER with more power than Bonferroni."
 
     return {
-        "summary": f"{method} correction applied.",
-        "raw_significant": raw_hits,
-        "adjusted_significant": adjusted,
-    }
+        "success": success,
+        "num_pro": None,
+        "num_pep": None,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df
+    } 
 
 
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
@@ -325,6 +346,8 @@ def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
         power += 0.1
     elif test == "none":
         power = 0
+
+    # TODO should return a new col "p_value"
 
     return {
         "summary": f"{test} analysis completed.",
