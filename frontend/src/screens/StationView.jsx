@@ -18,7 +18,7 @@ const INTRO_VIDEO_STATIONS = {
     welcomeTitle: 'Welcome to Mass Spectrometry',
     welcomeText: 'In this station you will learn the core MS acquisition workflow.',
     videoTitle: 'Mass Spectrometry Walkthrough',
-    videoSrc: '/media/mass_spec_vid.mp4',
+    videoSrc: '/media/ms_run.mp4',
     doneTitle: 'Mass Spectrometry Completed',
     doneText: 'Finalizing mass spectrometry with backend validation.',
   },
@@ -139,7 +139,7 @@ export default function StationView() {
               onEnded={() => setVideoEnded(true)}
             />
           </div>
-          <p className={styles.info}>Watch the videos above or skip to the next steps ahead.</p>
+          <p className={styles.info}>Watch the video above or skip to the next steps ahead.</p>
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => setPhase('welcome')}>
