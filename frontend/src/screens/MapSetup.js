@@ -810,7 +810,6 @@ function drawStation(context, station, done) {
 
   // Fill the full tile (2 px margin so it sits flush against neighbours).
   context.fillStyle = station.color;
-<<<<<<< copilot/add-graphics-to-lab-map
   context.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
 
   // Draw station-specific canvas vector icon centred on the tile.
@@ -820,17 +819,9 @@ function drawStation(context, station, done) {
     drawIcon(context, x + TILE / 2, y + TILE / 2);
     context.restore();
   }
-=======
-  context.fillRect(x + 10, y + 10, TILE - 20, TILE - 20);
-
-  context.strokeStyle = done ? '#1d8a4f' : '#1f2937';
-  context.lineWidth = done ? 5 : 3;
-  context.strokeRect(x + 10, y + 10, TILE - 20, TILE - 20);
->>>>>>> main
 
   // Completion badge: green circle with drawn checkmark in the top-right corner.
   if (done) {
-<<<<<<< copilot/add-graphics-to-lab-map
     context.save();
     context.fillStyle = BADGE_GREEN;
     context.beginPath();
@@ -845,28 +836,6 @@ function drawStation(context, station, done) {
     context.lineTo(x + TILE - 10, y + 14);
     context.lineTo(x + TILE - 6, y + 6);
     context.stroke();
-    context.restore();
-  }
-}
-=======
-    const badgeX = x + TILE / 2;
-    const badgeY = y + TILE / 2;
->>>>>>> main
-
-    context.save();
-    context.fillStyle = '#16a34a';
-    context.strokeStyle = '#ffffff';
-    context.lineWidth = 2;
-    context.beginPath();
-    context.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-
-    context.fillStyle = '#ffffff';
-    context.font = 'bold 12px Segoe UI';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('✓', badgeX, badgeY + 0.5);
     context.restore();
   }
 }
