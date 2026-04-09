@@ -800,9 +800,9 @@ function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
 
-  // Fill the full tile (2 px margin so it sits flush against neighbours).
+  // Fill the station tile with the same footprint as the bench tiles (6 px margin).
   context.fillStyle = station.color;
-  context.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+  context.fillRect(x + 6, y + 6, TILE - 12, TILE - 12);
 
   // Draw station-specific canvas vector icon centred on the tile.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
