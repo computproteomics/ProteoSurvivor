@@ -284,8 +284,6 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     method = params.get("correction_method", "none")
     
     success = False
-    num_prot = int(dataset["Protein ID"].nunique())
-    num_pep = int(dataset["Combined Total Peptides"].sum())
     imgs = []
     score = 0
     
@@ -293,8 +291,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     if dataset is None:
         return {
             "success": success,
-            "num_prot": num_prot,
-            "num_pep": num_pep,
+            "num_prot": None,
+            "num_pep": None,
             "feedback": "No dataset available. Cannot perform multiple testing correction.",
             "img": imgs,
             "score": score,
@@ -309,8 +307,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     if p_val_col not in df.columns:
         return {
             "success": success,
-            "num_prot": num_prot,
-            "num_pep": num_pep,
+            "num_prot": int(df["Protein ID"].nunique()),
+            "num_pep": int(df["Combined Total Peptides"].sum()),
             "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction.",
             "img": imgs,
             "score": score,
@@ -351,8 +349,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     return {
         "success": success,
-        "num_prot": num_prot,
-        "num_pep": num_pep,
+        "num_prot": int(df["Protein ID"].nunique()),
+        "num_pep": int(df["Combined Total Peptides"].sum()),
         "feedback": feedback,
         "img": imgs,
         "score": 0,
