@@ -1,4 +1,19 @@
+import base64
+import pickle
+
 from rest_framework import serializers
+
+
+class DataFrameSessionSerializer:
+    """Encode/decode a pandas DataFrame for storage in Django's JSON session."""
+
+    @staticmethod
+    def dumps(df) -> str:
+        return base64.b64encode(pickle.dumps(df)).decode("ascii")
+
+    @staticmethod
+    def loads(value: str):
+        return pickle.loads(base64.b64decode(value))
 
 
 class NewPlayerSerializer(serializers.Serializer):

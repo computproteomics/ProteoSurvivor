@@ -4,5 +4,7 @@ django-cors-headers
 python-dotenv
 pandas
 numpy
+matplotlib
+seaborn
 faker
 psycopg2-binary
