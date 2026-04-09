@@ -77,6 +77,9 @@ const STATION_COLORS = {
 // Coordinates are relative to the translated origin and fill roughly ±20 px,
 // matching the full 44×44 tile background (TILE − 4px margin on each side).
 // The colour constant `dark` is used for strokes so icons read on any tile hue.
+const SIGNIFICANCE_COLOR = '#c0392b'; // red threshold / significant dots
+const BADGE_GREEN = '#1d8a4f';        // completion badge background
+const BADGE_CHECK = '#ffffff';        // completion badge checkmark
 
 // sample_prep: tilted test tube with liquid fill, cap and graduation marks
 function drawIconSamplePrep(ctx, cx, cy) {
@@ -432,7 +435,7 @@ function drawIconMTC(ctx, cx, cy) {
   });
   // Dashed significance threshold
   ctx.setLineDash([3, 3]);
-  ctx.strokeStyle = '#c0392b';
+  ctx.strokeStyle = SIGNIFICANCE_COLOR;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(-20, 4);
@@ -532,7 +535,7 @@ function drawIconStatAnalysis(ctx, cx, cy) {
   // Dots above threshold (statistically significant)
   const significantDots = [[-14, -7], [-17, -13], [-12, -10], [15, -9], [12, -14], [17, -6]];
   significantDots.forEach(([dx, dy]) => {
-    ctx.fillStyle = '#c0392b';
+    ctx.fillStyle = SIGNIFICANCE_COLOR;
     ctx.beginPath();
     ctx.arc(dx, dy, 2, 0, Math.PI * 2);
     ctx.fill();
@@ -718,11 +721,11 @@ function drawStation(context, station, done) {
   // Completion badge: green circle with drawn checkmark in the top-right corner.
   if (done) {
     context.save();
-    context.fillStyle = '#1d8a4f';
+    context.fillStyle = BADGE_GREEN;
     context.beginPath();
     context.arc(x + TILE - 10, y + 10, 8, 0, Math.PI * 2);
     context.fill();
-    context.strokeStyle = '#ffffff';
+    context.strokeStyle = BADGE_CHECK;
     context.lineWidth = 2;
     context.lineCap = 'round';
     context.lineJoin = 'round';
