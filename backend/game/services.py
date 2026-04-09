@@ -83,7 +83,7 @@ def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
     return {
         "success": True,
         "feedback": "Sample preparation intro completed.",
-        "score": None,
+        "score": 0,
         "dataset": dataset,
     }
 
@@ -92,7 +92,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
     return {
         "success": True,
         "feedback": "Mass spectrometry intro completed.",
-        "score": None,
+        "score": 0,
         "dataset": dataset,
     }
 
