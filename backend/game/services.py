@@ -5,9 +5,9 @@ import random
 import pandas as pd
 from .models import StationRun
 import numpy as np
-import pickle
+from .serializers import DataFrameSessionSerializer
 from .helper_functions import boxplot
-        
+
 
 
 STATION_SIMULATORS = {}
@@ -21,7 +21,7 @@ def run_station(request, station_id: str, params: dict) -> dict:
     print(f"Running station '{station_id}' with parameters: {params}")
     dataset = request.session.get("current_dataset", None)
     if dataset is not None:
-        dataset = pickle.loads(dataset)  # Convert back to DataFrame if it exists
+        dataset = DataFrameSessionSerializer.loads(dataset)
     runner = STATION_SIMULATORS.get(station_id)
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
@@ -36,7 +36,7 @@ def run_station(request, station_id: str, params: dict) -> dict:
     )
     run.save()
     print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-    request.session["current_dataset"] = pickle.dumps(result.get("dataset", dataset))
+    request.session["current_dataset"] = DataFrameSessionSerializer.dumps(result.get("dataset", dataset))
     print(f"Updated session dataset for user {request.user.username}")
     return result
 
@@ -117,21 +117,21 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
     if dataset is None:
         df = pd.DataFrame()
-    else: 
+    else:
         df = dataset.copy()
     relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
     imgs = []
 
-    try: 
+    try:
         img_before = boxplot(df, relevant_cols, title="Intensities Before Transformation")
         imgs.append(img_before)
-        
+
         if method == "none":
             succes = True
-            feedback = "No transformation applied. Data remains unchanged."            
+            feedback = "No transformation applied. Data remains unchanged."
 
         elif method == "log2":
-            df[relevant_cols] = np.log2(df[relevant_cols])  
+            df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Log2)")
             imgs.append(img_after)
             succes = True
@@ -143,7 +143,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             imgs.append(img_after)
             succes = True
             feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
-            
+
     except Exception as e:
         succes = False
         feedback = f"Error applying transformation: {str(e)}"
