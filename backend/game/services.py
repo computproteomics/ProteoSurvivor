@@ -1,9 +1,11 @@
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
+import math
 import random
 from turtle import pd
 from .models import StationRun
+import numpy as np
 
 
 STATION_SIMULATORS = {}
@@ -109,40 +111,41 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
 
     try: 
+        df = dataset.copy()
+        relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
+        # img_before = distribution of intensities before 
+        # transformation using seaborn e.g., boxplot or histogram
+        # of relevant_cols
+        
         if method == "none":
             succes = True
-            text = "No transformation applied. Data remains unchanged."
+            feedback = "No transformation applied. Data remains unchanged."
+            # only img_before transformation 
+
         elif method == "log2":
-            
+            df[relevant_cols] = np.log2(df[relevant_cols])  
             succes = True
-            text = "Log2 transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+            # img before transformation +  after transformation
+
         elif method == "ln":
+            df[relevant_cols] = np.log(df[relevant_cols])
             succes = True
-            text = "Natural log transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+            # img before transformation +  after transformation
+
     except Exception as e:
         succes = False
-        text = f"Error applying transformation: {str(e)}"
+        feedback = f"Error applying transformation: {str(e)}"
 
     return {
         "succes": succes,
         "num_pro": None,
         "num_pep": None,
-        "feedback": None,
-        "img": None,
+        "feedback": feedback,
+        "img": None, # list of images (before, after, if none (error) then no image)
         "score": None,
-        "dataset": dataset
-    }
-
-
-    variance = random.uniform(0.5, 1.5)
-
-    if method in ["ln", "log2"]:
-        variance *= 0.6
-
-    return {
-        "summary": f"Applied {method} transformation.",
-        "variance": round(variance, 3),
-        "effect": "Variance stabilized." if method != "none" else "No change."
+        "dataset": df
     }
 
 def _simulate_filtering(dataset: dict, params: dict) -> dict:
