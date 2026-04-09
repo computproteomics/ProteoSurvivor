@@ -6,6 +6,8 @@ import random
 from turtle import pd
 from .models import StationRun
 import numpy as np
+from helper_functions import boxplot
+        
 
 
 STATION_SIMULATORS = {}
@@ -114,28 +116,28 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         df = dataset.copy()
         relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
         imgs = []
-        
-        # img_before = distribution of intensities before 
-        # transformation using seaborn e.g., boxplot or histogram
-        # of relevant_cols
+
+        img_before = boxplot(df, relevant_cols, title="Intensities Before Transformation")
+        imgs.append(img_before)
         
         if method == "none":
             succes = True
-            feedback = "No transformation applied. Data remains unchanged."
-            # only img_before transformation 
+            feedback = "No transformation applied. Data remains unchanged."            
 
         elif method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])  
+            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Log2)")
+            imgs.append(img_after)
             succes = True
             feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
-            # img before transformation +  after transformation
 
         elif method == "ln":
             df[relevant_cols] = np.log(df[relevant_cols])
+            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Natural Log)")
+            imgs.append(img_after)
             succes = True
             feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
-            # img before transformation +  after transformation
-
+            
     except Exception as e:
         succes = False
         feedback = f"Error applying transformation: {str(e)}"
@@ -145,7 +147,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         "num_pro": None,
         "num_pep": None,
         "feedback": feedback,
-        "img": None, # list of images (before, after, if none (error) then no image)
+        "img": imgs,
         "score": None,
         "dataset": df
     }
