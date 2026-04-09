@@ -158,22 +158,42 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         "dataset": df
     }
 
-def _simulate_filtering(dataset: dict, params: dict) -> dict:
-    remove_cont = params.get("remove_contaminants", "yes") == "yes"
-    missing_thresh = int(params.get("remove_missing_proteins", 0))
+def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
+    method = params.get("filtering_method", "none")
+    df = pd.DataFrame() if dataset is None else dataset.copy()
 
-    proteins = dataset.get("proteins", 1000)
+    if method == "none":
+        min_valid = 0
+    else:
+        min_valid = max(0, int(params.get("min_valid_values", 0)))
 
-    reduction = 0.1 if remove_cont else 0
-    reduction += missing_thresh * 0.02
+    intensity_cols = [c for c in df.columns if c.endswith("MaxLFQ Intensity")]
+    before = len(df)
 
-    filtered = int(proteins * (1 - reduction))
+    if intensity_cols and min_valid > 0:
+        valid_counts = df[intensity_cols].notna().sum(axis=1)
+        df = df[valid_counts >= min_valid].copy()
+    else:
+        df = df.copy()
+
+    after = len(df)
+    feedback = (
+        "No filtering applied. Data remains unchanged."
+        if min_valid == 0
+        else f"Filtering applied: kept proteins with at least {min_valid} valid intensity values."
+    )
 
     return {
-        "summary": "Filtering complete.",
-        "proteins_before": proteins,
-        "proteins_after": filtered,
-        "removed_fraction": round(reduction, 2)
+        "succes": True,
+        "feedback": feedback,
+        "score": 0,
+        "dataset": df,
+        "summary": {
+            "before_count": before,
+            "after_count": after,
+            "removed_count": before - after,
+            "filter_rule": f"Kept proteins with at least {min_valid} valid intensity values",
+        },
     }
 
 def _simulate_normalize(dataset: dict, params: dict) -> dict:
