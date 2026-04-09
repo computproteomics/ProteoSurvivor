@@ -1,14 +1,13 @@
 import styles from './StationResults.module.css';
 
 export function getStationResultsRenderer(stationId) {
-  if (stationId === 'transform') {
-    return TransformStationResultsContent;
-  }
+  void stationId;
   return GenericStationResultsContent;
 }
 
 function GenericStationResultsContent({ stationResults }) {
-  const { summary, recommendation, ...detailFields } = stationResults;
+  const { summary, recommendation, img, ...detailFields } = stationResults;
+  const resultImages = normalizeImageList(img);
 
   return (
     <>
@@ -33,6 +32,23 @@ function GenericStationResultsContent({ stationResults }) {
         </table>
       )}
 
+      {resultImages.length > 0 && (
+        <div className={styles.imageSection}>
+          <h2 className={styles.imageTitle}>Result Plots</h2>
+          <div className={styles.imageGrid}>
+            {resultImages.map((imageSrc, index) => (
+              <figure key={index} className={styles.imageCard}>
+                <img
+                  src={toImageDataUrl(imageSrc)}
+                  alt={`Result plot ${index + 1}`}
+                  className={styles.resultImage}
+                />
+              </figure>
+            ))}
+          </div>
+        </div>
+      )}
+
       {recommendation && (
         <div className={styles.recommendationBox}>
           <strong>💡 Recommendation:</strong>
@@ -43,51 +59,14 @@ function GenericStationResultsContent({ stationResults }) {
   );
 }
 
-function TransformStationResultsContent({ stationResults }) {
-  const wasSuccessful = stationResults.success ?? stationResults.succes;
-  const feedback = stationResults.feedback;
-  const transformImages = normalizeImageList(stationResults.img);
-
-  return (
-    <>
-      <div className={wasSuccessful ? styles.summaryBox : styles.errorBox}>
-        <p className={wasSuccessful ? styles.summaryText : styles.errorText}>
-          {wasSuccessful
-            ? 'Station successfully completed.'
-            : 'Station run did not complete successfully.'}
-        </p>
-      </div>
-
-      {feedback && (
-        <div className={styles.recommendationBox}>
-          <strong>Feedback</strong>
-          <p className={styles.recommendationText}>{feedback}</p>
-        </div>
-      )}
-
-      {wasSuccessful && transformImages.length > 0 && (
-        <div className={styles.imageSection}>
-          <h2 className={styles.imageTitle}>Transformation Plots</h2>
-          <div className={styles.imageGrid}>
-            {transformImages.map((imageSrc, index) => (
-              <figure key={index} className={styles.imageCard}>
-                <img
-                  src={toImageDataUrl(imageSrc)}
-                  alt={`Transformation plot ${index + 1}`}
-                  className={styles.resultImage}
-                />
-              </figure>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 function normalizeImageList(imgValue) {
   if (Array.isArray(imgValue)) {
     return imgValue.filter((value) => typeof value === 'string' && value.trim().length > 0);
+  }
+  if (typeof imgValue === 'object' && imgValue !== null) {
+    return Object.values(imgValue).filter(
+      (value) => typeof value === 'string' && value.trim().length > 0
+    );
   }
   if (typeof imgValue === 'string' && imgValue.trim().length > 0) {
     return [imgValue];
