@@ -9,7 +9,7 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import boxplot
+from .helper_functions import tr_boxplot, sp_scatterplot
 
 
 STATION_SIMULATORS = {}
@@ -71,7 +71,9 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if result.get("success"):
         run.save()
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-    request.session["current_dataset"] = DataFrameSessionSerializer.dumps(result.get("dataset", dataset))
+    request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
+        result.get("dataset", dataset)
+    )
     print(f"Updated session dataset for user {request.user.username}")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
@@ -149,9 +151,6 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     )
 
     # if multiples rows match, take the first one (shouldn't happen if ParameterTable.csv is well-constructed)
-
-    print(f"Looking for data file with key: {file_key}")
-    print(f"Available keys in file map: " + file_map["key"][0])
     matching_rows = file_map[file_map["key"] == file_key]
     if matching_rows.empty:
         raise ValueError(f"No data file found for parameters: {params}")
@@ -160,12 +159,94 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     # Load the corresponding data file and extract results
     dataset = pandas.read_csv(f"data/{data_file_name}", sep="\t")
 
+    # Making plots
+    imgs = []
+    success = False
+    feedback = None
+
+    species_palette = [
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#7f7f7f",
+        "#bcbd22",
+        "#17becf",
+    ]
+
+    # Name the species palette based on the unique species in the dataset
+    unique_species = dataset["Organism"].unique()
+    species_palette = {
+        species: species_palette[i % len(species_palette)]
+        for i, species in enumerate(unique_species)
+    }
+
+    try:
+        for species in dataset["Organism"].unique():
+
+            count_cols_a = [
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Total Spectral Count",
+            ]
+            int_cols_a = [
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity",
+            ]
+            count_cols_b = [
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Total Spectral Count",
+            ]
+            int_cols_b = [
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Intensity",
+            ]
+
+            # Make a vector of all count_cols_a columns into one column "Total Spectral Count A"
+            spec_a = np.log2(np.concatenate([dataset[c].values for c in count_cols_a]))
+            spec_b = np.log2(np.concatenate([dataset[c].values for c in count_cols_b]))
+
+            int_a = np.log2(np.concatenate([dataset[c].values for c in int_cols_a]))
+            int_b = np.log2(np.concatenate([dataset[c].values for c in int_cols_b]))
+
+            tr_scatter = sp_scatterplot(
+                x=spec_a,
+                y=int_a,
+                x_col="Total Spectral Count A",
+                y_col="log2(Intensity A)",
+                color=species_palette[species],
+                title=f"Spectral Count vs Intensity for {species} - Condition A",
+            )
+            imgs.append(tr_scatter)
+            tr_scatter = sp_scatterplot(
+                x=spec_b,
+                y=int_b,
+                x_col="Total Spectral Count B",
+                y_col="log2(Intensity B)",
+                color=species_palette[species],
+                title=f"Spectral Count vs Intensity for {species} - Condition B",
+            )
+            imgs.append(tr_scatter)
+
+        success = True
+        feedback = None
+
+    except Exception as e:
+        success = False
+        feedback = f"Error plotting spectra counts: {str(e)}"
+
     return {
-        "success": True,
+        "success": success,
         "dataset": dataset,
         "num_prot": int(dataset["Protein ID"].nunique()),
         "num_pep": int(dataset["Combined Total Peptides"].sum()),
-        "img": [],
+        "img": imgs,
         "score": 0,
         "feedback": """
         Done: You now ran a peptide database search with FragPipe using the given search parameters.
@@ -176,6 +257,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         You can now proceed to the next station to further process and analyze these identifications.
         """,
     }
+
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
@@ -189,7 +271,9 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     feedback = None
 
     try:
-        img_before = boxplot(df, relevant_cols, title="Intensities Before Transformation")
+        img_before = tr_boxplot(
+            df, relevant_cols, title="Intensities Before Transformation"
+        )
         imgs.append(img_before)
 
         if method == "none":
@@ -198,14 +282,20 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
 
         elif method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
-            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Log2)")
+            img_after = tr_boxplot(
+                df, relevant_cols, title="Intensities After Transformation (Log2)"
+            )
             imgs.append(img_after)
             success = True
             feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
 
         elif method == "ln":
             df[relevant_cols] = np.log(df[relevant_cols])
-            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Natural Log)")
+            img_after = tr_boxplot(
+                df,
+                relevant_cols,
+                title="Intensities After Transformation (Natural Log)",
+            )
             imgs.append(img_after)
             success = True
             feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
@@ -221,7 +311,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         "feedback": feedback,
         "img": imgs,
         "score": 0,
-        "dataset": df
+        "dataset": df,
     }
 
 
