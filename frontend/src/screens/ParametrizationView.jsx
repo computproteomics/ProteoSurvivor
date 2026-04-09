@@ -107,7 +107,6 @@ export default function ParametrizationView() {
 
   const [values, setValues] = useState(buildDefaults(schema));
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   function handleChange(fieldId, newValue) {
     setValues((prev) => ({ ...prev, [fieldId]: newValue }));
@@ -115,7 +114,6 @@ export default function ParametrizationView() {
 
   async function handleRun() {
     setLoading(true);
-    setError('');
     setStationParams(stationId, values);
 
     try {
@@ -161,8 +159,6 @@ export default function ParametrizationView() {
                 onChange={handleChange}
               />
             ))}
-
-            {error && <p className={styles.error}>{error}</p>}
 
             <div className={styles.buttonRow}>
               <button

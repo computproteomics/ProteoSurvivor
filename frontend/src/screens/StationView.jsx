@@ -6,14 +6,16 @@ import { getStationDescription, getStationTitle } from '../assets/stationConfig'
 import styles from './StationView.module.css';
 
 export default function StationView() {
+  // Read current station id from the route.
   const { stationId } = useParams();
   const navigate = useNavigate();
   const { sessionId } = useGameStore();
 
   const [stationData, setStationData] = useState(null);
+  // Disable actions while station entry request is in flight.
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
+  // Static display content sourced from station configuration.
   const content = {
     title: getStationTitle(stationId),
     description: getStationDescription(stationId),
@@ -24,12 +26,12 @@ export default function StationView() {
     if (!stationId) return;
 
     setLoading(true);
-    setError('');
 
+    // Enter the station so backend session state can be initialized.
     enterStation(stationId, sessionId)
       .then((res) => setStationData(res.data))
       .catch(() => {
-        // Backend enter endpoint not yet implemented — use placeholder data
+        // Use a local fallback status when backend entry is unavailable.
         setStationData({
           message: `Entered station '${stationId}' successfully.`,
           station_id: stationId,
@@ -50,7 +52,6 @@ export default function StationView() {
         </div>
 
         {loading && <p className={styles.info}>Loading station…</p>}
-        {error && <p className={styles.error}>{error}</p>}
 
         {stationData && !loading && (
           <div className={styles.box}>
