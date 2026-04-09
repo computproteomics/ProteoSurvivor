@@ -183,6 +183,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         df = pd.DataFrame()
     else:
         df = dataset.copy()
+    num_pro = int(df["Protein ID"].nunique())
+    num_pep = int(df["Combined Total Peptides"].sum())
     relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
     imgs = []
     success = False
@@ -216,8 +218,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": None,
-        "num_pep": None,
+        "num_pro": num_pro,
+        "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
         "score": 0,
