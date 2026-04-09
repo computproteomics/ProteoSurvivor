@@ -13,6 +13,7 @@ from .serializers import (
     NewPlayerSerializer,
     RunStationSerializer,
 )
+from .leaderboard import get_leaderboard_information
 from .services import run_station
 
 
@@ -95,3 +96,43 @@ def run_station_view(request, station_id):
         params=validated_data["params"],
     )
     return Response(result, status=status.HTTP_201_CREATED)
+
+
+class LeaderboardView(APIView):
+    permission_classes = [AllowAny]
+
+    @staticmethod
+    def _score_sort_key(entry: dict) -> tuple[float, str]:
+        score = entry.get("score")
+        safe_score = float(score) if score is not None else float("-inf")
+        return (safe_score, str(entry.get("user_name", "")))
+
+    def get(self, request):
+        leaderboard = get_leaderboard_information()
+
+        finished = sorted(
+            (entry for entry in leaderboard if entry["status"] == "finished"),
+            key=self._score_sort_key,
+            reverse=True,
+        )[:10]
+        dnf = sorted(
+            (entry for entry in leaderboard if entry["status"] == "DNF"),
+            key=self._score_sort_key,
+            reverse=True,
+        )[:10]
+
+        current_user_result = None
+        if request.user.is_authenticated:
+            current_user_result = next(
+                (entry for entry in leaderboard if entry["user_id"] == request.user.username),
+                None,
+            )
+
+        return Response(
+            {
+                "finished": finished,
+                "dnf": dnf,
+                "current_user_result": current_user_result,
+            },
+            status=status.HTTP_200_OK,
+        )

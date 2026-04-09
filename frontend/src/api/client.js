@@ -35,4 +35,6 @@ export const enterStation = (stationId, sessionId) =>
 export const runStation = (stationId, params) =>
   api.post(`/stations/${stationId}/run/`, { params });
 
+export const getLeaderboard = () => api.get('/leaderboard/');
+
 export default api;

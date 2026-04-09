@@ -339,6 +339,17 @@ def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     }
 
 
+def _simulate_veit(dataset: Any, params: dict) -> dict:
+    score = random.randint(70, 100)
+
+    return {
+        "success": True,
+        "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
+        "score": score,
+        "dataset": dataset,
+    }
+
+
 def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
     test = params.get("statistical_test", "none")
 
@@ -370,6 +381,7 @@ STATION_SIMULATORS.update(
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
+        "veit": _simulate_veit,
         # ...
     }
 )
