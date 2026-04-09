@@ -11,21 +11,36 @@ from .services import run_station
 
 @api_view(["POST"])
 def run_station_view(request, station_id):
-    """POST /api/stations/<station_id>/run/ — run a proteomics station with given parameters."""
-
-    print(f"Received request to run station '{station_id}' with data: {request.data}")
     if station_id not in settings.STATIONS_CONFIG:
         return Response(
-            {"detail": f"Unknown station '{station_id}'."},
+            {"success": False, "feedback": f"Unknown station '{station_id}'.", "score": None},
             status=status.HTTP_404_NOT_FOUND,
         )
 
     serializer = RunStationSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"success": False, "feedback": "Invalid request payload.", "score": None},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    station_run = run_station(request,
-        station_id=station_id,
-        params=serializer.validated_data["params"],
+    try:
+        result = run_station(
+            request,
+            station_id=station_id,
+            params=serializer.validated_data["params"],
+        )
+    except Exception:
+        return Response(
+            {"success": False, "feedback": "Station execution failed.", "score": None},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response(
+        {
+            "success": bool(result.get("success", False)),
+            "feedback": result.get("feedback", "Station completed."),
+            "score": result.get("score", None),
+        },
+        status=status.HTTP_200_OK,
     )
-    return Response(RunStationSerializer(station_run).data, status=status.HTTP_201_CREATED)

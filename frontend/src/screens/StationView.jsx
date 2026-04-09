@@ -1,20 +1,44 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { enterStation } from '../api/client';
+import { enterStation, runStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import { getStationDescription, getStationTitle } from '../assets/stationConfig';
 import styles from './StationView.module.css';
 
+const INTRO_VIDEO_STATIONS = {
+  sample_prep: {
+    welcomeTitle: 'Welcome to Sample Preparation',
+    welcomeText: 'In this station you will learn how to prep your sample for LC/MS.',
+    videoTitle: 'Sample Prep Walkthrough',
+    videoSrc: '/media/sample_prep_vid.mp4',
+    doneTitle: 'Sample Preparation Completed',
+    doneText: 'Finalizing sample prep with backend validation.',
+  },
+  mass_spec: {
+    welcomeTitle: 'Welcome to Mass Spectrometry',
+    welcomeText: 'In this station you will learn the core MS acquisition workflow.',
+    videoTitle: 'Mass Spectrometry Walkthrough',
+    videoSrc: '/media/mass_spec_vid.mp4',
+    doneTitle: 'Mass Spectrometry Completed',
+    doneText: 'Finalizing mass spectrometry with backend validation.',
+  },
+};
+
 export default function StationView() {
   const { stationId } = useParams();
   const navigate = useNavigate();
-  const { sessionId } = useGameStore();
+  const { sessionId, markStationComplete } = useGameStore();
 
   const [stationData, setStationData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const isSamplePrep = stationId === 'sample_prep';
-  const [phase, setPhase] = useState(isSamplePrep ? 'welcome' : 'default');
+  const introConfig = stationId ? INTRO_VIDEO_STATIONS[stationId] : null;
+  const hasIntroVideoFlow = Boolean(introConfig);
+
+  const [phase, setPhase] = useState(hasIntroVideoFlow ? 'welcome' : 'default');
+  const [stationResult, setStationResult] = useState(null);
+  const [submittingStationResult, setSubmittingStationResult] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
 
   const content = {
     title: getStationTitle(stationId),
@@ -25,9 +49,11 @@ export default function StationView() {
   useEffect(() => {
     if (!stationId) return;
 
-    setPhase(stationId === 'sample_prep' ? 'welcome' : 'default');
-    setLoading(true);
+    setPhase(INTRO_VIDEO_STATIONS[stationId] ? 'welcome' : 'default');
+    setStationResult(null);
+    setVideoEnded(false);
 
+    setLoading(true);
     enterStation(stationId, sessionId)
       .then((res) => setStationData(res.data))
       .catch(() => {
@@ -39,18 +65,49 @@ export default function StationView() {
       .finally(() => setLoading(false));
   }, [stationId, sessionId]);
 
+  useEffect(() => {
+    if (!hasIntroVideoFlow || !stationId) return;
+    if (phase !== 'done' || stationResult || submittingStationResult) return;
+
+    setSubmittingStationResult(true);
+    runStation(stationId, {})
+      .then((res) => {
+        setStationResult({
+          success: Boolean(res.data?.success),
+          feedback: res.data?.feedback || 'Station completed.',
+        });
+      })
+      .catch(() => {
+        setStationResult({
+          success: false,
+          feedback: 'Could not validate station completion with backend.',
+        });
+      })
+      .finally(() => setSubmittingStationResult(false));
+  }, [hasIntroVideoFlow, phase, stationResult, submittingStationResult, stationId]);
+
   function goToParams() {
     navigate('/station/' + stationId + '/params');
   }
 
-  function renderSamplePrepFlow() {
+  function finishIntroStation() {
+    markStationComplete(stationId);
+    navigate('/world');
+  }
+
+  function startVideoPhase() {
+    setVideoEnded(false);
+    setPhase('video');
+  }
+
+  function renderIntroVideoStationFlow() {
+    if (!introConfig) return null;
+
     if (phase === 'welcome') {
       return (
         <>
-          <h1 className={styles.title}>Welcome to Sample Preparation</h1>
-          <p className={styles.text}>
-            In this station you will learn how to prep your sample for LC/MS.
-          </p>
+          <h1 className={styles.title}>{introConfig.welcomeTitle}</h1>
+          <p className={styles.text}>{introConfig.welcomeText}</p>
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => navigate('/world')}>
@@ -58,7 +115,7 @@ export default function StationView() {
             </button>
             <button
               className={styles.primaryButton}
-              onClick={() => setPhase('video')}
+              onClick={startVideoPhase}
               disabled={loading}
             >
               Continue
@@ -71,25 +128,33 @@ export default function StationView() {
     if (phase === 'video') {
       return (
         <>
-          <h1 className={styles.title}>Sample Prep Walkthrough</h1>
+          <h1 className={styles.title}>{introConfig.videoTitle}</h1>
           <div className={styles.mediaWrap}>
             <video
               className={styles.video}
-              src="/media/sample_prep_vid.mp4"
+              src={introConfig.videoSrc}
               controls
               autoPlay
               playsInline
+              onEnded={() => setVideoEnded(true)}
             />
           </div>
-          <p className={styles.info}>The next step appears automatically when the video ends.</p>
+          <p className={styles.info}>
+            Continue appears when the video finishes. You can also skip.
+          </p>
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => setPhase('welcome')}>
               Back
             </button>
-            <button className={styles.primaryButton} onClick={() => setPhase('done')}>
+            <button className={styles.secondaryButton} onClick={() => setPhase('done')}>
               Skip video
             </button>
+            {videoEnded && (
+              <button className={styles.primaryButton} onClick={() => setPhase('done')}>
+                Continue
+              </button>
+            )}
           </div>
         </>
       );
@@ -97,24 +162,29 @@ export default function StationView() {
 
     return (
       <>
-        <h1 className={styles.title}>Sample Preparation Completed</h1>
-        <p className={styles.text}>
-          Great work. The station intro is complete and your sample prep is marked successful.
-        </p>
+        <h1 className={styles.title}>{introConfig.doneTitle}</h1>
+        <p className={styles.text}>{introConfig.doneText}</p>
 
-        {stationData && !loading && (
+        {submittingStationResult && <p className={styles.info}>Submitting completion...</p>}
+
+        {stationResult && (
           <div className={styles.box}>
             <strong>Status:</strong>
-            <p className={styles.boxText}>{stationData.message}</p>
+            <p className={styles.boxText}>{stationResult.success ? 'Success' : 'Failed'}</p>
+            <p className={styles.boxText}>{stationResult.feedback}</p>
           </div>
         )}
 
         <div className={styles.buttonRow}>
-          <button className={styles.secondaryButton} onClick={() => navigate('/world')}>
-            Back to map
+          <button className={styles.secondaryButton} onClick={startVideoPhase}>
+            Back to video
           </button>
-          <button className={styles.primaryButton} onClick={goToParams}>
-            Configure and Run
+          <button
+            className={styles.primaryButton}
+            onClick={finishIntroStation}
+            disabled={submittingStationResult || !stationResult}
+          >
+            Back to map
           </button>
         </div>
       </>
@@ -124,10 +194,10 @@ export default function StationView() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        {loading && <p className={styles.info}>Loading station…</p>}
+        {loading && <p className={styles.info}>Loading station...</p>}
 
-        {isSamplePrep ? (
-          renderSamplePrepFlow()
+        {hasIntroVideoFlow ? (
+          renderIntroVideoStationFlow()
         ) : (
           <>
             <h1 className={styles.title}>{content.title}</h1>
