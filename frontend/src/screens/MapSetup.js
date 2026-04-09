@@ -63,8 +63,6 @@ export const COLORS = {
 const walkSprites = [];
 const idleSprites = [];
 
-const directions = ['up', 'right', 'down', 'left'];
-
 // ===============================
 // Load Sprites (CALL ONCE ONLY)
 // ===============================
@@ -506,7 +504,7 @@ function drawIconMTC(ctx, cx, cy) {
   ctx.restore();
 }
 
-// the_cutter: scissors with pivot, crossed blades, handle rings and cut line
+// the_cutter: scissors with pivot, blade arms, handle rings and cut line
 function drawIconCutter(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -515,47 +513,41 @@ function drawIconCutter(ctx, cx, cy) {
   ctx.lineWidth = 2;
   // Pivot circle
   ctx.beginPath();
-  ctx.arc(0, 0, 4, 0, Math.PI * 2);
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
   ctx.stroke();
-  // Upper blade arm and tip circle
+  // Upper blade arm (no tip circle)
   ctx.beginPath();
-  ctx.moveTo(2.5, -2.5);
-  ctx.lineTo(16, -14);
+  ctx.moveTo(2, -2);
+  ctx.lineTo(12, -10);
   ctx.stroke();
+  // Lower blade arm (no tip circle)
   ctx.beginPath();
-  ctx.arc(16, -14, 3, 0, Math.PI * 2);
-  ctx.stroke();
-  // Lower blade arm and tip circle
-  ctx.beginPath();
-  ctx.moveTo(2.5, 2.5);
-  ctx.lineTo(16, 14);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(16, 14, 3, 0, Math.PI * 2);
+  ctx.moveTo(2, 2);
+  ctx.lineTo(12, 10);
   ctx.stroke();
   // Upper handle arm and ring
   ctx.beginPath();
-  ctx.moveTo(-2.5, -2.5);
-  ctx.lineTo(-12, -9);
+  ctx.moveTo(-2, -2);
+  ctx.lineTo(-9, -7);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(-12, -9, 6, 0, Math.PI * 2);
+  ctx.arc(-9, -7, 5, 0, Math.PI * 2);
   ctx.stroke();
   // Lower handle arm and ring
   ctx.beginPath();
-  ctx.moveTo(-2.5, 2.5);
-  ctx.lineTo(-12, 9);
+  ctx.moveTo(-2, 2);
+  ctx.lineTo(-9, 7);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(-12, 9, 6, 0, Math.PI * 2);
+  ctx.arc(-9, 7, 5, 0, Math.PI * 2);
   ctx.stroke();
   // Dashed line being cut (extending to the right of the blades)
   ctx.setLineDash([3, 3]);
   ctx.lineWidth = 1;
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.moveTo(4, 0);
-  ctx.lineTo(20, 0);
+  ctx.moveTo(3, 0);
+  ctx.lineTo(15, 0);
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
