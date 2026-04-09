@@ -142,7 +142,29 @@ export default function ParametrizationView() {
         </div>
 
         {schema.length === 0 ? (
-          <p className={styles.noParams}>No configurable parameters for this station.</p>
+          <>
+            <p className={styles.noParams}>No configurable parameters for this station.</p>
+
+            <div className={styles.buttonRow}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => navigate(`/station/${stationId}`)}
+                disabled={loading}
+              >
+                Back
+              </button>
+
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={handleRun}
+                disabled={loading}
+              >
+                {loading ? 'Running...' : 'Run Station'}
+              </button>
+            </div>
+          </>
         ) : (
           <form
             className={styles.form}
