@@ -100,15 +100,8 @@
     "filtering": {
       "id": "filtering",
       "title": "Filtering Station",
-      "description": "Filter identifications to remove low-confidence or contaminant entries.",
+      "description": "Filter identifications to remove low-confidence entries.",
       "parameters": [
-        {
-          "id": "remove_contaminants",
-          "label": "Remove Contaminants",
-          "type": "select",
-          "options": ["yes", "no"],
-          "defaultValue": "yes"
-        },
         {
           "id": "remove_missing_proteins",
           "label": "Remove Missing Proteins",
