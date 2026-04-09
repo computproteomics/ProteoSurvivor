@@ -3,26 +3,32 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
+import pandas as pd
 from .models import StationRun
 import pandas
+import numpy as np
+from .serializers import DataFrameSessionSerializer
+from .helper_functions import boxplot
 
 
 STATION_SIMULATORS = {}
 
 
-def run_station(request, station_id: str, params: dict) -> StationRun:
+def run_station(request, station_id: str, params: dict) -> dict:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
-    Returns a persisted StationRun with results populated.
+    Returns a dictionary with the simulation results.
     """
-
+    print(f"Running station '{station_id}' with parameters: {params}")
     dataset = request.session.get("current_dataset", None)
+    if dataset is not None:
+        dataset = DataFrameSessionSerializer.loads(dataset)
     runner = STATION_SIMULATORS.get(station_id)
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
     result = runner(dataset, params)
-
+    print(f"Simulation result for station '{station_id}': {result}")
     run = StationRun(
         player=request.user,
         station_id=station_id,
@@ -33,7 +39,9 @@ def run_station(request, station_id: str, params: dict) -> StationRun:
     )
     if result.get("success"):
         run.save()
-    request.session["current_dataset"] = result.get("dataset", dataset)
+        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+    request.session["current_dataset"] = DataFrameSessionSerializer.dumps(result.get("dataset", dataset))
+    print(f"Updated session dataset for user {request.user.username}")
     return result
 
 
@@ -171,28 +179,60 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "img": [],
         "score": 0,
         "feedback": """
-        Done: You now ran a peptide database search with FragPipe using the given search parameters. 
+        Done: You now ran a peptide database search with FragPipe using the given search parameters.
         The software takes the mass spectra from the mass spectrometer and compares them to theoretical spectra generated from a protein sequence database.
         The result is a list of identified peptides and proteins, along with scores indicating the confidence of each identification.
-        From now on, you will use the protein table for the next stations. It contains the identified proteins and their associated data, such as the number of peptides identified for each protein, 
+        From now on, you will use the protein table for the next stations. It contains the identified proteins and their associated data, such as the number of peptides identified for each protein,
         protein length, identification confidence, and quantification values (among more information)
         You can now proceed to the next station to further process and analyze these identifications.
         """,
     }
 
-
-def _simulate_transform(dataset: dict, params: dict) -> dict:
+def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+    if dataset is None:
+        df = pd.DataFrame()
+    else:
+        df = dataset.copy()
+    relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
+    imgs = []
+    success = False
+    feedback = None
 
-    variance = random.uniform(0.5, 1.5)
+    try:
+        img_before = boxplot(df, relevant_cols, title="Intensities Before Transformation")
+        imgs.append(img_before)
 
-    if method in ["ln", "log2"]:
-        variance *= 0.6
+        if method == "none":
+            success = True
+            feedback = "No transformation applied. Data remains unchanged."
+
+        elif method == "log2":
+            df[relevant_cols] = np.log2(df[relevant_cols])
+            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Log2)")
+            imgs.append(img_after)
+            success = True
+            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+
+        elif method == "ln":
+            df[relevant_cols] = np.log(df[relevant_cols])
+            img_after = boxplot(df, relevant_cols, title="Intensities After Transformation (Natural Log)")
+            imgs.append(img_after)
+            success = True
+            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+
+    except Exception as e:
+        success = False
+        feedback = f"Error applying transformation: {str(e)}"
 
     return {
-        "summary": f"Applied {method} transformation.",
-        "variance": round(variance, 3),
-        "effect": "Variance stabilized." if method != "none" else "No change.",
+        "success": success,
+        "num_pro": None,
+        "num_pep": None,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df
     }
 
 
