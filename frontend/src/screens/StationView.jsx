@@ -81,7 +81,7 @@ export default function StationView() {
               playsInline
             />
           </div>
-          <p className={styles.info}>The next step appears automatically when the video ends.</p>
+          <p className={styles.info}>Watch the videos above or skip to the next steps ahead.</p>
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => setPhase('welcome')}>
