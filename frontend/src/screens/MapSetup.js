@@ -72,6 +72,20 @@ const STATION_COLORS = {
   veit: '#fde68a',
 };
 
+const STATION_ICONS = {
+  sample_prep: '🧪',
+  mass_spec: '⚗️',
+  spectral_search: '🔍',
+  filtering: '🔬',
+  transform: '🔄',
+  normalize: '📐',
+  imputer: '💉',
+  multiple_testing_corrector: '✅',
+  the_cutter: '✂️',
+  statistical_analysis: '📊',
+  veit: '👤',
+};
+
 // Station definitions with position on map and color
 export const STATIONS = STATION_IDS.map((id) => ({
   id,
@@ -177,10 +191,30 @@ function drawStation(context, station, done) {
   context.lineWidth = 3;
   context.strokeRect(x + 12, y + 12, TILE - 24, TILE - 24);
 
+  // Draw station icon centred on the tile.
+  const icon = STATION_ICONS[station.id];
+  if (icon) {
+    context.save();
+    context.font = '14px sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(icon, x + TILE / 2, y + TILE / 2);
+    context.restore();
+  }
+
+  // Completion badge: small green circle with a check in the top-right corner.
   if (done) {
+    context.save();
     context.fillStyle = '#1d8a4f';
-    context.font = 'bold 14px Segoe UI';
-    context.fillText('OK', x + 14, y + 43);
+    context.beginPath();
+    context.arc(x + TILE - 10, y + 10, 7, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 9px sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('✓', x + TILE - 10, y + 10);
+    context.restore();
   }
 }
 
