@@ -2,6 +2,7 @@
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 import random
+from turtle import pd
 from .models import StationRun
 
 
@@ -104,8 +105,34 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "proteins": proteins,
     }
 
-def _simulate_transform(dataset: dict, params: dict) -> dict:
+def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+
+    try: 
+        if method == "none":
+            succes = True
+            text = "No transformation applied. Data remains unchanged."
+        elif method == "log2":
+            
+            succes = True
+            text = "Log2 transformation applied. Variance stabilized for downstream analysis."
+        elif method == "ln":
+            succes = True
+            text = "Natural log transformation applied. Variance stabilized for downstream analysis."
+    except Exception as e:
+        succes = False
+        text = f"Error applying transformation: {str(e)}"
+
+    return {
+        "succes": succes,
+        "num_pro": None,
+        "num_pep": None,
+        "feedback": None,
+        "img": None,
+        "score": None,
+        "dataset": dataset
+    }
+
 
     variance = random.uniform(0.5, 1.5)
 
