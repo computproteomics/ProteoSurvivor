@@ -3,6 +3,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
+from typing import Any, cast
 import pandas as pd
 from .models import StationRun
 import pandas
@@ -14,7 +15,37 @@ from .helper_functions import boxplot
 STATION_SIMULATORS = {}
 
 
-def run_station(request, station_id: str, params: dict) -> dict:
+def _to_json_safe(value: Any) -> Any:
+    """Convert values to JSON-safe primitives for DRF responses."""
+    if value is None:
+        return None
+
+    if value is pd.NA or value is pd.NaT:
+        return None
+
+    if isinstance(value, dict):
+        return {key: _to_json_safe(item) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(item) for item in value]
+
+    if isinstance(value, np.integer):
+        return int(value)
+
+    if isinstance(value, np.bool_):
+        return bool(value)
+
+    if isinstance(value, np.floating):
+        float_value = float(value)
+        return float_value if np.isfinite(float_value) else None
+
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+
+    return value
+
+
+def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
     Returns a dictionary with the simulation results.
@@ -42,7 +73,10 @@ def run_station(request, station_id: str, params: dict) -> dict:
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(result.get("dataset", dataset))
     print(f"Updated session dataset for user {request.user.username}")
-    return result
+
+    # Keep large internal data structures (e.g., DataFrames) in session only.
+    response_payload = {key: value for key, value in result.items() if key != "dataset"}
+    return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
 def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
