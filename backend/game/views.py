@@ -81,7 +81,7 @@ def enter_station_view(request, station_id):
 def run_station_view(request, station_id):
     if station_id not in settings.STATIONS_CONFIG:
         return Response(
-            {"success": False, "feedback": f"Unknown station '{station_id}'.", "score": None},
+            {"success": False, "feedback": f"Unknown station '{station_id}'.", "score": 0},
             status=status.HTTP_404_NOT_FOUND,
         )
 
