@@ -273,16 +273,18 @@ function drawStation(context, station, done) {
   const y = station.row * TILE;
 
   context.fillStyle = station.color;
-  context.fillRect(x + 12, y + 12, TILE - 24, TILE - 24);
+  context.fillRect(x + 10, y + 10, TILE - 20, TILE - 20);
 
   context.strokeStyle = done ? '#1d8a4f' : '#1f2937';
-  context.lineWidth = 3;
-  context.strokeRect(x + 12, y + 12, TILE - 24, TILE - 24);
+  context.lineWidth = done ? 5 : 3;
+  context.strokeRect(x + 10, y + 10, TILE - 20, TILE - 20);
 
   if (done) {
-    context.fillStyle = '#1d8a4f';
-    context.font = 'bold 14px Segoe UI';
-    context.fillText('OK', x + 14, y + 43);
+    context.save();
+    context.strokeStyle = 'rgba(29, 138, 79, 0.28)';
+    context.lineWidth = 2;
+    context.strokeRect(x + 6, y + 6, TILE - 12, TILE - 12);
+    context.restore();
   }
 }
 
