@@ -6,6 +6,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Start a new game: create or authenticate a user on backend.
+export const startGame = ({ userName }) =>
+  api.post('/start', {
+    user_name: userName,
+  });
+
 // Station entry.
 export const enterStation = (stationId, sessionId) =>
   api.post(`/stations/${stationId}/enter/`, { session_id: sessionId });

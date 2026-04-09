@@ -2,6 +2,10 @@ from rest_framework import serializers
 from .models import StationRun
 
 
+class NewPlayerSerializer(serializers.Serializer):
+    user_name = serializers.CharField(max_length=64)
+
+
 class RunStationSerializer(serializers.Serializer):
     params = serializers.JSONField()
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { startGame } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import styles from './Intro.module.css';
 
@@ -11,17 +12,29 @@ export default function Intro() {
   const startLabSession = useGameStore((s) => s.startLabSession);
 
   const [nameInput, setNameInput] = useState(userName ?? '');
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState('');
 
-  function handleStart() {
+  async function handleStart() {
     const cleanName = nameInput.trim();
     if (!cleanName) return;
 
-    const stableUserId = userId || `user_${Date.now()}`;
-    const nextSessionId = `${stableUserId}_${Date.now()}`;
+    setStartError('');
+    setIsStarting(true);
 
-    setPlayerProfile({ userId: stableUserId, userName: cleanName });
-    startLabSession(nextSessionId);
-    navigate('/world');
+    try {
+      const { data } = await startGame({ userName: cleanName });
+      const stableUserId = data.user_id;
+      const nextSessionId = data.session_id || `${stableUserId}_${Date.now()}`;
+
+      setPlayerProfile({ userId: stableUserId, userName: data.user_name || cleanName });
+      startLabSession(nextSessionId);
+      navigate('/world');
+    } catch {
+      setStartError('Could not start the game right now. Please try again.');
+    } finally {
+      setIsStarting(false);
+    }
   }
 
   return (
@@ -48,10 +61,15 @@ export default function Intro() {
             maxLength={64}
           />
           {userId && <p className={styles.userId}>User ID: {userId}</p>}
+          {startError && <p className={styles.userId}>{startError}</p>}
         </div>
 
-        <button className={styles.startButton} onClick={handleStart} disabled={!nameInput.trim()}>
-          Start
+        <button
+          className={styles.startButton}
+          onClick={handleStart}
+          disabled={!nameInput.trim() || isStarting}
+        >
+          {isStarting ? 'Starting...' : 'Start'}
         </button>
       </div>
     </div>
