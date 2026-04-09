@@ -195,7 +195,7 @@ function drawStation(context, station, done) {
   const icon = STATION_ICONS[station.id];
   if (icon) {
     context.save();
-    context.font = '14px sans-serif';
+    context.font = '18px sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(icon, x + TILE / 2, y + TILE / 2);
@@ -207,10 +207,10 @@ function drawStation(context, station, done) {
     context.save();
     context.fillStyle = '#1d8a4f';
     context.beginPath();
-    context.arc(x + TILE - 10, y + 10, 7, 0, Math.PI * 2);
+    context.arc(x + TILE - 10, y + 10, 8, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = '#ffffff';
-    context.font = 'bold 9px sans-serif';
+    context.font = 'bold 11px sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText('✓', x + TILE - 10, y + 10);
