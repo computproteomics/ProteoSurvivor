@@ -1,12 +1,12 @@
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
-import math
 import random
-from turtle import pd
+import pandas as pd
 from .models import StationRun
 import numpy as np
-from helper_functions import boxplot
+import pickle
+from .helper_functions import boxplot
         
 
 
@@ -18,14 +18,16 @@ def run_station(request, station_id: str, params: dict) -> dict:
     Simulate the execution of a proteomics lab station with the given parameters.
     Returns a dictionary with the simulation results.
     """
-
+    print(f"Running station '{station_id}' with parameters: {params}")
     dataset = request.session.get("current_dataset", None)
+    if dataset is not None:
+        dataset = pickle.loads(dataset)  # Convert back to DataFrame if it exists
     runner = STATION_SIMULATORS.get(station_id)
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
     result = runner(dataset, params)
-
+    print(f"Simulation result for station '{station_id}': {result}")
     run = StationRun(
         player=request.user,
         station_id=station_id,
@@ -33,7 +35,9 @@ def run_station(request, station_id: str, params: dict) -> dict:
         score=result.get("score", 0),  # Score can be calculated based on results if needed
     )
     run.save()
-    request.session["current_dataset"] = result.get("dataset", dataset)
+    print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+    request.session["current_dataset"] = pickle.dumps(result.get("dataset", dataset))
+    print(f"Updated session dataset for user {request.user.username}")
     return result
 
 
@@ -111,12 +115,14 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+    if dataset is None:
+        df = pd.DataFrame()
+    else: 
+        df = dataset.copy()
+    relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
+    imgs = []
 
     try: 
-        df = dataset.copy()
-        relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
-        imgs = []
-
         img_before = boxplot(df, relevant_cols, title="Intensities Before Transformation")
         imgs.append(img_before)
         
@@ -148,7 +154,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         "num_pep": None,
         "feedback": feedback,
         "img": imgs,
-        "score": None,
+        "score": 0,
         "dataset": df
     }
 
