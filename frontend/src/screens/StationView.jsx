@@ -139,9 +139,7 @@ export default function StationView() {
               onEnded={() => setVideoEnded(true)}
             />
           </div>
-          <p className={styles.info}>
-            Continue appears when the video finishes. You can also skip.
-          </p>
+          <p className={styles.info}>Watch the videos above or skip to the next steps ahead.</p>
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => setPhase('welcome')}>
