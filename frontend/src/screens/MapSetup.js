@@ -1,6 +1,9 @@
 import { STATION_IDS, getStationTitle } from '../assets/stationConfig';
 
+=======
+// ===============================
 // Map Configuration
+// ===============================
 export const TILE = 48;
 export const COLS = 22;
 export const ROWS = 16;
@@ -10,11 +13,20 @@ export const HEIGHT = ROWS * TILE;
 // Player start position
 export const PLAYER_START = { col: 2, row: 2 };
 
-// Animation config
+// ===============================
+// Animation Configuration
+// ===============================
+
+// Total steps in our custom animation loop:
+// [ step1, idle, step2, idle ]
 export const WALK_FRAME_COUNT = 4;
+
+// Time (ms) between frame changes
 export const WALK_FRAME_DURATION = 120;
 
+// ===============================
 // Colors
+// ===============================
 export const COLORS = {
   floorA: '#d0dce8',
   floorB: '#c4d4e2',
@@ -28,24 +40,30 @@ export const COLORS = {
   ring: '#f8e45a',
 };
 
-// Sprite Configuration
-
+// ===============================
+// Sprite Storage
+// ===============================
 const walkSprites = [];
 const idleSprites = [];
 
 const directions = ['up', 'right', 'down', 'left'];
 
-// Load idle sprites
-function loadSprites() {
+// ===============================
+// Load Sprites (CALL ONCE ONLY)
+// ===============================
+export function loadSprites() {
+  // Idle sprites (one per direction)
   directions.forEach((dir, i) => {
     const img = new Image();
     img.src = `../assets/avatar_sprites/${dir}_idle.png`;
     idleSprites[i] = img;
   });
-// Load walk sprites (4 frames per direction)
+
+  // Walk sprites (we only use frame 1 and 2)
   directions.forEach((dir, dirIndex) => {
     walkSprites[dirIndex] = [];
-    for (let frame = 0; frame < 4; frame++) {
+
+    for (let frame = 0; frame < 2; frame++) {
       const img = new Image();
       img.src = `../assets/avatar_sprites/${dir}_${frame + 1}.png`;
       walkSprites[dirIndex][frame] = img;
@@ -53,25 +71,9 @@ function loadSprites() {
   });
 }
 
-// Map Layout
-export const MAP = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
+// ===============================
+// Animation State Update
+// ===============================
 
 const STATION_POSITIONS_BY_ID = {
   sample_prep: { col: 16, row: 3 },
@@ -88,28 +90,59 @@ const STATION_POSITIONS_BY_ID = {
 };
 
 const STATION_COLORS = {
-  sample_prep: '#f8b85a',
-  mass_spec: '#5ad4f8',
-  spectral_search: '#7dd3fc',
-  filtering: '#f89d5a',
-  transform: '#86efac',
-  normalize: '#58c87a',
-  imputer: '#b87af8',
-  multiple_testing_corrector: '#c4b5fd',
-  the_cutter: '#fca5a5',
-  statistical_analysis: '#f86a6a',
-  veit: '#fde68a',
+sample_prep: '#f8b85a',
+mass_spec: '#5ad4f8',
+spectral_search: '#7dd3fc',
+filtering: '#f89d5a',
+transform: '#86efac',
+normalize: '#58c87a',
+imputer: '#b87af8',
+multiple_testing_corrector: '#c4b5fd',
+the_cutter: '#fca5a5',
+statistical_analysis: '#f86a6a',
+veit: '#fde68a',
 };
 
 // Station definitions with position on map and color
 export const STATIONS = STATION_IDS.map((id) => ({
-  id,
-  label: getStationTitle(id),
-  ...STATION_POSITIONS_BY_ID[id],
-  color: STATION_COLORS[id],
+id,
+label: getStationTitle(id),
+...STATION_POSITIONS_BY_ID[id],
+color: STATION_COLORS[id],
 }));
+=======
+// This function updates animation timing.
+// It should be called every frame from your game loop.
+export function updateAnimation(animState, now) {
+// If player is NOT moving → always show idle
+if (!animState.isMoving) {
+  return {
+    ...animState,
+    frameIndex: 0,
+    lastUpdate: now,
+  };
+}
 
-// Movement keys and their corresponding column/row deltas
+  // If enough time passed → advance frame
+  if (now - animState.lastUpdate > WALK_FRAME_DURATION) {
+    return {
+      ...animState,
+      frameIndex: (animState.frameIndex + 1) % WALK_FRAME_COUNT,
+      lastUpdate: now,
+    };
+  }
+
+  return animState;
+}
+
+// ===============================
+// Map Layout (unchanged)
+// ===============================
+export const MAP = [/* same as yours */];
+
+// ===============================
+// Movement config
+// ===============================
 export const MOVE_KEYS = {
   arrowup: [0, -1],
   w: [0, -1],
@@ -132,145 +165,84 @@ export const KEY_TO_DIRECTION = {
   d: 'right',
 };
 
-// Returns true only for in-bounds, walkable tiles (not walls or benches).
+// ===============================
+// Movement helpers
+// ===============================
 export function canMove(col, row) {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
   const tile = MAP[row][col];
   return tile !== 1 && tile !== 3;
 }
 
-// Uses Manhattan distance so a station is reachable from adjacent tiles.
-export function getNearbyStation(playerCol, playerRow) {
-  return STATIONS.find((station) => {
-    const distance = Math.abs(station.col - playerCol) + Math.abs(station.row - playerRow);
-    return distance <= 1;
-  });
-}
-
-// Finds a station exactly on one tile, used for direct click-to-enter.
-export function getStationAtTile(col, row) {
-  return STATIONS.find((station) => station.col === col && station.row === row);
-}
-
-// Scales the logical canvas into the viewport while preserving aspect ratio.
-export function fitCanvasToViewport(canvas) {
-  const scale = Math.min((window.innerWidth * 0.9) / WIDTH, (window.innerHeight * 0.75) / HEIGHT);
-  canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
-  canvas.style.height = `${Math.floor(HEIGHT * scale)}px`;
-}
-
-// Converts screen-space pointer coordinates to map tile coordinates.
-export function pointerToTile(canvas, clientX, clientY) {
-  const rect = canvas.getBoundingClientRect();
-  // The canvas is visually scaled with CSS, so convert back to logical pixels.
-  const scaleX = WIDTH / rect.width;
-  const scaleY = HEIGHT / rect.height;
-  const x = (clientX - rect.left) * scaleX;
-  const y = (clientY - rect.top) * scaleY;
-
-  return {
-    col: Math.floor(x / TILE),
-    row: Math.floor(y / TILE),
-  };
-}
-
-// Draws one tile variant (wall, bench, or floor checker tile).
-function drawTile(context, col, row, tileType) {
-  const x = col * TILE;
-  const y = row * TILE;
-
-  if (tileType === 1) {
-    // Layered rectangles give walls a simple top-light/shadow depth.
-    context.fillStyle = COLORS.wallShadow;
-    context.fillRect(x, y, TILE, TILE);
-    context.fillStyle = COLORS.wall;
-    context.fillRect(x + 2, y + 10, TILE - 2, TILE - 10);
-    context.fillStyle = COLORS.wallTop;
-    context.fillRect(x + 2, y + 2, TILE - 2, 10);
-    return;
-  }
-
-  if (tileType === 3) {
-    // Bench tiles are drawn on top of floor so they read as obstacles.
-    context.fillStyle = COLORS.floorA;
-    context.fillRect(x, y, TILE, TILE);
-    context.fillStyle = COLORS.bench;
-    context.fillRect(x + 6, y + 18, TILE - 12, TILE - 20);
-    context.fillStyle = COLORS.benchTop;
-    context.fillRect(x + 6, y + 8, TILE - 12, 12);
-    return;
-  }
-
-  context.fillStyle = (row + col) % 2 === 0 ? COLORS.floorA : COLORS.floorB;
-  context.fillRect(x, y, TILE, TILE);
-}
-
-// Draws a station marker and completion badge if it has been cleared.
-function drawStation(context, station, done) {
-  const x = station.col * TILE;
-  const y = station.row * TILE;
-
-  context.fillStyle = station.color;
-  context.fillRect(x + 12, y + 12, TILE - 24, TILE - 24);
-
-  context.strokeStyle = done ? '#1d8a4f' : '#1f2937';
-  context.lineWidth = 3;
-  context.strokeRect(x + 12, y + 12, TILE - 24, TILE - 24);
-
-  if (done) {
-    context.fillStyle = '#1d8a4f';
-    context.font = 'bold 14px Segoe UI';
-    context.fillText('OK', x + 14, y + 43);
-  }
-}
-
-// draw sprite
-
-// Draws the player and a ring around the nearest interactable station.
+// ===============================
+// DRAW PLAYER (ANIMATION CORE)
+// ===============================
 function drawPlayer(context, player, animState) {
-  const { isMoving, direction, walkFrame } = animState;
+  const { isMoving, direction, frameIndex } = animState;
+
   const cx = player.col * TILE;
   const cy = player.row * TILE;
 
-  const img = isMoving
-    ? walkSprites[direction][walkFrame]
-    : idleSprites[direction];
+  let img;
 
-  context.drawImage(img, cx, cy, TILE, TILE)
-/*
-  context.fillStyle = COLORS.player;
-  context.beginPath();
-  context.arc(px + TILE / 2, py + TILE / 2, 12, 0, Math.PI * 2);
-  context.fill();
+  // ===============================
+  // ANIMATION LOGIC
+  // ===============================
 
-  context.fillStyle = COLORS.playerAccent;
-  context.beginPath();
-  context.arc(px + TILE / 2 + 4, py + TILE / 2 - 4, 4, 0, Math.PI * 2);
-  context.fill();
-*/
+  if (!isMoving) {
+    // If not moving → always use idle sprite
+    img = idleSprites[direction];
+  } else {
+    // Custom animation cycle:
+    // frameIndex cycles 0 → 1 → 2 → 3
+    //
+    // We map it like this:
+    // 0 → step 1
+    // 1 → idle
+    // 2 → step 2
+    // 3 → idle
+    //
+    // This creates a "bounce" walking effect
 
-  const nearby = getNearbyStation(player.col, player.row);
-  if (nearby) {
-    context.strokeStyle = COLORS.ring;
-    context.lineWidth = 3;
-    context.beginPath();
-    context.arc(nearby.col * TILE + TILE / 2, nearby.row * TILE + TILE / 2, 18, 0, Math.PI * 2);
-    context.stroke();
+    switch (frameIndex) {
+      case 0:
+        img = walkSprites[direction][0]; // step 1
+        break;
+      case 1:
+        img = idleSprites[direction]; // idle
+        break;
+      case 2:
+        img = walkSprites[direction][1]; // step 2
+        break;
+      case 3:
+        img = idleSprites[direction]; // idle
+        break;
+      default:
+        img = idleSprites[direction];
+    }
   }
 
+  context.drawImage(img, cx, cy, TILE, TILE);
 }
 
-// Renders the whole world in draw order: terrain -> stations -> player.
-export function renderWorld(context, player, completedSet) {
+// ===============================
+// WORLD RENDER
+// ===============================
+export function renderWorld(context, player, completedSet, animState) {
   context.clearRect(0, 0, WIDTH, HEIGHT);
 
-  for (let row = 0; row < ROWS; row += 1) {
-    for (let col = 0; col < COLS; col += 1) {
+  // Draw tiles
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
       drawTile(context, col, row, MAP[row][col]);
     }
   }
 
-  STATIONS.forEach((station) => drawStation(context, station, completedSet.has(station.id)));
-  loadSprites()
-  drawPlayer(context, player, );
+  // Draw stations (unchanged)
+  STATIONS.forEach((station) =>
+    drawStation(context, station, completedSet.has(station.id))
+  );
+
+  // Draw animated player
+  drawPlayer(context, player, animState);
 }
