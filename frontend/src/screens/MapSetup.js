@@ -280,10 +280,23 @@ function drawStation(context, station, done) {
   context.strokeRect(x + 10, y + 10, TILE - 20, TILE - 20);
 
   if (done) {
+    const badgeX = x + TILE / 2;
+    const badgeY = y + TILE / 2;
+
     context.save();
-    context.strokeStyle = 'rgba(29, 138, 79, 0.28)';
+    context.fillStyle = '#16a34a';
+    context.strokeStyle = '#ffffff';
     context.lineWidth = 2;
-    context.strokeRect(x + 6, y + 6, TILE - 12, TILE - 12);
+    context.beginPath();
+    context.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 12px Segoe UI';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('✓', badgeX, badgeY + 0.5);
     context.restore();
   }
 }
