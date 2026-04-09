@@ -113,6 +113,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     try: 
         df = dataset.copy()
         relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
+        imgs = []
+        
         # img_before = distribution of intensities before 
         # transformation using seaborn e.g., boxplot or histogram
         # of relevant_cols
