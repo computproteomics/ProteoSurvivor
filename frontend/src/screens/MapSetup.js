@@ -276,7 +276,9 @@ function drawIconMTC(ctx, cx, cy) {
   ctx.moveTo(-9, 8);
   ctx.lineTo(9, 8);
   ctx.stroke();
-  [[-6, 11], [-1, 7], [4, 4]].forEach(([bx, h]) => {
+  // Each entry is [barX, barHeight] – three bars of descending height
+  const bars = [[-6, 11], [-1, 7], [4, 4]];
+  bars.forEach(([bx, h]) => {
     ctx.strokeRect(bx, 8 - h, 3, h);
   });
   ctx.setLineDash([2, 2]);
@@ -352,13 +354,17 @@ function drawIconStatAnalysis(ctx, cx, cy) {
   ctx.lineTo(9, -2);
   ctx.stroke();
   ctx.setLineDash([]);
-  [[-6, -5], [7, -7], [-8, -8], [6, -4]].forEach(([dx, dy]) => {
+  // Dots above the p-value threshold (statistically significant)
+  const significantDots = [[-6, -5], [7, -7], [-8, -8], [6, -4]];
+  significantDots.forEach(([dx, dy]) => {
     ctx.fillStyle = '#c0392b';
     ctx.beginPath();
     ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
     ctx.fill();
   });
-  [[-1, 3], [2, 2], [0, 5], [-3, 4]].forEach(([dx, dy]) => {
+  // Dots below the threshold (non-significant)
+  const nonSignificantDots = [[-1, 3], [2, 2], [0, 5], [-3, 4]];
+  nonSignificantDots.forEach(([dx, dy]) => {
     ctx.fillStyle = '#7f8c8d';
     ctx.beginPath();
     ctx.arc(dx, dy, 1, 0, Math.PI * 2);
