@@ -62,6 +62,20 @@
   line-height: 1.5;
 }
 
+.errorBox {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.errorText {
+  margin: 0;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -99,6 +113,37 @@
   margin: 0.4rem 0 0;
   color: #1d4ed8;
   line-height: 1.5;
+}
+
+.imageSection {
+  margin-bottom: 1.75rem;
+}
+
+.imageTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.imageCard {
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.resultImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
 }
 
 .buttonRow {

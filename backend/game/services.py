@@ -1,122 +1,321 @@
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
+
 import random
+from typing import Any, cast
+import pandas as pd
 from .models import StationRun
+import pandas
+import numpy as np
+from .serializers import DataFrameSessionSerializer
+from .helper_functions import tr_boxplot, sp_scatterplot
 
 
 STATION_SIMULATORS = {}
 
 
-def run_station(request, station_id: str, params: dict) -> StationRun:
+def _to_json_safe(value: Any) -> Any:
+    """Convert values to JSON-safe primitives for DRF responses."""
+    if value is None:
+        return None
+
+    if value is pd.NA or value is pd.NaT:
+        return None
+
+    if isinstance(value, dict):
+        return {key: _to_json_safe(item) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(item) for item in value]
+
+    if isinstance(value, np.integer):
+        return int(value)
+
+    if isinstance(value, np.bool_):
+        return bool(value)
+
+    if isinstance(value, np.floating):
+        float_value = float(value)
+        return float_value if np.isfinite(float_value) else None
+
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+
+    return value
+
+
+def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
-    Returns a persisted StationRun with results populated.
+    Returns a dictionary with the simulation results.
     """
-
+    print(f"Running station '{station_id}' with parameters: {params}")
     dataset = request.session.get("current_dataset", None)
+    if dataset is not None:
+        dataset = DataFrameSessionSerializer.loads(dataset)
     runner = STATION_SIMULATORS.get(station_id)
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
     result = runner(dataset, params)
-
+    print(f"Simulation result for station '{station_id}': {result}")
     run = StationRun(
         player=request.user,
         station_id=station_id,
         params=params,
-        score=result.get("score", 0),  # Score can be calculated based on results if needed
+        score=result.get(
+            "score", 0
+        ),  # Score can be calculated based on results if needed
     )
-    run.save()
-    request.session["current_dataset"] = result.get("dataset", dataset)
-    return result
+    if result.get("success"):
+        run.save()
+        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+    request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
+        result.get("dataset", dataset)
+    )
+    print(f"Updated session dataset for user {request.user.username}")
+
+    # Keep large internal data structures (e.g., DataFrames) in session only.
+    response_payload = {key: value for key, value in result.items() if key != "dataset"}
+    return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
 def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
-    enzyme = params.get("enzyme", "trypsin")
-    lysis = params.get("lysis_method", "chemical")
-    reduction = params.get("reduction_agent", "DTT")
-    alkylation = params.get("alkylation_agent", "iodoacetamide")
-
-    protein_yield = round(random.uniform(1.2, 4.8), 2)
-    peptide_count = random.randint(8000, 22000)
-    missed = random.randint(5, 18)
-
-    quality = "High" if enzyme == "trypsin" and lysis == "chemical" else "Medium"
-
     return {
-        "dataset": dataset,  # updated dataset
-        "score": round(protein_yield * (100 - missed) / 100, 2),  # example scoring formula
-        "summary": (
-            f"Sample preparation completed using {lysis} lysis, "
-            f"{reduction} reduction, and {alkylation} alkylation."
-        ),
-        "protein_yield_mg_ml": protein_yield,
-        "estimated_peptides": peptide_count,
-        "missed_cleavage_rate_pct": missed,
-        "enzyme_used": enzyme,
-        "sample_quality": quality,
-        "recommendation": (
-            "Proceed to mass spectrometry."
-            if quality == "High"
-            else "Consider repeating lysis with chemical method for higher yield."
-        ),
+        "success": True,
+        "feedback": "Sample preparation intro completed.",
+        "score": 0,
+        "dataset": dataset,
     }
 
 
 def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
-    mode = params.get("acquisition_mode", "DDA")
-    gradient = int(params.get("gradient_length_min", 60))
-    ms1_res = int(params.get("ms1_resolution", 60000))
-
-    psm_base = 18000 if mode == "DIA" else 12000
-    psm_count = random.randint(int(psm_base * 0.85), int(psm_base * 1.15))
-    peptides = random.randint(int(psm_count * 0.6), int(psm_count * 0.8))
-    proteins = random.randint(int(peptides * 0.08), int(peptides * 0.12))
-    coverage = round(random.uniform(55, 82), 1)
-
     return {
-        "summary": (
-            f"Acquisition finished: {mode} mode, {gradient} min gradient, "
-            f"MS1 resolution {ms1_res:,}."
-        ),
-        "psm_count": psm_count,
-        "peptide_count": peptides,
-        "protein_groups": proteins,
-        "sequence_coverage_pct": coverage,
-        "acquisition_mode": mode,
-        "recommendation": (
-            "Good coverage. Proceed to database search."
-            if coverage >= 65
-            else "Coverage is low — consider a longer gradient next time."
-        ),
+        "success": True,
+        "feedback": "Mass spectrometry intro completed.",
+        "score": 0,
+        "dataset": dataset,
     }
+
 
 def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-    tool = params.get("tool", "fraqpipe")
-    tol = int(params.get("precursor_mass_tolerance", 10))
-    enzyme = params.get("enzyme", "trypsin")
 
-    proteins = 100
+    tool = params.get("tool", "fragpipe")
+    match_between_runs = params.get("match_between_runs", "FALSE")
+    # set match_between_runs to upper case
+    match_between_runs = match_between_runs.upper()
+    precursor_mass_tolerance = int(params.get("precursor_mass_tolerance", 5))
+    fragment_mass_tolerance = params.get("fragment_mass_tolerance", "0.01")
+    enzyme = params.get("enzyme", "stricttrypsin")
+    missed_cleavages = int(params.get("missed_cleavages", 1))
+    min_pep_len = int(params.get("min_peptide_length", 7))
+    max_pep_len = int(params.get("max_peptide_length", 35))
 
-    return {
-        "summary": f"{tool} search complete with {tol} ppm tolerance using {enzyme}.",
-        "proteins": proteins,
+    file_map = pandas.read_csv("data/ParameterTable.csv")  # Mapping table
+    # Make key of all columns but ParameterSet
+    file_map["key"] = (
+        file_map["tool"]
+        + "_mbf"
+        + file_map["match_between_runs"].astype(str).str.upper()
+        + "_pmt"
+        + file_map["precursor_mass_tolerance"].astype(str)
+        + "_ft"
+        + file_map["fragment_mass_tolerance"].astype(str)
+        + "_enzyme"
+        + file_map["enzyme"].astype(str)
+        + "_mc"
+        + file_map["missed_cleavages"].astype(str)
+        + "_minpl"
+        + file_map["min_peptide_length"].astype(str)
+        + "_maxpl"
+        + file_map["max_peptide_length"].astype(str)
+    )
+    # get the data file name for the current parameters
+    file_key = (
+        tool
+        + "_mbf"
+        + str(match_between_runs).upper()
+        + "_pmt"
+        + str(precursor_mass_tolerance)
+        + "_ft"
+        + str(fragment_mass_tolerance)
+        + "_enzyme"
+        + str(enzyme)
+        + "_mc"
+        + str(missed_cleavages)
+        + "_minpl"
+        + str(min_pep_len)
+        + "_maxpl"
+        + str(max_pep_len)
+    )
+
+    # if multiples rows match, take the first one (shouldn't happen if ParameterTable.csv is well-constructed)
+    matching_rows = file_map[file_map["key"] == file_key]
+    if matching_rows.empty:
+        raise ValueError(f"No data file found for parameters: {params}")
+    data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
+
+    # Load the corresponding data file and extract results
+    dataset = pandas.read_csv(f"data/{data_file_name}", sep="\t")
+
+    # Making plots
+    imgs = []
+    success = False
+    feedback = None
+
+    species_palette = [
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#7f7f7f",
+        "#bcbd22",
+        "#17becf",
+    ]
+
+    # Name the species palette based on the unique species in the dataset
+    unique_species = dataset["Organism"].unique()
+    species_palette = {
+        species: species_palette[i % len(species_palette)]
+        for i, species in enumerate(unique_species)
     }
 
-def _simulate_transform(dataset: dict, params: dict) -> dict:
+    try:
+        for species in dataset["Organism"].unique():
+
+            count_cols_a = [
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Total Spectral Count",
+            ]
+            int_cols_a = [
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity",
+            ]
+            count_cols_b = [
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Total Spectral Count",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Total Spectral Count",
+            ]
+            int_cols_b = [
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Intensity",
+                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Intensity",
+            ]
+
+            # Make a vector of all count_cols_a columns into one column "Total Spectral Count A"
+            spec_a = np.log2(np.concatenate([dataset[c].values for c in count_cols_a]))
+            spec_b = np.log2(np.concatenate([dataset[c].values for c in count_cols_b]))
+
+            int_a = np.log2(np.concatenate([dataset[c].values for c in int_cols_a]))
+            int_b = np.log2(np.concatenate([dataset[c].values for c in int_cols_b]))
+
+            tr_scatter = sp_scatterplot(
+                x=spec_a,
+                y=int_a,
+                x_col="Total Spectral Count A",
+                y_col="log2(Intensity A)",
+                color=species_palette[species],
+                title=f"Spectral Count vs Intensity for {species} - Condition A",
+            )
+            imgs.append(tr_scatter)
+            tr_scatter = sp_scatterplot(
+                x=spec_b,
+                y=int_b,
+                x_col="Total Spectral Count B",
+                y_col="log2(Intensity B)",
+                color=species_palette[species],
+                title=f"Spectral Count vs Intensity for {species} - Condition B",
+            )
+            imgs.append(tr_scatter)
+
+        success = True
+        feedback = None
+
+    except Exception as e:
+        success = False
+        feedback = f"Error plotting spectra counts: {str(e)}"
+
+    return {
+        "success": success,
+        "dataset": dataset,
+        "num_prot": int(dataset["Protein ID"].nunique()),
+        "num_pep": int(dataset["Combined Total Peptides"].sum()),
+        "img": imgs,
+        "score": 0,
+        "feedback": """
+        Done: You now ran a peptide database search with FragPipe using the given search parameters.
+        The software takes the mass spectra from the mass spectrometer and compares them to theoretical spectra generated from a protein sequence database.
+        The result is a list of identified peptides and proteins, along with scores indicating the confidence of each identification.
+        From now on, you will use the protein table for the next stations. It contains the identified proteins and their associated data, such as the number of peptides identified for each protein,
+        protein length, identification confidence, and quantification values (among more information)
+        You can now proceed to the next station to further process and analyze these identifications.
+        """,
+    }
+
+
+def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+    if dataset is None:
+        df = pd.DataFrame()
+    else:
+        df = dataset.copy()
+    num_pro = int(df["Protein ID"].nunique())
+    num_pep = int(df["Combined Total Peptides"].sum())
+    relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
+    imgs = []
+    success = False
+    feedback = None
 
-    variance = random.uniform(0.5, 1.5)
+    try:
+        img_before = tr_boxplot(
+            df, relevant_cols, title="Intensities Before Transformation"
+        )
+        imgs.append(img_before)
 
-    if method in ["ln", "log2"]:
-        variance *= 0.6
+        if method == "none":
+            success = True
+            feedback = "No transformation applied. Data remains unchanged."
+
+        elif method == "log2":
+            df[relevant_cols] = np.log2(df[relevant_cols])
+            img_after = tr_boxplot(
+                df, relevant_cols, title="Intensities After Transformation (Log2)"
+            )
+            imgs.append(img_after)
+            success = True
+            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+
+        elif method == "ln":
+            df[relevant_cols] = np.log(df[relevant_cols])
+            img_after = tr_boxplot(
+                df,
+                relevant_cols,
+                title="Intensities After Transformation (Natural Log)",
+            )
+            imgs.append(img_after)
+            success = True
+            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+
+    except Exception as e:
+        success = False
+        feedback = f"Error applying transformation: {str(e)}"
 
     return {
-        "summary": f"Applied {method} transformation.",
-        "variance": round(variance, 3),
-        "effect": "Variance stabilized." if method != "none" else "No change."
+        "success": success,
+        "num_pro": num_pro,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df,
     }
+
 
 def _simulate_filtering(dataset: dict, params: dict) -> dict:
     remove_cont = params.get("remove_contaminants", "yes") == "yes"
@@ -133,8 +332,9 @@ def _simulate_filtering(dataset: dict, params: dict) -> dict:
         "summary": "Filtering complete.",
         "proteins_before": proteins,
         "proteins_after": filtered,
-        "removed_fraction": round(reduction, 2)
+        "removed_fraction": round(reduction, 2),
     }
+
 
 def _simulate_normalize(dataset: dict, params: dict) -> dict:
     method = params.get("normalization", "none")
@@ -149,8 +349,9 @@ def _simulate_normalize(dataset: dict, params: dict) -> dict:
     return {
         "summary": f"{method} normalization applied.",
         "batch_effect": round(shift, 3),
-        "status": "Normalized" if method != "none" else "Skipped"
+        "status": "Normalized" if method != "none" else "Skipped",
     }
+
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
     method = params.get("imputation_method", "none")
@@ -165,28 +366,51 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     return {
         "summary": f"{method} imputation applied.",
         "missing_fraction": round(missing, 2),
-        "recovered_fraction": round(recovered, 2)
+        "recovered_fraction": round(recovered, 2),
     }
 
-def _simulate_multiple_testing_corrector(dataset: dict, params: dict) -> dict:
+
+def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("correction_method", "none")
-
-    raw_hits = random.randint(200, 800)
-
-    if method == "bonferroni":
-        adjusted = int(raw_hits * 0.3)
-    elif method in ["bh", "holm"]:
-        adjusted = int(raw_hits * 0.6)
-    elif method == "storey":
-        adjusted = int(raw_hits * 0.7)
+    if dataset is None:
+        df = pd.DataFrame()
     else:
-        adjusted = raw_hits
+        df = dataset.copy()
+    
+    success = False
+    feedback = None
+
+    if method == "none":
+        df["p_adjusted"] = df["p_value"] # No adjustment, just copy p-values
+        success = True
+        feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
+
+    elif method == "bh":
+        success = True
+        feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+    elif method == "bt":
+        success = True
+        feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+    elif method == "storey":
+        success = True
+        feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+    elif method == "bonferroni":
+        success = True
+        feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+    elif method == "holm":
+        success = True
+        feedback = "Holm-Bonferroni correction applied. Controls the FWER with more power than Bonferroni."
 
     return {
-        "summary": f"{method} correction applied.",
-        "raw_significant": raw_hits,
-        "adjusted_significant": adjusted
-    }
+        "success": success,
+        "num_pro": None,
+        "num_pep": None,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df
+    } 
+
 
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
@@ -201,8 +425,20 @@ def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
         "summary": "Final candidate selection complete.",
         "initial_candidates": candidates,
         "final_hits": final_hits,
-        "cutoffs": {"log2FC": fc, "FDR": pval}
+        "cutoffs": {"log2FC": fc, "FDR": pval},
     }
+
+
+def _simulate_veit(dataset: Any, params: dict) -> dict:
+    score = random.randint(70, 100)
+
+    return {
+        "success": True,
+        "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
+        "score": score,
+        "dataset": dataset,
+    }
+
 
 def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
     test = params.get("statistical_test", "none")
@@ -214,25 +450,31 @@ def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
     elif test == "none":
         power = 0
 
+    # TODO should return a new col "p_value"
+
     return {
         "summary": f"{test} analysis completed.",
         "statistical_power": round(power, 2),
-        "significant_features": int(power * random.randint(100, 500))
+        "significant_features": int(power * random.randint(100, 500)),
     }
 
-STATION_SIMULATORS.update({
+
+STATION_SIMULATORS.update(
+    {
         "sample_prep": _simulate_sample_prep,
         "mass_spec": _simulate_mass_spec,
-        "filtering": _simulate_filtering,
         "spectral_search": _simulate_spectral_search,
+        "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
         "imputer": _simulate_normalize,
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
+        "veit": _simulate_veit,
         # ...
-    })
+    }
+)
 """Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
 The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
 and the value is a function that takes (dataset, params) and returns a dict with results."""
