@@ -72,18 +72,339 @@ const STATION_COLORS = {
   veit: '#fde68a',
 };
 
-const STATION_ICONS = {
-  sample_prep: '🧪',
-  mass_spec: '⚗️',
-  spectral_search: '🔍',
-  filtering: '🔬',
-  transform: '🔄',
-  normalize: '📐',
-  imputer: '💉',
-  multiple_testing_corrector: '✅',
-  the_cutter: '✂️',
-  statistical_analysis: '📊',
-  veit: '👤',
+// ── Station icon drawers ─────────────────────────────────────────────────────
+// Each function draws a miniature canvas vector icon centred at (cx, cy).
+// All internal coordinates are relative to that centre point and designed
+// to fit inside the 24×24 inner tile square (±12 from centre).
+
+// sample_prep: tilted test tube with liquid fill
+function drawIconSamplePrep(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-Math.PI / 5);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(-3, -9);
+  ctx.lineTo(-3, 5);
+  ctx.arc(0, 5, 3, Math.PI, 0);
+  ctx.lineTo(3, -9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-4, -9);
+  ctx.lineTo(4, -9);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(-2.5, 1);
+  ctx.lineTo(-2.5, 5);
+  ctx.arc(0, 5, 2.5, Math.PI, 0);
+  ctx.lineTo(2.5, 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// mass_spec: rectangular instrument body + inlet funnel + signal wave
+function drawIconMassSpec(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.strokeRect(-8, -4, 11, 8);
+  ctx.beginPath();
+  ctx.moveTo(-8, -2);
+  ctx.lineTo(-11, -4);
+  ctx.moveTo(-8, 2);
+  ctx.lineTo(-11, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(3, 0);
+  ctx.lineTo(5, 0);
+  ctx.lineTo(6, -4);
+  ctx.lineTo(7, 4);
+  ctx.lineTo(8, -4);
+  ctx.lineTo(9, 0);
+  ctx.lineTo(10, 0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// spectral_search: magnifying glass with spectral lines in the lens
+function drawIconSpectralSearch(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(-2, -2, 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(3, 3);
+  ctx.lineTo(8, 8);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-5, -2);
+  ctx.lineTo(-4, -2);
+  ctx.moveTo(-3, -2);
+  ctx.lineTo(-1, -2);
+  ctx.moveTo(0, -2);
+  ctx.lineTo(1, -2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// filtering: funnel outline with three horizontal filter bars
+function drawIconFiltering(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(-9, -8);
+  ctx.lineTo(9, -8);
+  ctx.lineTo(2, 2);
+  ctx.lineTo(2, 9);
+  ctx.lineTo(-2, 9);
+  ctx.lineTo(-2, 2);
+  ctx.lineTo(-9, -8);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i += 1) {
+    const t = i / 2;
+    const lx = -9 + t * 7;
+    const rx = 9 - t * 7;
+    const fy = -8 + t * 10;
+    ctx.beginPath();
+    ctx.moveTo(lx + 1.5, fy);
+    ctx.lineTo(rx - 1.5, fy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// transform: circular arrow with small molecule dot at centre
+function drawIconTransform(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(0, 0, 7, -Math.PI / 2, Math.PI, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(-4, -3);
+  ctx.moveTo(0, -7);
+  ctx.lineTo(3, -4);
+  ctx.stroke();
+  ctx.fillStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// normalize: Gaussian bell curve with dashed mean line
+function drawIconNormalize(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(-10, 6);
+  ctx.lineTo(10, 6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-9, 6);
+  ctx.bezierCurveTo(-6, 6, -5, -8, 0, -8);
+  ctx.bezierCurveTo(5, -8, 6, 6, 9, 6);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 2]);
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.lineTo(0, 6);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// imputer: horizontal syringe with barrel, plunger, needle and graduation ticks
+function drawIconImputer(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.strokeRect(-6, -3, 10, 6);
+  ctx.beginPath();
+  ctx.moveTo(4, 0);
+  ctx.lineTo(9, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(7, -3);
+  ctx.lineTo(7, 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-6, 0);
+  ctx.lineTo(-10, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-9, -1);
+  ctx.lineTo(-11, 0);
+  ctx.lineTo(-9, 1);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(-3 + i * 3, -3);
+    ctx.lineTo(-3 + i * 3, 3);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// multiple_testing_corrector: bar chart with dashed significance threshold
+function drawIconMTC(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(-9, 8);
+  ctx.lineTo(9, 8);
+  ctx.stroke();
+  [[-6, 11], [-1, 7], [4, 4]].forEach(([bx, h]) => {
+    ctx.strokeRect(bx, 8 - h, 3, h);
+  });
+  ctx.setLineDash([2, 2]);
+  ctx.strokeStyle = '#c0392b';
+  ctx.beginPath();
+  ctx.moveTo(-9, 1);
+  ctx.lineTo(9, 1);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// the_cutter: scissors – two blade tips + handle rings + pivot
+function drawIconCutter(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(1.5, -1.5);
+  ctx.lineTo(8, -7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(8, -7, 2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(1.5, 1.5);
+  ctx.lineTo(8, 7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(8, 7, 2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-1.5, -1.5);
+  ctx.lineTo(-7, -5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-7, -5, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-1.5, 1.5);
+  ctx.lineTo(-7, 5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-7, 5, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// statistical_analysis: volcano plot – V-shaped cutoff lines, dashed p-value
+// threshold, red significant dots above and grey non-significant dots below
+function drawIconStatAnalysis(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(-9, 8);
+  ctx.lineTo(9, 8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-9, 8);
+  ctx.lineTo(-4, -2);
+  ctx.moveTo(9, 8);
+  ctx.lineTo(4, -2);
+  ctx.stroke();
+  ctx.setLineDash([2, 2]);
+  ctx.beginPath();
+  ctx.moveTo(-9, -2);
+  ctx.lineTo(9, -2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  [[-6, -5], [7, -7], [-8, -8], [6, -4]].forEach(([dx, dy]) => {
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  [[-1, 3], [2, 2], [0, 5], [-3, 4]].forEach(([dx, dy]) => {
+    ctx.fillStyle = '#7f8c8d';
+    ctx.beginPath();
+    ctx.arc(dx, dy, 1, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+// veit: stick-figure person (head circle + torso + arms + legs)
+function drawIconVeit(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.arc(0, -5, 3.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -1.5);
+  ctx.lineTo(0, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-5, 1);
+  ctx.lineTo(5, 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, 4);
+  ctx.lineTo(-4, 9);
+  ctx.moveTo(0, 4);
+  ctx.lineTo(4, 9);
+  ctx.stroke();
+  ctx.restore();
+}
+
+const STATION_ICON_DRAWERS = {
+  sample_prep: drawIconSamplePrep,
+  mass_spec: drawIconMassSpec,
+  spectral_search: drawIconSpectralSearch,
+  filtering: drawIconFiltering,
+  transform: drawIconTransform,
+  normalize: drawIconNormalize,
+  imputer: drawIconImputer,
+  multiple_testing_corrector: drawIconMTC,
+  the_cutter: drawIconCutter,
+  statistical_analysis: drawIconStatAnalysis,
+  veit: drawIconVeit,
 };
 
 // Station definitions with position on map and color
@@ -191,29 +512,30 @@ function drawStation(context, station, done) {
   context.lineWidth = 3;
   context.strokeRect(x + 12, y + 12, TILE - 24, TILE - 24);
 
-  // Draw station icon centred on the tile.
-  const icon = STATION_ICONS[station.id];
-  if (icon) {
+  // Draw station-specific canvas vector icon centred on the tile.
+  const drawIcon = STATION_ICON_DRAWERS[station.id];
+  if (drawIcon) {
     context.save();
-    context.font = '18px sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(icon, x + TILE / 2, y + TILE / 2);
+    drawIcon(context, x + TILE / 2, y + TILE / 2);
     context.restore();
   }
 
-  // Completion badge: small green circle with a check in the top-right corner.
+  // Completion badge: green circle with drawn checkmark in the top-right corner.
   if (done) {
     context.save();
     context.fillStyle = '#1d8a4f';
     context.beginPath();
     context.arc(x + TILE - 10, y + 10, 8, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = '#ffffff';
-    context.font = 'bold 11px sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('✓', x + TILE - 10, y + 10);
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 2;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.beginPath();
+    context.moveTo(x + TILE - 14, y + 10);
+    context.lineTo(x + TILE - 10, y + 14);
+    context.lineTo(x + TILE - 6, y + 6);
+    context.stroke();
     context.restore();
   }
 }
