@@ -800,15 +800,19 @@ function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
 
-  // Fill the station tile with the same footprint as the bench tiles (6 px margin).
+  // Fill the station tile – lower portion, bottom-aligned in the tile.
   context.fillStyle = station.color;
-  context.fillRect(x + 6, y + 6, TILE - 12, TILE - 12);
+  context.fillRect(x + 6, y + 16, TILE - 12, TILE - 20);
 
-  // Draw station-specific canvas vector icon at the bottom of the square.
+  // Draw station-specific canvas vector icon centred and scaled to fit the box.
+  // The box spans y+16 to y+44 (28 px tall); scale 0.65 shrinks the ±20 px icons
+  // to ±13 px so they sit comfortably within the colored area.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
   if (drawIcon) {
     context.save();
-    drawIcon(context, x + TILE / 2, y + TILE - 14);
+    context.translate(x + TILE / 2, y + 30);
+    context.scale(0.65, 0.65);
+    drawIcon(context, 0, 0);
     context.restore();
   }
 
