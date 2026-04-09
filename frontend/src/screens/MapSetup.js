@@ -73,328 +73,520 @@ const STATION_COLORS = {
 };
 
 // ── Station icon drawers ─────────────────────────────────────────────────────
-// Each function draws a miniature canvas vector icon centred at (cx, cy).
-// All internal coordinates are relative to that centre point and designed
-// to fit inside the 24×24 inner tile square (±12 from centre).
+// Each function draws a vector icon centred at (cx, cy).
+// Coordinates are relative to the translated origin and fill roughly ±20 px,
+// matching the full 44×44 tile background (TILE − 4px margin on each side).
+// The colour constant `dark` is used for strokes so icons read on any tile hue.
 
-// sample_prep: tilted test tube with liquid fill
+// sample_prep: tilted test tube with liquid fill, cap and graduation marks
 function drawIconSamplePrep(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-Math.PI / 5);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 2;
+  // Tube outline
   ctx.beginPath();
-  ctx.moveTo(-3, -9);
-  ctx.lineTo(-3, 5);
-  ctx.arc(0, 5, 3, Math.PI, 0);
-  ctx.lineTo(3, -9);
+  ctx.moveTo(-6, -19);
+  ctx.lineTo(-6, 10);
+  ctx.arc(0, 10, 6, Math.PI, 0);
+  ctx.lineTo(6, -19);
   ctx.stroke();
+  // Cap
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(-8, -22, 16, 5);
+  ctx.strokeRect(-8, -22, 16, 5);
+  // Liquid fill (lower 55%, clipped to tube interior)
+  ctx.save();
   ctx.beginPath();
-  ctx.moveTo(-4, -9);
-  ctx.lineTo(4, -9);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.beginPath();
-  ctx.moveTo(-2.5, 1);
-  ctx.lineTo(-2.5, 5);
-  ctx.arc(0, 5, 2.5, Math.PI, 0);
-  ctx.lineTo(2.5, 1);
+  ctx.moveTo(-5.5, 1);
+  ctx.lineTo(-5.5, 10);
+  ctx.arc(0, 10, 5.5, Math.PI, 0);
+  ctx.lineTo(5.5, 1);
   ctx.closePath();
-  ctx.fill();
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-7, 1, 14, 16);
+  ctx.restore();
+  // Liquid surface line
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(-5.5, 1);
+  ctx.lineTo(5.5, 1);
+  ctx.stroke();
+  // Graduation marks on right side of tube
+  ctx.strokeStyle = dark;
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(6, -14 + i * 5);
+    ctx.lineTo(9, -14 + i * 5);
+    ctx.stroke();
+  }
+  // Glass highlight on left edge
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -18);
+  ctx.lineTo(-4.5, -5);
+  ctx.stroke();
   ctx.restore();
 }
 
-// mass_spec: rectangular instrument body + inlet funnel + signal wave
+// mass_spec: instrument body with inlet funnel, screen and signal readout
 function drawIconMassSpec(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
-  ctx.strokeRect(-8, -4, 11, 8);
+  const dark = 'rgba(0,0,0,0.55)';
+  // Instrument body
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillRect(-17, -12, 24, 24);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = dark;
+  ctx.strokeRect(-17, -12, 24, 24);
+  // Internal screen
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(-14, -9, 16, 12);
+  // Screen scan lines
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  for (let i = 0; i < 3; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(-13, -7 + i * 4);
+    ctx.lineTo(1, -7 + i * 4);
+    ctx.stroke();
+  }
+  // Sample inlet funnel on left
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = dark;
   ctx.beginPath();
-  ctx.moveTo(-8, -2);
-  ctx.lineTo(-11, -4);
-  ctx.moveTo(-8, 2);
-  ctx.lineTo(-11, 4);
+  ctx.moveTo(-17, -5);
+  ctx.lineTo(-21, -9);
+  ctx.moveTo(-17, 5);
+  ctx.lineTo(-21, 9);
+  ctx.moveTo(-21, -9);
+  ctx.lineTo(-21, 9);
   ctx.stroke();
+  // Signal readout waveform on right
+  ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.moveTo(3, 0);
-  ctx.lineTo(5, 0);
-  ctx.lineTo(6, -4);
-  ctx.lineTo(7, 4);
-  ctx.lineTo(8, -4);
+  ctx.moveTo(7, 0);
   ctx.lineTo(9, 0);
-  ctx.lineTo(10, 0);
+  ctx.lineTo(10, -8);
+  ctx.lineTo(11, 9);
+  ctx.lineTo(12, -6);
+  ctx.lineTo(13, 7);
+  ctx.lineTo(14, -4);
+  ctx.lineTo(15, 5);
+  ctx.lineTo(16, 0);
+  ctx.lineTo(20, 0);
   ctx.stroke();
   ctx.restore();
 }
 
-// spectral_search: magnifying glass with spectral lines in the lens
+// spectral_search: magnifying glass with 6 spectral peaks inside the lens
 function drawIconSpectralSearch(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.8;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  // Lens circle
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = dark;
   ctx.beginPath();
-  ctx.arc(-2, -2, 6, 0, Math.PI * 2);
+  ctx.arc(-4, -4, 12, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.lineWidth = 2;
+  // Handle
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(3, 3);
-  ctx.lineTo(8, 8);
+  ctx.moveTo(6, 6);
+  ctx.lineTo(18, 18);
   ctx.stroke();
-  ctx.lineWidth = 1;
+  ctx.lineCap = 'butt';
+  // Spectral peaks (baseline at y=4, peaks of varying heights)
+  ctx.lineWidth = 1.5;
+  const peakTops = [[-14, 4], [-11, -2], [-8, 3], [-5, -7], [-2, 0], [1, 2]];
+  peakTops.forEach(([px, py]) => {
+    ctx.beginPath();
+    ctx.moveTo(px, 4);
+    ctx.lineTo(px, py);
+    ctx.stroke();
+  });
+  // Baseline inside lens
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(-5, -2);
-  ctx.lineTo(-4, -2);
-  ctx.moveTo(-3, -2);
-  ctx.lineTo(-1, -2);
-  ctx.moveTo(0, -2);
-  ctx.lineTo(1, -2);
+  ctx.moveTo(-15, 4);
+  ctx.lineTo(3, 4);
   ctx.stroke();
   ctx.restore();
 }
 
-// filtering: funnel outline with three horizontal filter bars
+// filtering: funnel with 4 filter bars and a liquid drop at the spout
 function drawIconFiltering(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  // Funnel fill
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
   ctx.beginPath();
-  ctx.moveTo(-9, -8);
-  ctx.lineTo(9, -8);
-  ctx.lineTo(2, 2);
-  ctx.lineTo(2, 9);
-  ctx.lineTo(-2, 9);
-  ctx.lineTo(-2, 2);
-  ctx.lineTo(-9, -8);
+  ctx.moveTo(-19, -18);
+  ctx.lineTo(19, -18);
+  ctx.lineTo(4, 2);
+  ctx.lineTo(4, 16);
+  ctx.lineTo(-4, 16);
+  ctx.lineTo(-4, 2);
+  ctx.closePath();
+  ctx.fill();
+  // Funnel outline
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = dark;
+  ctx.beginPath();
+  ctx.moveTo(-19, -18);
+  ctx.lineTo(19, -18);
+  ctx.lineTo(4, 2);
+  ctx.lineTo(4, 16);
+  ctx.lineTo(-4, 16);
+  ctx.lineTo(-4, 2);
+  ctx.closePath();
   ctx.stroke();
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 3; i += 1) {
-    const t = i / 2;
-    const lx = -9 + t * 7;
-    const rx = 9 - t * 7;
-    const fy = -8 + t * 10;
+  // Filter mesh lines (4 lines of decreasing span inside funnel)
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 4; i += 1) {
+    const t = i / 3;
+    const lx = -19 + t * 15;
+    const rx = 19 - t * 15;
+    const fy = -18 + t * 20;
     ctx.beginPath();
-    ctx.moveTo(lx + 1.5, fy);
-    ctx.lineTo(rx - 1.5, fy);
+    ctx.moveTo(lx + 2, fy);
+    ctx.lineTo(rx - 2, fy);
     ctx.stroke();
   }
+  // Liquid drop at spout end
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 20, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
   ctx.restore();
 }
 
-// transform: circular arrow with small molecule dot at centre
+// transform: 270° circular arrow, central molecule and three satellite atoms
 function drawIconTransform(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.8;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = dark;
+  // 270° arc from top, clockwise
   ctx.beginPath();
-  ctx.arc(0, 0, 7, -Math.PI / 2, Math.PI, false);
+  ctx.arc(0, 0, 14, -Math.PI / 2, Math.PI, false);
   ctx.stroke();
+  // Arrowhead at arc end (arc ends at (−14, 0), pointing downward)
   ctx.beginPath();
-  ctx.moveTo(0, -7);
-  ctx.lineTo(-4, -3);
-  ctx.moveTo(0, -7);
-  ctx.lineTo(3, -4);
+  ctx.moveTo(-14, 0);
+  ctx.lineTo(-9, -5);
+  ctx.moveTo(-14, 0);
+  ctx.lineTo(-9, 5);
   ctx.stroke();
-  ctx.fillStyle = '#1f2937';
+  // Central molecule
+  ctx.fillStyle = dark;
   ctx.beginPath();
-  ctx.arc(0, 0, 2, 0, Math.PI * 2);
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
   ctx.fill();
+  // Bond lines to satellite atoms
+  ctx.lineWidth = 1;
+  [[9, 0], [-4, 8], [-4, -8]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(dx, dy);
+    ctx.stroke();
+  });
+  // Satellite atoms
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  [[9, 0], [-4, 8], [-4, -8]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.arc(dx, dy, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
   ctx.restore();
 }
 
-// normalize: Gaussian bell curve with dashed mean line
+// normalize: filled Gaussian bell curve, baseline, dashed mean and σ tick marks
 function drawIconNormalize(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
+  const dark = 'rgba(0,0,0,0.55)';
+  const baseline = 10;
+  const peak = -16;
+  // Filled area under bell curve
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.moveTo(-20, baseline);
+  ctx.bezierCurveTo(-14, baseline, -10, peak, 0, peak);
+  ctx.bezierCurveTo(10, peak, 14, baseline, 20, baseline);
+  ctx.closePath();
+  ctx.fill();
+  // Bell curve outline
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = dark;
+  ctx.beginPath();
+  ctx.moveTo(-20, baseline);
+  ctx.bezierCurveTo(-14, baseline, -10, peak, 0, peak);
+  ctx.bezierCurveTo(10, peak, 14, baseline, 20, baseline);
+  ctx.stroke();
+  // Baseline axis
+  ctx.beginPath();
+  ctx.moveTo(-20, baseline);
+  ctx.lineTo(20, baseline);
+  ctx.stroke();
+  // Dashed mean line
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  ctx.setLineDash([3, 3]);
   ctx.beginPath();
-  ctx.moveTo(-10, 6);
-  ctx.lineTo(10, 6);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(-9, 6);
-  ctx.bezierCurveTo(-6, 6, -5, -8, 0, -8);
-  ctx.bezierCurveTo(5, -8, 6, 6, 9, 6);
-  ctx.stroke();
-  ctx.lineWidth = 1;
-  ctx.setLineDash([2, 2]);
-  ctx.beginPath();
-  ctx.moveTo(0, -8);
-  ctx.lineTo(0, 6);
+  ctx.moveTo(0, peak);
+  ctx.lineTo(0, baseline);
   ctx.stroke();
   ctx.setLineDash([]);
+  // ±1σ tick marks on baseline
+  ctx.lineWidth = 1.2;
+  [-10, 10].forEach((sx) => {
+    ctx.beginPath();
+    ctx.moveTo(sx, baseline);
+    ctx.lineTo(sx, baseline - 5);
+    ctx.stroke();
+  });
   ctx.restore();
 }
 
-// imputer: horizontal syringe with barrel, plunger, needle and graduation ticks
+// imputer: horizontal syringe with barrel, liquid fill, ticks, plunger, needle
 function drawIconImputer(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
-  ctx.strokeRect(-6, -3, 10, 6);
-  ctx.beginPath();
-  ctx.moveTo(4, 0);
-  ctx.lineTo(9, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(7, -3);
-  ctx.lineTo(7, 3);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(-6, 0);
-  ctx.lineTo(-10, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(-9, -1);
-  ctx.lineTo(-11, 0);
-  ctx.lineTo(-9, 1);
-  ctx.stroke();
+  const dark = 'rgba(0,0,0,0.55)';
+  // Barrel outline
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = dark;
+  ctx.strokeRect(-13, -7, 22, 14);
+  // Liquid fill inside barrel
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-12, -6, 12, 12);
+  // Liquid surface (vertical line)
   ctx.lineWidth = 1;
-  for (let i = 0; i < 3; i += 1) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(-1, -6);
+  ctx.lineTo(-1, 6);
+  ctx.stroke();
+  // Graduation ticks on barrel top
+  ctx.strokeStyle = dark;
+  for (let i = 0; i < 5; i += 1) {
     ctx.beginPath();
-    ctx.moveTo(-3 + i * 3, -3);
-    ctx.lineTo(-3 + i * 3, 3);
+    ctx.moveTo(-10 + i * 4, -7);
+    ctx.lineTo(-10 + i * 4, -4);
     ctx.stroke();
   }
+  // Needle (right side, tapering to tip)
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(9, -2);
+  ctx.lineTo(20, 0);
+  ctx.lineTo(9, 2);
+  ctx.stroke();
+  // Plunger rod (left side)
+  ctx.beginPath();
+  ctx.moveTo(-13, 0);
+  ctx.lineTo(-19, 0);
+  ctx.stroke();
+  // Plunger flanges
+  ctx.beginPath();
+  ctx.moveTo(-17, -4);
+  ctx.lineTo(-17, 4);
+  ctx.moveTo(-19, -4);
+  ctx.lineTo(-19, 4);
+  ctx.stroke();
   ctx.restore();
 }
 
-// multiple_testing_corrector: bar chart with dashed significance threshold
+// multiple_testing_corrector: filled bar chart with p-value threshold line
 function drawIconMTC(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
+  const dark = 'rgba(0,0,0,0.55)';
+  const baseY = 11;
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  ctx.strokeStyle = dark;
+  // X axis
   ctx.beginPath();
-  ctx.moveTo(-9, 8);
-  ctx.lineTo(9, 8);
+  ctx.moveTo(-20, baseY);
+  ctx.lineTo(20, baseY);
   ctx.stroke();
-  // Each entry is [barX, barHeight] – three bars of descending height
-  const bars = [[-6, 11], [-1, 7], [4, 4]];
+  // Each entry is [barX, barHeight] – 5 bars of descending height (sorted p-values)
+  const bars = [[-18, 20], [-11, 14], [-4, 10], [3, 7], [10, 5]];
   bars.forEach(([bx, h]) => {
-    ctx.strokeRect(bx, 8 - h, 3, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(bx, baseY - h, 5, h);
+    ctx.strokeRect(bx, baseY - h, 5, h);
   });
-  ctx.setLineDash([2, 2]);
+  // Dashed significance threshold
+  ctx.setLineDash([3, 3]);
   ctx.strokeStyle = '#c0392b';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(-9, 1);
-  ctx.lineTo(9, 1);
+  ctx.moveTo(-20, 4);
+  ctx.lineTo(20, 4);
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
 }
 
-// the_cutter: scissors – two blade tips + handle rings + pivot
+// the_cutter: scissors with pivot, crossed blades, handle rings and cut line
 function drawIconCutter(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 2;
+  // Pivot circle
   ctx.beginPath();
-  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
+  ctx.stroke();
+  // Upper blade arm and tip circle
+  ctx.beginPath();
+  ctx.moveTo(2.5, -2.5);
+  ctx.lineTo(16, -14);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(1.5, -1.5);
-  ctx.lineTo(8, -7);
+  ctx.arc(16, -14, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  // Lower blade arm and tip circle
+  ctx.beginPath();
+  ctx.moveTo(2.5, 2.5);
+  ctx.lineTo(16, 14);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(8, -7, 2, 0, Math.PI * 2);
+  ctx.arc(16, 14, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  // Upper handle arm and ring
+  ctx.beginPath();
+  ctx.moveTo(-2.5, -2.5);
+  ctx.lineTo(-12, -9);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(1.5, 1.5);
-  ctx.lineTo(8, 7);
+  ctx.arc(-12, -9, 6, 0, Math.PI * 2);
+  ctx.stroke();
+  // Lower handle arm and ring
+  ctx.beginPath();
+  ctx.moveTo(-2.5, 2.5);
+  ctx.lineTo(-12, 9);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(8, 7, 2, 0, Math.PI * 2);
+  ctx.arc(-12, 9, 6, 0, Math.PI * 2);
   ctx.stroke();
+  // Dashed line being cut (extending to the right of the blades)
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.moveTo(-1.5, -1.5);
-  ctx.lineTo(-7, -5);
+  ctx.moveTo(4, 0);
+  ctx.lineTo(20, 0);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(-7, -5, 3, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(-1.5, 1.5);
-  ctx.lineTo(-7, 5);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(-7, 5, 3, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.setLineDash([]);
   ctx.restore();
 }
 
-// statistical_analysis: volcano plot – V-shaped cutoff lines, dashed p-value
-// threshold, red significant dots above and grey non-significant dots below
+// statistical_analysis: volcano plot – axes, V-lines, p-value threshold, dots
 function drawIconStatAnalysis(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  const baseY = 14;
+  // Axes
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = dark;
   ctx.beginPath();
-  ctx.moveTo(-9, 8);
-  ctx.lineTo(9, 8);
+  ctx.moveTo(-19, baseY);
+  ctx.lineTo(19, baseY);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(-9, 8);
-  ctx.lineTo(-4, -2);
-  ctx.moveTo(9, 8);
-  ctx.lineTo(4, -2);
+  ctx.moveTo(0, baseY);
+  ctx.lineTo(0, -18);
   ctx.stroke();
-  ctx.setLineDash([2, 2]);
+  // V-shaped fold-change cutoff lines
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(-9, -2);
-  ctx.lineTo(9, -2);
+  ctx.moveTo(-19, baseY);
+  ctx.lineTo(-8, -2);
+  ctx.moveTo(19, baseY);
+  ctx.lineTo(8, -2);
+  ctx.stroke();
+  // Dashed p-value threshold
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(-19, -2);
+  ctx.lineTo(19, -2);
   ctx.stroke();
   ctx.setLineDash([]);
-  // Dots above the p-value threshold (statistically significant)
-  const significantDots = [[-6, -5], [7, -7], [-8, -8], [6, -4]];
+  // Dots above threshold (statistically significant)
+  const significantDots = [[-14, -7], [-17, -13], [-12, -10], [15, -9], [12, -14], [17, -6]];
   significantDots.forEach(([dx, dy]) => {
     ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.arc(dx, dy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Dots below / inside V-lines (non-significant)
+  const nonSignificantDots = [[-3, 4], [2, 7], [-6, 2], [5, 5], [-1, 10], [7, 3], [-9, 6]];
+  nonSignificantDots.forEach(([dx, dy]) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
     ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
     ctx.fill();
   });
-  // Dots below the threshold (non-significant)
-  const nonSignificantDots = [[-1, 3], [2, 2], [0, 5], [-3, 4]];
-  nonSignificantDots.forEach(([dx, dy]) => {
-    ctx.fillStyle = '#7f8c8d';
-    ctx.beginPath();
-    ctx.arc(dx, dy, 1, 0, Math.PI * 2);
-    ctx.fill();
-  });
   ctx.restore();
 }
 
-// veit: stick-figure person (head circle + torso + arms + legs)
+// veit: stick-figure person with filled lab-coat body and lapels
 function drawIconVeit(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#1f2937';
+  const dark = 'rgba(0,0,0,0.55)';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 2;
+  // Head
   ctx.beginPath();
-  ctx.arc(0, -5, 3.5, 0, Math.PI * 2);
+  ctx.arc(0, -13, 6, 0, Math.PI * 2);
   ctx.stroke();
+  // Lab coat body (filled white rectangle)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-8, -6, 16, 14);
+  ctx.strokeRect(-8, -6, 16, 14);
+  // Lab coat lapels
   ctx.beginPath();
-  ctx.moveTo(0, -1.5);
-  ctx.lineTo(0, 4);
+  ctx.moveTo(-8, -6);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(8, -6);
   ctx.stroke();
+  // Arms
   ctx.beginPath();
-  ctx.moveTo(-5, 1);
-  ctx.lineTo(5, 1);
+  ctx.moveTo(-8, -4);
+  ctx.lineTo(-14, 4);
+  ctx.moveTo(8, -4);
+  ctx.lineTo(14, 4);
   ctx.stroke();
+  // Legs
   ctx.beginPath();
-  ctx.moveTo(0, 4);
-  ctx.lineTo(-4, 9);
-  ctx.moveTo(0, 4);
-  ctx.lineTo(4, 9);
+  ctx.moveTo(-4, 8);
+  ctx.lineTo(-6, 18);
+  ctx.moveTo(4, 8);
+  ctx.lineTo(6, 18);
+  ctx.stroke();
+  // Neck
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(0, -6);
   ctx.stroke();
   ctx.restore();
 }
@@ -506,17 +698,14 @@ function drawTile(context, col, row, tileType) {
   context.fillRect(x, y, TILE, TILE);
 }
 
-// Draws a station marker and completion badge if it has been cleared.
+// Draws a station marker (full tile, no border) and completion badge if cleared.
 function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
 
+  // Fill the full tile (2 px margin so it sits flush against neighbours).
   context.fillStyle = station.color;
-  context.fillRect(x + 12, y + 12, TILE - 24, TILE - 24);
-
-  context.strokeStyle = done ? '#1d8a4f' : '#1f2937';
-  context.lineWidth = 3;
-  context.strokeRect(x + 12, y + 12, TILE - 24, TILE - 24);
+  context.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
 
   // Draw station-specific canvas vector icon centred on the tile.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
