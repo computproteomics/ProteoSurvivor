@@ -9,7 +9,7 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import boxplot
+from .helper_functions import boxplot, adjusted_pvalue_histograms_by_species
 from statsmodels.stats.multitest import multipletests 
 from qvalue import qvalue
 
@@ -317,35 +317,48 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     pvals = df[p_val_col].values
 
-    if method == "none":
-        df["p_adjusted"] = df["p_value"] # No adjustment, just copy p-values
-        success = True
-        feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
-    elif method == "bh":
-        adjusted = multipletests(pvals, method="fdr_bh")
-        df["p_adjusted"] = adjusted[1]
-        success = True
-        feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
-    elif method == "bt":
-        adjusted = multipletests(pvals, method="fdr_tsbh")
-        df["p_adjusted"] = adjusted[1]
-        success = True
-        feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
-    elif method == "storey":
-        qvals = qvalue(pvals)
-        df["p_adjusted"] = qvals
-        success = True
-        feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
-    elif method == "bonferroni":
-        adjusted = multipletests(pvals, method="bonferroni")
-        df["p_adjusted"] = adjusted[1]
-        success = True
-        feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
-    elif method == "holm":
-        adjusted = multipletests(pvals, method="holm")
-        df["p_adjusted"] = adjusted[1]
-        success = True
-        feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
+    try:
+        if method == "none":
+            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
+            success = True
+            feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
+        elif method == "bh":
+            adjusted = multipletests(pvals, method="fdr_bh")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+        elif method == "bt":
+            adjusted = multipletests(pvals, method="fdr_by")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+        elif method == "storey":
+            qvals = qvalue(pvals)
+            df["p_adjusted"] = qvals
+            success = True
+            feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+        elif method == "bonferroni":
+            adjusted = multipletests(pvals, method="bonferroni")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+        elif method == "holm":
+            adjusted = multipletests(pvals, method="holm")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
+    except Exception as e:
+        success = False
+        feedback = f"Error applying multiple testing correction: {str(e)}"
+
+    if success and "p_adjusted" in df.columns:
+        imgs.extend(
+            adjusted_pvalue_histograms_by_species(
+                df,
+                value_col="p_adjusted",
+                species_col="Organism",
+            )
+        )
 
     return {
         "success": success,
