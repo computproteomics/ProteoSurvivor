@@ -300,15 +300,17 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         }
     else:
         df = dataset.copy()
-    
+        num_prot = int(dataset["Protein ID"].nunique())
+        num_pep = int(dataset["Combined Total Peptides"].sum())
+
     p_val_col = "p_value"
 
     # Handle missing p-value column
     if p_val_col not in df.columns:
         return {
             "success": success,
-            "num_prot": int(df["Protein ID"].nunique()),
-            "num_pep": int(df["Combined Total Peptides"].sum()),
+            "num_prot": num_prot,
+            "num_pep": num_pep,
             "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction.",
             "img": imgs,
             "score": score,
@@ -362,8 +364,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     return {
         "success": success,
-        "num_prot": int(df["Protein ID"].nunique()),
-        "num_pep": int(df["Combined Total Peptides"].sum()),
+        "num_prot": num_prot,
+        "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
         "score": 0,
