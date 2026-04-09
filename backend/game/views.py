@@ -8,6 +8,7 @@ from typing import cast
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
+from django.middleware.csrf import get_token
 from .serializers import (
     NewPlayerSerializer,
     RunStationSerializer,
@@ -45,6 +46,7 @@ class NewPlayerView(APIView):
 
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         request.session.save()
+        get_token(request)
 
         return Response(
             {
@@ -55,6 +57,24 @@ class NewPlayerView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+@api_view(["POST"])
+def enter_station_view(request, station_id):
+    if station_id not in settings.STATIONS_CONFIG:
+        return Response(
+            {"detail": f"Unknown station '{station_id}'."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    request.session["current_station"] = station_id
+    return Response(
+        {
+            "message": f"Entered station '{station_id}' successfully.",
+            "station_id": station_id,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
@@ -73,8 +93,8 @@ def run_station_view(request, station_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     validated_data = cast(dict, serializer.validated_data)
 
-    station_run = run_station(request,
+    result = run_station(request,
         station_id=station_id,
         params=validated_data["params"],
     )
-    return Response(RunStationSerializer(station_run).data, status=status.HTTP_201_CREATED)
+    return Response(result, status=status.HTTP_201_CREATED)

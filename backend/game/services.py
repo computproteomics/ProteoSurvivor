@@ -8,10 +8,10 @@ from .models import StationRun
 STATION_SIMULATORS = {}
 
 
-def run_station(request, station_id: str, params: dict) -> StationRun:
+def run_station(request, station_id: str, params: dict) -> dict:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
-    Returns a persisted StationRun with results populated.
+    Returns a dictionary with the simulation results.
     """
 
     dataset = request.session.get("current_dataset", None)
