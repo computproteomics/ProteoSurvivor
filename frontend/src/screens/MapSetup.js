@@ -10,6 +10,10 @@ export const HEIGHT = ROWS * TILE;
 // Player start position
 export const PLAYER_START = { col: 2, row: 2 };
 
+// Animation config
+export const WALK_FRAME_COUNT = 4;
+export const WALK_FRAME_DURATION = 120;
+
 // Colors
 export const COLORS = {
   floorA: '#d0dce8',
@@ -23,6 +27,31 @@ export const COLORS = {
   playerAccent: '#5ad4f8',
   ring: '#f8e45a',
 };
+
+// Sprite Configuration
+
+const walkSprites = [];
+const idleSprites = [];
+
+const directions = ['up', 'right', 'down', 'left'];
+
+// Load idle sprites
+function loadSprites() {
+  directions.forEach((dir, i) => {
+    const img = new Image();
+    img.src = `../assets/avatar_sprites/${dir}_idle.png`;
+    idleSprites[i] = img;
+  });
+// Load walk sprites (4 frames per direction)
+  directions.forEach((dir, dirIndex) => {
+    walkSprites[dirIndex] = [];
+    for (let frame = 0; frame < 4; frame++) {
+      const img = new Image();
+      img.src = `../assets/avatar_sprites/${dir}_${frame + 1}.png`;
+      walkSprites[dirIndex][frame] = img;
+    }
+  });
+}
 
 // Map Layout
 export const MAP = [
@@ -90,6 +119,17 @@ export const MOVE_KEYS = {
   a: [-1, 0],
   arrowright: [1, 0],
   d: [1, 0],
+};
+
+export const KEY_TO_DIRECTION = {
+  arrowup: 'up',
+  w: 'up',
+  arrowdown: 'down',
+  s: 'down',
+  arrowleft: 'left',
+  a: 'left',
+  arrowright: 'right',
+  d: 'right',
 };
 
 // Returns true only for in-bounds, walkable tiles (not walls or benches).
@@ -184,11 +224,20 @@ function drawStation(context, station, done) {
   }
 }
 
-// Draws the player and a ring around the nearest interactable station.
-function drawPlayer(context, player) {
-  const px = player.col * TILE;
-  const py = player.row * TILE;
+// draw sprite
 
+// Draws the player and a ring around the nearest interactable station.
+function drawPlayer(context, player, animState) {
+  const { isMoving, direction, walkFrame } = animState;
+  const cx = player.col * TILE;
+  const cy = player.row * TILE;
+
+  const img = isMoving
+    ? walkSprites[direction][walkFrame]
+    : idleSprites[direction];
+
+  context.drawImage(img, cx, cy, TILE, TILE)
+/*
   context.fillStyle = COLORS.player;
   context.beginPath();
   context.arc(px + TILE / 2, py + TILE / 2, 12, 0, Math.PI * 2);
@@ -198,6 +247,7 @@ function drawPlayer(context, player) {
   context.beginPath();
   context.arc(px + TILE / 2 + 4, py + TILE / 2 - 4, 4, 0, Math.PI * 2);
   context.fill();
+*/
 
   const nearby = getNearbyStation(player.col, player.row);
   if (nearby) {
@@ -207,6 +257,7 @@ function drawPlayer(context, player) {
     context.arc(nearby.col * TILE + TILE / 2, nearby.row * TILE + TILE / 2, 18, 0, Math.PI * 2);
     context.stroke();
   }
+
 }
 
 // Renders the whole world in draw order: terrain -> stations -> player.
@@ -220,5 +271,6 @@ export function renderWorld(context, player, completedSet) {
   }
 
   STATIONS.forEach((station) => drawStation(context, station, completedSet.has(station.id)));
-  drawPlayer(context, player);
+  loadSprites()
+  drawPlayer(context, player, );
 }
