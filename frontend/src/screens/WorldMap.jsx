@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import {
@@ -6,12 +6,15 @@ import {
   HEIGHT,
   STATIONS,
   MOVE_KEYS,
+  KEY_TO_DIRECTION,
   canMove,
   getNearbyStation,
   getStationAtTile,
   fitCanvasToViewport,
+  loadSprites,
   pointerToTile,
   renderWorld,
+  updateAnimation,
 } from './MapSetup';
 import styles from './WorldMap.module.css';
 
@@ -21,6 +24,12 @@ export default function WorldMap() {
   const player = useGameStore((s) => s.mapPlayerPosition);
   const setMapPlayerPosition = useGameStore((s) => s.setMapPlayerPosition);
   const canvasRef = useRef(null);
+  const [animState, setAnimState] = useState({
+    isMoving: false,
+    direction: 2, // 0=up, 1=right, 2=down, 3=left
+    frameIndex: 0,
+    lastUpdate: 0,
+  });
 
   const completedSet = useMemo(() => new Set(completedStations), [completedStations]);
   const mapOrderedStations = useMemo(
@@ -29,31 +38,40 @@ export default function WorldMap() {
   );
 
   useEffect(() => {
+    loadSprites();
+  })
+
+  useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    if (!canvas) return;
 
     const context = canvas.getContext('2d');
-    if (!context) return undefined;
+    if (!context) return;
 
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
 
-    function drawScene() {
-      renderWorld(context, player, completedSet);
+    let animationFrame;
+
+    function loop() {
+      renderWorld(context, player, completedSet, animState);
+      animationFrame = requestAnimationFrame(loop);
     }
 
-    function fitCanvas() {
+    loop();
+
+    function handleResize() {
       fitCanvasToViewport(canvas);
-      drawScene();
     }
 
-    fitCanvas();
-    window.addEventListener('resize', fitCanvas);
+    handleResize();
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('resize', fitCanvas);
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [completedSet, player]);
+  }, [player, completedSet, animState]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -69,11 +87,22 @@ export default function WorldMap() {
       if (!delta) return;
 
       event.preventDefault();
-
       setMapPlayerPosition((prev) => {
         const nextCol = prev.col + delta[0];
         const nextRow = prev.row + delta[1];
-        return canMove(nextCol, nextRow) ? { col: nextCol, row: nextRow } : prev;
+
+        const moved = canMove(nextCol, nextRow);
+
+        // Update animation state
+        setAnimState((prevAnim) => ({
+          ...prevAnim,
+          isMoving: moved,
+          direction: ['up', 'right', 'down', 'left'].indexOf(
+            KEY_TO_DIRECTION[key]
+          ),
+        }));
+
+        return moved ? { col: nextCol, row: nextRow } : prev;
       });
     }
 
@@ -81,6 +110,18 @@ export default function WorldMap() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, player.col, player.row, setMapPlayerPosition]);
 
+  useEffect(() => {
+    let animationFrame;
+
+    function loop(now) {
+      setAnimState((prev) => updateAnimation(prev, now));
+      animationFrame = requestAnimationFrame(loop);
+    }
+
+    animationFrame = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, []);
   function handleCanvasClick(event) {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -103,8 +144,13 @@ export default function WorldMap() {
   return (
     <div className={styles.page}>
       <div className={styles.headerRow}>
-        <h1 className={styles.title}>Proteomics Lab Map</h1>
-        <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
+        <div>
+          <h1 className={styles.title}>Proteomics Lab Map</h1>
+          <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
+        </div>
+        <button className={styles.leaderboardButton} onClick={() => navigate('/leaderboard')}>
+          View leaderboard
+        </button>
       </div>
 
       <div className={styles.mapContainer}>

@@ -33,6 +33,24 @@
   color: #40546a;
 }
 
+.leaderboardButton {
+  border: 1px solid #7f9cbc;
+  background: linear-gradient(180deg, #fff8e6 0%, #f6e4b8 100%);
+  color: #3e2e0b;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(88, 70, 20, 0.14);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.leaderboardButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(88, 70, 20, 0.2);
+}
+
 .mapContainer {
   width: min(1140px, 100%);
   display: flex;
@@ -182,6 +200,10 @@
   .headerRow {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .leaderboardButton {
+    width: 100%;
   }
 
   .statusRow {
