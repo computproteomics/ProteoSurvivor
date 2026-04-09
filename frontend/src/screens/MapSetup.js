@@ -804,11 +804,11 @@ function drawStation(context, station, done) {
   context.fillStyle = station.color;
   context.fillRect(x + 6, y + 6, TILE - 12, TILE - 12);
 
-  // Draw station-specific canvas vector icon centred on the tile.
+  // Draw station-specific canvas vector icon at the bottom of the square.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
   if (drawIcon) {
     context.save();
-    drawIcon(context, x + TILE / 2, y + TILE / 2);
+    drawIcon(context, x + TILE / 2, y + TILE - 14);
     context.restore();
   }
 
