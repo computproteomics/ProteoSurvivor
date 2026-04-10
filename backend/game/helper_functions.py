@@ -294,10 +294,25 @@ def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold, fc_col):
         return None
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    plot_df["neg_log_p"] = -np.log10(plot_df[p_val_col])
-    sns.scatterplot(x=fc_col, y="neg_log_p", data=plot_df, ax=ax, color="#2563eb", edgecolor="none")
+    plot_df["neg_log10_p"] = -np.log10(plot_df[p_val_col])
+    
+    # Classify significance based on thresholds
+    plot_df["significant"] = "not_sig"
+    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] >= fc_threshold),"significant",] = "up"
+    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] <= -fc_threshold),"significant",] = "down"
+
+    sns.scatterplot(
+        data=plot_df,
+        x=fc_col,
+        y="neg_log10_p",
+        hue="significant",
+        hue_order=["up", "down", "not_sig"],
+        palette={"up": "red", "down": "blue", "not_sig": "grey"},
+        ax=ax,
+        edgecolor="none",
+    )
     ax.set_title(title)
-    ax.set_xlabel("Fold Change")
+    ax.set_xlabel("log2 fold change")
     ax.set_ylabel("-log10(p-value)")
     ax.axhline(-np.log10(sig_threshold), color="red", linestyle="--", linewidth=1)
     ax.axvline(-fc_threshold, color="red", linestyle="--", linewidth=1)

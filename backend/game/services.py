@@ -932,6 +932,13 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
     
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
+
+        # Compute fold change
+        mean_a = expr[COND_A].mean(axis=1, skipna=True)
+        mean_b = expr[COND_B].mean(axis=1, skipna=True)
+        computed_fc = mean_b - mean_a
+        df[FC] = computed_fc
+        
         p_values = np.full(len(expr), np.nan)
 
         if test == "welch":
