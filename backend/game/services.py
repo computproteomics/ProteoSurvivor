@@ -19,6 +19,32 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
+# Variables for column names
+PROTEIN = "Protein"
+PROTEIN_ID = "Protein ID"
+ENTRY = "Entry Name"
+GENE = "Gene"
+PROTEIN_LENGTH = "Protein Length"
+ORGANISM = "Organism"
+EXISTENCE = "Protein Existence"
+DESCRIPTION = "Description"
+PROBABILITY = "Protein Probability"
+TOP_PEP_PROB = "Top Peptide Probability"
+TOT_PEP = "Total Peptides"
+SPEC_COUNT = "Spectral Count"
+UNIQUE_SPEC_COUNT = "Unique Spectral Count"
+TOT_SPEC_COUNT = "Total Spectral Count"
+# NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
+# NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
+# NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_01 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_01 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_02 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_02 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_03 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_03 Intensity"
+N_REP = 3
+COND_A = [f"ConditionA_Sample{i:02d}" for i in range(1, N_REP + 1)]
+COND_B = [f"ConditionB_Sample{i:02d}" for i in range(1, N_REP + 1)]
+INDIS_PROTEINS = "Indistinguishable Proteins"
+
 STATION_SIMULATORS = {}
 
 
