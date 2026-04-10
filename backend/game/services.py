@@ -741,16 +741,16 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         }
     
     try:
-        expr = df[COND_A + COND_B].copy()
+        expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
         p_values = np.full(len(expr), np.nan)
 
         if test == "welch":
-            for idx, protein in enumerate(expr.index):
+            for idx in range(len(expr)):
                 row = expr.iloc[idx]
-                a = pd.to_numeric(row[COND_A], errors="coerce").dropna()
-                b = pd.to_numeric(row[COND_B], errors="coerce").dropna()
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
 
-                if len(a) == 0 or len(b) == 0:
+                if len(a) < 2 or len(b) < 2:
                     p = np.nan
                 else:
                     _, p = ttest_ind(a, b, equal_var=False, nan_policy="omit")
@@ -762,10 +762,10 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             raise NotImplementedError("Limma not implemented")
                
         elif test == "mannwhitneyu":
-            for idx, protein in enumerate(expr.index):
+            for idx in range(len(expr)):
                 row = expr.iloc[idx]
-                a = pd.to_numeric(row[COND_A], errors="coerce").dropna()
-                b = pd.to_numeric(row[COND_B], errors="coerce").dropna()
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
 
                 if len(a) == 0 or len(b) == 0:
                     p_values[idx] = np.nan
@@ -792,10 +792,10 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         
         elif test == "permutation":
             N_PERMUTATIONS = 1000
-            for idx, protein in enumerate(expr.index):
+            for idx in range(len(expr)):
                 row = expr.iloc[idx]
-                A = pd.to_numeric(row[COND_A], errors="coerce").dropna().values
-                B = pd.to_numeric(row[COND_B], errors="coerce").dropna().values
+                A = row[COND_A].dropna().values
+                B = row[COND_B].dropna().values
 
                 if len(A) == 0 or len(B) == 0:
                     p_values[idx] = np.nan
@@ -821,9 +821,11 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             success = False
             feedback = "Unknown statistical test."
 
-        if len(p_values) > 0:
+        if len(p_values) == len(df):
             df[P_VALUE_COL] = pd.Series(p_values, index=df.index)
-        
+        else:
+            df[P_VALUE_COL] = np.nan
+    
     except Exception:
         success = False
         feedback = "Error applying statistical test. The proteome descends into chaos."
