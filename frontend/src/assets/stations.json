@@ -311,20 +311,16 @@
         "label": "Statistical Test",
         "type": "select",
         "options": [
-          "none",
-          "polystest",
-          "student",
           "welch",
           "limma",
-          "anova"
+          "mannwhitneyu",
+          "permutation"
         ],
         "optionLabels": {
-          "none": "No test",
-          "polystest": "PolySTest",
-          "student": "T-test (Student)",
           "welch": "Welch t-test",
           "limma": "Limma",
-          "anova": "ANOVA"
+          "mannwhitneyu": "Mann-Whitney U test",
+          "permutation": "Permutation test"
         },
         "defaultValue": "none"
       }

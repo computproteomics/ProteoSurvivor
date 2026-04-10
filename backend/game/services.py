@@ -28,6 +28,8 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
+from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
+
 from django.conf import settings
 
 # Variables for column names
@@ -868,24 +870,137 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
+def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
     test = params.get("statistical_test", "none")
+    success = False
+    imgs = []
+    score = 0
 
-    power = random.uniform(0.5, 0.9)
+    # Handle missing dataset
+    if dataset is None or dataset.empty:
+        return {
+            "success": success,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame(),
+        }
+    else:
+        df = dataset.copy()
+        num_pro = int(dataset[PROTEIN_ID].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
-    if test in ["limma", "anova"]:
-        power += 0.1
-    elif test == "none":
-        power = 0
+    # Handle Missing Columns
+    required_cols = COND_A + COND_B + [PROTEIN]
+    if any(col not in df.columns for col in required_cols):
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "⚠️ Required columns are missing. The statistical test cannot be performed.",
+            "img": imgs,
+            "score": score,
+            "dataset": df,
+        }
+    
+    try:
+        expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
+        p_values = np.full(len(expr), np.nan)
 
-    # TODO should return a new col "p_value"
+        if test == "welch":
+            for idx in range(len(expr)):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
+
+                if len(a) < 2 or len(b) < 2:
+                    p = np.nan
+                else:
+                    _, p = ttest_ind(a, b, equal_var=False, nan_policy="omit")
+                p_values[idx] = p
+            success = True
+            feedback = "Welch's t-test applied."
+
+        elif test == "limma":
+            raise NotImplementedError("Limma not implemented")
+               
+        elif test == "mannwhitneyu":
+            for idx in range(len(expr)):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
+
+                if len(a) == 0 or len(b) == 0:
+                    p_values[idx] = np.nan
+                    continue
+
+                try:
+                    _, p = mannwhitneyu(
+                        a,
+                        b,
+                        alternative="two-sided",
+                        method="exact"
+                    )
+                    p_values[idx] = p
+                except ValueError:
+                    _, p = mannwhitneyu(
+                        a,
+                        b,
+                        alternative="two-sided",
+                        method="asymptotic"
+                    )
+                    p_values[idx] = p
+            success = True
+            feedback = "Mann-Whitney U test applied."
+        
+        elif test == "permutation":
+            N_PERMUTATIONS = 1000
+            for idx in range(len(expr)):
+                row = expr.iloc[idx]
+                A = row[COND_A].dropna().values
+                B = row[COND_B].dropna().values
+
+                if len(A) == 0 or len(B) == 0:
+                    p_values[idx] = np.nan
+                    continue
+
+                def statistic(x, y):
+                    return np.mean(y) - np.mean(x)
+                
+                res = permutation_test(
+                    (A, B),
+                    statistic,
+                    vectorized=False,
+                    n_resamples=N_PERMUTATIONS,
+                    alternative="two-sided",
+                    random_state=42
+                )
+                p = max(res.pvalue, 1 / (N_PERMUTATIONS + 1))
+                p_values[idx] = p
+
+            success = True
+            feedback = f"Permutation test applied ({N_PERMUTATIONS} permutations)."
+        else:
+            success = False
+            feedback = "Unknown statistical test."
+
+        df[P_VALUE_COL] = p_values
+    
+    except Exception:
+        success = False
+        feedback = "Error applying statistical test. The proteome descends into chaos."
 
     return {
-        "summary": f"{test} analysis completed.",
-        "statistical_power": round(power, 2),
-        "significant_features": int(power * random.randint(100, 500)),
+        "success": success,
+        "num_pro": num_pro,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": score,
+        "dataset": df,
     }
-
 
 STATION_SIMULATORS.update(
     {
