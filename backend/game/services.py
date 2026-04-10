@@ -9,8 +9,13 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms
-from statsmodels.stats.multitest import multipletests 
+from .helper_functions import (
+    tr_boxplot,
+    sp_scatterplot,
+    mtc_histograms,
+    _create_histogram,
+)
+from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
 
 
@@ -103,7 +108,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-    # TODO: Add check to see if sample prep + MS was done previously
+
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
     # set match_between_runs to upper case
@@ -115,6 +120,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     min_pep_len = int(params.get("min_peptide_length", 7))
     max_pep_len = int(params.get("max_peptide_length", 35))
 
+    # reading parameter file
     file_map = pandas.read_csv("data/ParameterTable.csv")  # Mapping table
     # Make key of all columns but ParameterSet
     file_map["key"] = (
@@ -159,6 +165,15 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         raise ValueError(f"No data file found for parameters: {params}")
     data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
 
+    # check whether datafile exists
+    if not pandas.os.path.exists(f"data/{data_file_name}"):
+        return {
+            "success": False,
+            "feedback": "Unfortunately, we do not have a data search result for this set of parameters.",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     # Load the corresponding data file and extract results
     dataset = pandas.read_csv(f"data/{data_file_name}", sep="\t")
 
@@ -190,52 +205,30 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     try:
         for species in dataset["Organism"].unique():
 
-            count_cols_a = [
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Total Spectral Count",
-            ]
-            int_cols_a = [
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity",
-            ]
-            count_cols_b = [
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Total Spectral Count",
-            ]
-            int_cols_b = [
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Intensity",
-            ]
-
-            # Make a vector of all count_cols_a columns into one column "Total Spectral Count A"
-            spec_a = np.log2(np.concatenate([dataset[c].values for c in count_cols_a]))
-            spec_b = np.log2(np.concatenate([dataset[c].values for c in count_cols_b]))
-
-            int_a = np.log2(np.concatenate([dataset[c].values for c in int_cols_a]))
-            int_b = np.log2(np.concatenate([dataset[c].values for c in int_cols_b]))
-
-            tr_scatter = sp_scatterplot(
-                x=spec_a,
-                y=int_a,
-                x_col="Total Spectral Count A",
-                y_col="log2(Intensity A)",
+            tr_hist = _create_histogram(
+                dataset[SPEC_COUNT],
+                species + ": spectral counts",
+                "Spectral Counts",
+                "Frequency",
                 color=species_palette[species],
-                title=f"Spectral Count vs Intensity for {species} - Condition A",
             )
-            imgs.append(tr_scatter)
-            tr_scatter = sp_scatterplot(
-                x=spec_b,
-                y=int_b,
-                x_col="Total Spectral Count B",
-                y_col="log2(Intensity B)",
+            imgs.append(tr_hist)
+            tr_hist = _create_histogram(
+                dataset[PROTEIN_LENGTH],
+                species + ": protein lengths",
+                "Protein Lengths",
+                "Frequency",
                 color=species_palette[species],
-                title=f"Spectral Count vs Intensity for {species} - Condition B",
             )
-            imgs.append(tr_scatter)
+            imgs.append(tr_hist)
+            tr_hist = _create_histogram(
+                dataset[PROBABILITY],
+                species + ": protein identification probabilities",
+                "Protein probabilities",
+                "Frequency",
+                color=species_palette[species],
+            )
+            imgs.append(tr_hist)
 
         success = True
         feedback = None
@@ -267,7 +260,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
     if dataset is None:
         return {
@@ -277,7 +270,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
             "img": imgs,
             "score": score,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
@@ -285,7 +278,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         num_pep = int(dataset["Combined Total Peptides"].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
-    
+
     try:
         img_before = tr_boxplot(
             df, relevant_cols, title="Intensities Before Transformation"
@@ -389,7 +382,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
     if dataset is None:
         return {
@@ -399,7 +392,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
             "img": imgs,
             "score": score,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
@@ -417,7 +410,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
             "img": imgs,
             "score": score,
-            "dataset": df
+            "dataset": df,
         }
 
     pvals = df[p_val_col].values
@@ -457,13 +450,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         feedback = f"Error applying multiple testing correction: {str(e)}"
 
     if success and "p_adjusted" in df.columns:
-        imgs.extend(
-            mtc_histograms(
-                df,
-                value_col="p_adjusted",
-                species_col="Organism"
-            )
-        )
+        imgs.extend(mtc_histograms(df, value_col="p_adjusted", species_col="Organism"))
 
     return {
         "success": success,
@@ -472,8 +459,9 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "feedback": feedback,
         "img": imgs,
         "score": 0,
-        "dataset": df
+        "dataset": df,
     }
+
 
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
