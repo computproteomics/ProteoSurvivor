@@ -14,6 +14,7 @@ from .serializers import (
     RunStationSerializer,
 )
 from .leaderboard import get_leaderboard_information
+from .helper_functions import plot_scores
 from .services import run_station
 
 
@@ -133,6 +134,18 @@ class LeaderboardView(APIView):
                 "finished": finished,
                 "dnf": dnf,
                 "current_user_result": current_user_result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ScatterPlotView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(
+            {
+                "img": plot_scores(),
             },
             status=status.HTTP_200_OK,
         )

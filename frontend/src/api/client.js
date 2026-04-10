@@ -37,4 +37,6 @@ export const runStation = (stationId, params) =>
 
 export const getLeaderboard = () => api.get('/leaderboard/');
 
+export const getScatterPlot = () => api.get('/scatter/');
+
 export default api;
