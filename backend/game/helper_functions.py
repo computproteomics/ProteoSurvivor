@@ -99,6 +99,7 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
 
     return imgs
 
+
 def histogram_compare(before_df, after_df, cols, title_before="Before", title_after="After", bins=50):
     # Flatten numeric values and drop NaN/inf
     before = before_df[cols].to_numpy(dtype=float).ravel()
@@ -137,12 +138,28 @@ def histogram_compare(before_df, after_df, cols, title_before="Before", title_af
 
     return images
 
+
 def plot_significant_proteins(df):
     """Generate a bar plot showing the number of significant proteins by organism."""
     positive_counts = df[df[FC] > 0].groupby(ORGANISM).size()
     negative_counts = df[df[FC] < 0].groupby(ORGANISM).size()
 
-    return imgs
+    organisms = sorted(set(positive_counts.index).union(negative_counts.index))
+    positive_values = [int(positive_counts.get(org, 0)) for org in organisms]
+    negative_values = [-int(negative_counts.get(org, 0)) for org in organisms]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(organisms, positive_values, color="#2ca02c", label="FC > 0")
+    ax.bar(organisms, negative_values, color="#d62728", label="FC < 0")
+
+    ax.axhline(0, color="black", linewidth=1)
+    ax.set_title("Significant Proteins by Organism")
+    ax.set_xlabel(ORGANISM)
+    ax.set_ylabel("Protein Count")
+    ax.tick_params(axis="x", rotation=30)
+    ax.legend()
+
+    return fig_to_base64(fig)
 
 
 def imputer_before_after_stripgrid(
@@ -206,4 +223,54 @@ def imputer_before_after_stripgrid(
 
     fig.suptitle(title, fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
+    return fig_to_base64(fig)
+
+
+def plot_scores(true_positives, false_positives):
+    """Generate a scatter plot of all the player's results."""
+    from .models import FinalStationResult
+
+    def _score_x_axis(tp, fp):
+        if tp <= 0:
+            return None
+        ratio = fp / tp
+        ratio = max(ratio, 1e-12)
+        return -math.log10(ratio)
+
+    results = FinalStationResult.objects.all().values_list("true_positives", "false_positives")
+
+    x_values = []
+    y_values = []
+    for tp, fp in results:
+        x_val = _score_x_axis(tp, fp)
+        if x_val is None:
+            continue
+        x_values.append(x_val)
+        y_values.append(tp)
+
+    current_x = _score_x_axis(true_positives, false_positives)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if x_values:
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+
+    if current_x is not None:
+        sns.scatterplot(
+            x=[current_x],
+            y=[true_positives],
+            ax=ax,
+            color="#ef4444",
+            s=170,
+            edgecolor="black",
+            linewidth=0.8,
+            label="Your result",
+        )
+
+    ax.set_title("Final Station Scores")
+    ax.set_xlabel("-log10(False Positive Rate)")
+    ax.set_ylabel("True Positives")
+    ax.grid(alpha=0.25)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
+
     return fig_to_base64(fig)

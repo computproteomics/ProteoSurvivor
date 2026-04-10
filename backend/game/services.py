@@ -14,7 +14,7 @@ from .helper_functions import (
     sp_scatterplot,
     mtc_histograms,
     _create_histogram,
-    imputer_before_after_stripgrid
+    imputer_before_after_stripgrid,
     histogram_compare,
     plot_significant_proteins,
     plot_scores
@@ -579,7 +579,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     success = False
     feedback = None
-    
+
     # Sanity check - are relevant columns present in the dataset?
     if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
         return {
@@ -852,7 +852,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
     score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
-    imgs.append(plot_scores(dataset, true_positives, false_positives))
+    imgs.append(plot_scores(true_positives, false_positives))
 
     return {
         "success": True,
