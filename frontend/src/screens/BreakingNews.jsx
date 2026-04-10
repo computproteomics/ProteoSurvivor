@@ -48,12 +48,16 @@ function Aside( {className, adPic, adText, adTitle }) {
 }
 
 
-function MainAd({ advertisement }) {
+function AdBox({ adPic, adTitle, adText }) {
   return(
-    <div className={adBox}>
-      
+    <div className={styles.adBox}>
+      <img className={styles.adBoxImage} src={adPic} alt="Add an Ad" />
+      <div className={styles.adBoxBox}>
+        <h3 className={styles.adBoxTitle}> {adTitle} </h3> 
+        <p className={styles.adBoxText}> {adText} </p>
+      </div>
     </div>
-  ) 
+  ); 
 }
 
 function TextBox({ text }) {
@@ -67,7 +71,13 @@ function TextBox({ text }) {
 }
 
 function NextButton() {
-  return
+  const navigate = useNavigate();
+
+  return(
+    <button onClick={() => navigate("/world")}>
+      Go To world
+    </button>
+  );
 }
 
 function Page() {  // all the text and main adds on the page
@@ -75,13 +85,17 @@ function Page() {  // all the text and main adds on the page
   const text2 = "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like)."
   const text3 = " Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32."
   const text4 = "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc."
+  const adPic1 = advertisement1 
+  const adTitle1 = "Title placeholder"
+  const adText1 = "Minor placeholder"
   
   return(
     <div className={styles.page}>
-      <TextBox text={text1}></TextBox>
-      <TextBox text={text2}></TextBox>
-      <TextBox text={text3}></TextBox>
-      <TextBox text={text4}></TextBox>
+      <TextBox text={text1} ></TextBox>
+      <AdBox adPic={adPic1} adTitle={adTitle1} adText={adText1} ></AdBox>
+      <TextBox text={text2} ></TextBox>
+      <TextBox text={text3} ></TextBox>
+      <TextBox text={text4} ></TextBox>
     </div>
   )
 }
@@ -113,7 +127,7 @@ export default function News() {
       <Aside className={`${styles.aside} ${styles.leftAside}`} adPic={adPic1} adText={adText1} adTitle={adTitle1}></Aside>
       <Canvas ></Canvas>
       <Aside className={`${styles.aside} ${styles.rightAside}`} adPic={adPic2} adText={adText2} adTitle={adTitle2}></Aside>
-      <Button></Button>
+      <NextButton></NextButton>
     </div>
-  )
+  );
 }
