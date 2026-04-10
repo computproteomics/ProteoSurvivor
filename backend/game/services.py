@@ -297,12 +297,21 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "img": imgs,
         "score": 0,
         "feedback": """
-        Done: You now ran a peptide database search with FragPipe using the given search parameters.
-        The software takes the mass spectra from the mass spectrometer and compares them to theoretical spectra generated from a protein sequence database.
-        The result is a list of identified peptides and proteins, along with scores indicating the confidence of each identification.
-        From now on, you will use the protein table for the next stations. It contains the identified proteins and their associated data, such as the number of peptides identified for each protein,
-        protein length, identification confidence, and quantification values (among more information)
-        You can now proceed to the next station to further process and analyze these identifications.
+        ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
+        FragPipe is a software tool that</br></br> 
+        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical 
+        spectra generated from a protein sequence database.</br>
+        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating 
+        the confidence of each identification.</br>
+        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br> 
+        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives 
+         are at stake. The search results contain many details about identification such as the identified 
+         proteins and their associated data, such as the number of peptides identified for each protein,
+        protein length, identification confidence, and quantification values. The figures show some of these.</br></br> 
+        ❗Take a moment to explore the data and the figures. </br/>
+        Do you see differences for the different species? </br/>
+        Do the values look reasonable?</br/>
+        Do you see any differences between species?
         """,
     }
 
@@ -623,9 +632,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
     if success and P_VALUE_COL in df.columns:
-        imgs.extend(
-            mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM)
-        )
+        imgs.extend(mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM))
 
     return {
         "success": success,
@@ -634,7 +641,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "feedback": feedback,
         "img": imgs,
         "score": score,
-        "dataset": df
+        "dataset": df,
     }
 
 
