@@ -416,7 +416,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "success": success,
             "num_prot": num_prot,
             "num_pep": num_pep,
-            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "⚠️ No p-values found. The experiment loses its grip on significance.",
             "img": imgs,
             "score": score,
             "dataset": df
@@ -429,30 +429,41 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             adjusted = multipletests(pvals, method="fdr_bh")
             df["p_adjusted"] = adjusted[1]
             success = True
-            feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+            score = 10
+            feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
             df["p_adjusted"] = adjusted[1]
             success = True
-            feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+            score = 12
+            feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
             df["p_adjusted"] = qvals
             success = True
-            feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+            score = 15
+            feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
             df["p_adjusted"] = adjusted[1]
-            success = True
-            feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+            success = True  
+            score = 6
+            feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
             df["p_adjusted"] = adjusted[1]
             success = True
-            feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
-    except Exception as e:
+            score = 9
+            feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
+        else:
+            success = False
+            score = 0
+            feedback = "⚠️ Unknown correction method. Statistical defenses not deployed."
+    
+    except Exception:
         success = False
-        feedback = f"Error applying multiple testing correction: {str(e)}"
+        score = 0
+        feedback = "💥 Correction failed. The proteome resists statistical control."
 
     if success and "p_adjusted" in df.columns:
         imgs.extend(
@@ -469,7 +480,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
+        "score": score,
         "dataset": df
     }
 
