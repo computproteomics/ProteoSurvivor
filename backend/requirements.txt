@@ -10,3 +10,4 @@ faker
 psycopg2-binary
 statsmodels
 qvalue
+scikit-learn
