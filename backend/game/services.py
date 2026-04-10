@@ -18,6 +18,11 @@ from .helper_functions import (
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
 
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import BayesianRidge, LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 
 STATION_SIMULATORS = {}
 
@@ -361,19 +366,136 @@ def _simulate_normalize(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    method = params.get("imputation_method", "none")
+    """""
+    Simulate imputation of missing values in proteomics data based on selected method.
+    - "none"        : No imputation, missing values remain as is.
+    - "knn"         : k-nearest neighbors imputation with k = 5.
+    - "regression"  : Regression-based imputation.
+    - "randomforest": Random forest imputation.
+    - "bayesian"    : Bayesian imputation.
+    - "minprob"     : Impute with random values drawn from a distribution of low 
+                      intensities.
+    - "median"      : Impute with the median of each protein across samples.
+    - "mean"        : Impute with the mean of each protein across samples.
+    """""
 
-    missing = random.uniform(0.05, 0.3)
-
-    if method == "none":
-        recovered = 0
+    method = str(params.get("imputation_method", "none")).lower()
+    if dataset is None:
+        df = pd.DataFrame()
     else:
-        recovered = missing * random.uniform(0.6, 0.95)
+        df = dataset.copy()
+    relevant_cols = [c for c in df.columns if c.endswith("MaxLFQ Intensity")]
+
+    imgs: list[str] = []
+    success = False
+    feedback = None
+    
+    # Sanity check
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No intensity columns found for imputation.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    # Numberic matrix for imputation work
+    x = (
+        df[relevant_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .copy()
+    )
+
+    # Function to impute missing values based on method
+    def impute_matrix(x: pandas.DataFrame, method: str) -> pandas.DataFrame:
+
+        if method == "none":
+            return x
+        
+        if method == "mean":
+            imputer = SimpleImputer(strategy="mean")
+        elif method == "median":
+            imputer = SimpleImputer(strategy="median")
+        elif method == "knn":
+            imputer = KNNImputer(n_neighbors=5)
+        elif method == "regression":
+            imputer = IterativeImputer(
+                estimator = LinearRegression(),
+                random_state = 42,
+                max_iter = 15
+            )
+        elif method == "randomforest":
+            imputer = IterativeImputer(
+                estimator=RandomForestRegressor(
+                    n_estimators=200,
+                    random_state=42,
+                    n_jobs=-1
+                ),
+                random_state=42,
+                max_iter=10
+            )
+        elif method == "bayesian":
+            imputer = IterativeImputer(
+                estimator = BayesianRidge(),
+                sample_posterior = True,
+                random_state = 42,
+                max_iter = 15
+            )
+        elif method == "minprob":
+            out = x.copy()
+            rng = np.random.default_rng(42)
+            for col in out.columns:
+                miss = out[col].isna()
+                if not miss.any():
+                    continue
+                obs = out[col].dropna()
+                if obs.empty:
+                    continue
+                mu = float(obs.mean())
+                sigma = float(obs.std())
+                out.loc[miss, col] = rng.normal(mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
+            return out
+        else:
+            raise ValueError(f"Unknown imputation method: {method}")
+
+        arr = imputer.fit_transform(x)
+        return pandas.DataFrame(arr, index=x.index, columns=x.columns)
+
+    feedback_by_method = {
+        "none": "No imputation applied. Missing values remain as is.",
+        "mean": "Mean imputation applied across samples.",
+        "median": "Median imputation applied across samples.",
+        "knn": "kNN imputation applied with k = 5.",
+        "regression": "Regression-based imputation applied.",
+        "randomforest": "Random forest-based iterative imputation applied.",
+        "bayesian": "Bayesian ridge-based iterative imputation applied.",
+        "minprob": "MinProb imputation applied using low-intensity random draws.",
+    }
+
+    try:
+        x_new = impute_matrix(x, method)
+        df_new = df.copy()
+        df_new[relevant_cols] = x_new
+        success = True
+        feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
+    except Exception as e:
+        df_new = df.copy()
+        success = False
+        feedback = f"Error applying imputation: {str(e)}"
+
 
     return {
-        "summary": f"{method} imputation applied.",
-        "missing_fraction": round(missing, 2),
-        "recovered_fraction": round(recovered, 2),
+        "success": success,
+        "num_pro": None,
+        "num_pep": None,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df_new
     }
 
 
