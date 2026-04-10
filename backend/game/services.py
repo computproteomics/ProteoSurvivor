@@ -107,7 +107,10 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    result = runner(dataset, params)
+    user_runs = request.user.station_runs.all()
+    visited_stations = set(run.station_id for run in user_runs)
+    result = runner(dataset, params, visited_stations)
+
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
         run = StationRun(
@@ -115,12 +118,12 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
             station_id=station_id,
             params=params,
             score=result.get(
-                "score", 0
-            ),  # Score can be calculated based on results if needed
+                "score", 0)  # Score can be calculated based on results if needed
         )
 
         run.save()
-        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+        print(
+            f"Saved StationRun with ID {run.id} for user {request.user.username}")
         if settings.STATIONS_CONFIG[station_id].get("final", False):
             final_result = FinalStationResult(
                 station_run=run,
@@ -136,21 +139,29 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     print(f"Updated session dataset for user {request.user.username}")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
-    response_payload = {key: value for key, value in result.items() if key != "dataset"}
+    response_payload = {key: value for key,
+                        value in result.items() if key != "dataset"}
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
-def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
+def _simulate_sample_prep(dataset: dict, params: dict, visited_stations: set) -> dict:
     return {
         "success": True,
         "feedback": "Sample preparation intro completed.",
         "score": 0,
-        "dataset": dataset,
+        "dataset": dataset
     }
 
 
-def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
-    # TODO: Add check to see if sample prep was done previously
+def _simulate_mass_spec(dataset: dict, params: dict, visited_stations: set) -> dict:
+
+    if "sample_prep" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need to complete the sample preparation station before running the mass spectrometry station.",
+            "score": 0,
+            "dataset": dataset,
+        }
     return {
         "success": True,
         "feedback": "Mass spectrometry intro completed.",
@@ -159,7 +170,15 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
+def _simulate_spectral_search(dataset: dict, params: dict, visited_stations: set) -> dict:
+
+    if "sample_prep" and "mass_spec" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need to complete the Mass spectrometer station first.",
+            "score": 0,
+            "dataset": dataset,
+        }
 
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
@@ -323,7 +342,16 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_transform(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     method = params.get("transform_method", "ln")
     success = False
     imgs = []
@@ -409,7 +437,16 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_filtering(dataset: dict, params: dict) -> dict:
+def _simulate_filtering(dataset: dict, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     remove_cont = params.get("remove_contaminants", "yes") == "yes"
     missing_thresh = int(params.get("remove_missing_proteins", 0))
 
@@ -428,7 +465,16 @@ def _simulate_filtering(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_normalize(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     method = params.get("normalization", "none")
 
     if dataset is None:
@@ -474,7 +520,8 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             feedback = "No normalization applied. Data remains unchanged."
 
         elif method == "median":
-            df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
+            df[relevant_cols] = df[relevant_cols].subtract(
+                df[relevant_cols].median())
             success = True
             feedback = (
                 "Median normalization applied. Intensities centered by column median."
@@ -508,7 +555,8 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
 
         elif method == "zscore":
             std = df[relevant_cols].std().replace(0, np.nan)
-            df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
+            df[relevant_cols] = (df[relevant_cols] -
+                                 df[relevant_cols].mean()) / std
             success = True
             feedback = (
                 "Z-score normalization applied. Intensities standardized per column."
@@ -550,7 +598,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_imputer(dataset: dict, params: dict) -> dict:
+def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dict:
     """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
@@ -563,6 +611,13 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
     """
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
 
     method = str(params.get("imputation_method", "none")).lower()
 
@@ -709,7 +764,16 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     method = params.get("correction_method", "none")
     success = False
     imgs = []
@@ -787,7 +851,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
     if success and P_VALUE_COL in df.columns:
-        imgs.extend(mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM))
+        imgs.extend(mtc_histograms(
+            df, value_col=P_VALUE_COL, species_col=ORGANISM))
 
     return {
         "success": success,
@@ -800,7 +865,16 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     }
 
 
-def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_the_cutter(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
     dataset = dataset.copy() if dataset is not None else pd.DataFrame()
@@ -856,7 +930,8 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    score = true_positives * (1 - false_positives /
+                              len(significant)) if len(significant) > 0 else 0
     imgs.append(plot_scores(true_positives, false_positives))
 
     return {
@@ -870,7 +945,16 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+
+    if "spectral_search" not in visited_stations:
+        return {
+            "success": False,
+            "feedback": "You need data before you can perform this step!",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     test = params.get("statistical_test", "none")
     success = False
     imgs = []
@@ -904,7 +988,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             "score": score,
             "dataset": df,
         }
-    
+
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
         p_values = np.full(len(expr), np.nan)
@@ -925,7 +1009,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
 
         elif test == "limma":
             raise NotImplementedError("Limma not implemented")
-               
+
         elif test == "mannwhitneyu":
             for idx in range(len(expr)):
                 row = expr.iloc[idx]
@@ -954,7 +1038,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                     p_values[idx] = p
             success = True
             feedback = "Mann-Whitney U test applied."
-        
+
         elif test == "permutation":
             N_PERMUTATIONS = 1000
             for idx in range(len(expr)):
@@ -968,7 +1052,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
 
                 def statistic(x, y):
                     return np.mean(y) - np.mean(x)
-                
+
                 res = permutation_test(
                     (A, B),
                     statistic,
@@ -987,7 +1071,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             feedback = "Unknown statistical test."
 
         df[P_VALUE_COL] = p_values
-    
+
     except Exception:
         success = False
         feedback = "Error applying statistical test. The proteome descends into chaos."
@@ -1001,6 +1085,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         "score": score,
         "dataset": df,
     }
+
 
 STATION_SIMULATORS.update(
     {
