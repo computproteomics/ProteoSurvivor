@@ -9,8 +9,14 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms, imputer_before_after_swarmgrid
-from statsmodels.stats.multitest import multipletests 
+from .helper_functions import (
+    tr_boxplot,
+    sp_scatterplot,
+    mtc_histograms,
+    _create_histogram,
+    imputer_before_after_stripgrid
+)
+from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
 
 from sklearn.impute import SimpleImputer, KNNImputer
@@ -399,7 +405,7 @@ def _simulate_normalize(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    """""
+    """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
     - "knn"         : k-nearest neighbors imputation with k = 5.
@@ -410,7 +416,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """""
+    """
 
     method = str(params.get("imputation_method", "none")).lower()
 
@@ -510,14 +516,14 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         return pandas.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
-        "none": "No imputation applied. Missing values remain as is.",
-        "mean": "Mean imputation applied across samples.",
-        "median": "Median imputation applied across samples.",
-        "knn": "kNN imputation applied with k = 5.",
-        "regression": "Regression-based imputation applied.",
-        "randomforest": "Random forest-based iterative imputation applied.",
-        "bayesian": "Bayesian ridge-based iterative imputation applied.",
-        "minprob": "MinProb imputation applied using low-intensity random draws.",
+        "none": "👻 No imputation applied. Some data remain missing 👻",
+        "mean": "🔴🟢🔵 Missing values are now equal to the sample mean ⚪️",
+        "median": "🔴🟢🔵 Missing values are now equal to the sample median 🟢",
+        "knn": "📊 Missing values are now replaced using k-Nearest Neighbors 🕵️",
+        "regression": "📈 Regression-based imputation applied 📈",
+        "randomforest": "🌲🌳🌴 Random forest-based iterative imputation applied 🌲🌳🌴",
+        "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
+        "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
 
     try:
@@ -526,13 +532,18 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         df_new[relevant_cols] = x_new
 
         imgs.append(
-            imputer_before_after_swarmgrid(
+            imputer_before_after_stripgrid(
                 before_df=x,
                 after_df=x_new,
                 cond_a_cols=COND_A,
                 cond_b_cols=COND_B,
                 title=f"Before vs After Imputation ({method})",
             )
+        )
+
+        success = True
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
         )
 
         success = True
@@ -545,8 +556,8 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": None,
-        "num_pep": None,
+        "num_prot": int(df_new[PROTEIN].nunique()),
+        "num_pep": int(df_new[TOT_PEP].sum()),
         "feedback": feedback,
         "img": imgs,
         "score": 0,

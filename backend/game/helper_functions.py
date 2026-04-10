@@ -74,14 +74,16 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
     return imgs
 
 
-def imputer_before_after_swarmgrid(
+def imputer_before_after_stripgrid(
     before_df: pd.DataFrame,
     after_df: pd.DataFrame,
     cond_a_cols: list[str],
     cond_b_cols: list[str],
     title: str = "Before vs After Imputation by Sample",
+    max_points_per_stage: int = 1200,
+    random_state: int = 42,
 ):
-    """Create a 2x3 swarmplot grid comparing values before vs after imputation."""
+    """Create a 2x3 stripplot grid comparing values before vs after imputation."""
     sample_cols = cond_a_cols + cond_b_cols
     if len(sample_cols) != 6:
         raise ValueError("Expected exactly 6 sample columns (3 for condition A and 3 for condition B).")
@@ -94,35 +96,42 @@ def imputer_before_after_swarmgrid(
     for idx, sample_col in enumerate(sample_cols):
         ax = axes[idx]
 
-        before_vals = pd.to_numeric(before_df[sample_col], errors="coerce")
-        after_vals = pd.to_numeric(after_df[sample_col], errors="coerce")
+        before_vals = pd.to_numeric(before_df[sample_col], errors="coerce").dropna()
+        after_vals = pd.to_numeric(after_df[sample_col], errors="coerce").dropna()
+
+        if len(before_vals) > max_points_per_stage:
+            before_vals = before_vals.sample(n=max_points_per_stage, random_state=random_state)
+        if len(after_vals) > max_points_per_stage:
+            after_vals = after_vals.sample(n=max_points_per_stage, random_state=random_state)
 
         plot_df = pd.DataFrame(
             {
                 "stage": ["Before"] * len(before_vals) + ["After"] * len(after_vals),
                 "value": pd.concat([before_vals, after_vals], ignore_index=True),
             }
-        ).dropna(subset=["value"])
+        )
 
-        sns.swarmplot(
+        sns.stripplot(
             data=plot_df,
             x="stage",
             y="value",
+            hue="stage",
             order=["Before", "After"],
+            hue_order=["Before", "After"],
             palette=palette,
+            jitter=0.25,
+            dodge=False,
             size=2,
-            alpha=0.75,
+            alpha=0.7,
             ax=ax,
         )
+        if ax.get_legend() is not None:
+            ax.get_legend().remove()
 
         condition_label = "Condition A" if idx < 3 else "Condition B"
         ax.set_title(f"{condition_label} - {sample_col}")
         ax.set_xlabel("")
-
-        if idx % 3 == 0:
-            ax.set_ylabel("Intensity")
-        else:
-            ax.set_ylabel("")
+        ax.set_ylabel("Intensity" if idx % 3 == 0 else "")
 
     fig.suptitle(title, fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
