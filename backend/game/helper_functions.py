@@ -16,7 +16,8 @@ def fig_to_base64(fig):
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
 
-def boxplot(df, cols, title="Distribution Comparison"):
+
+def tr_boxplot(df, cols, title="Distribution Comparison"):
     """Generate a boxplot for the specified columns in the dataframe."""
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.boxplot(data=df[cols], ax=ax)
@@ -26,6 +27,25 @@ def boxplot(df, cols, title="Distribution Comparison"):
     ax.tick_params(axis="x", rotation=30)
 
     return fig_to_base64(fig)
+
+
+def sp_scatterplot(
+    x,
+    y,
+    x_col="Total spectral count",
+    y_col="Intensity",
+    color=None,
+    title="Scatter Plot",
+):
+    """Generate a scatter plot for the specified columns in the dataframe."""
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sns.scatterplot(x=x, y=y, color=color, ax=ax)
+    ax.set_title(title)
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+
+    return fig_to_base64(fig)
+
 
 
 def adjusted_pvalue_histograms_by_species(df, value_col="p_adjusted", species_col="Organism", bins=30):

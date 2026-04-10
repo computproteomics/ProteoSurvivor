@@ -34,6 +34,21 @@ docker run --env-file backend/.env -p 8080:8080 proteosurvivor
 
 ### Option B — Manual
 
+#### Run Both
+##### First time
+```bash
+cd frontend
+npm install concurrently --save-dev
+npm run dev
+```
+
+##### If all installed
+
+```bash
+cd frontend
+npm run dev
+```
+
 #### Backend
 
 ```bash
