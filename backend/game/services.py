@@ -741,8 +741,8 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         }
     
     try:
-        expr = df.set_index(PROTEIN)[COND_A + COND_B].copy()
-        p_map = {}
+        expr = df[COND_A + COND_B].copy()
+        p_values = np.full(len(expr), np.nan)
 
         if test == "welch":
             for idx, protein in enumerate(expr.index):
@@ -753,8 +753,8 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                 if len(a) == 0 or len(b) == 0:
                     p = np.nan
                 else:
-                    _, p = ttest_ind(a, b, equal_var=False)
-                p_map[idx] = p
+                    _, p = ttest_ind(a, b, equal_var=False, nan_policy="omit")
+                p_values[idx] = p
             success = True
             feedback = "Welch's t-test applied."
 
@@ -768,7 +768,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                 b = pd.to_numeric(row[COND_B], errors="coerce").dropna()
 
                 if len(a) == 0 or len(b) == 0:
-                    p_map[idx] = np.nan
+                    p_values[idx] = np.nan
                     continue
 
                 try:
@@ -778,7 +778,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                         alternative="two-sided",
                         method="exact"
                     )
-                    p_map[idx] = p
+                    p_values[idx] = p
                 except ValueError:
                     _, p = mannwhitneyu(
                         a,
@@ -786,7 +786,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                         alternative="two-sided",
                         method="asymptotic"
                     )
-                    p_map[idx] = p
+                    p_values[idx] = p
             success = True
             feedback = "Mann-Whitney U test applied."
         
@@ -798,7 +798,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                 B = pd.to_numeric(row[COND_B], errors="coerce").dropna().values
 
                 if len(A) == 0 or len(B) == 0:
-                    p_map[idx] = np.nan
+                    p_values[idx] = np.nan
                     continue
 
                 def statistic(x, y):
@@ -812,7 +812,8 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
                     alternative="two-sided",
                     random_state=42
                 )
-                p_map[idx] = res.pvalue
+                p = max(res.pvalue, 1 / (N_PERMUTATIONS + 1))
+                p_values[idx] = p
 
             success = True
             feedback = f"Permutation test applied ({N_PERMUTATIONS} permutations)."
@@ -820,8 +821,8 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             success = False
             feedback = "Unknown statistical test."
 
-        if p_map:
-            df[P_VALUE_COL] = df.reset_index().index.map(p_map)
+        if len(p_values) > 0:
+            df[P_VALUE_COL] = pd.Series(p_values, index=df.index)
         
     except Exception:
         success = False
