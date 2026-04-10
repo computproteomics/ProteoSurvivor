@@ -6,7 +6,19 @@ export function getStationResultsRenderer(stationId) {
 }
 
 function GenericStationResultsContent({ stationResults }) {
-  const { summary, recommendation, img, ...detailFields } = stationResults;
+  const {
+    summary,
+    recommendation,
+    feedback,
+    img,
+    visit_count,
+    visited_station_names,
+    visited_station_counts,
+    visited_stations,
+    visited,
+    visit_debug,
+    ...detailFields
+  } = stationResults;
   const resultImages = normalizeImageList(img);
 
   return (
@@ -15,6 +27,12 @@ function GenericStationResultsContent({ stationResults }) {
         <div className={styles.summaryBox}>
           {/* Short summary shown above the raw result fields. */}
           <p className={styles.summaryText}>{summary}</p>
+        </div>
+      )}
+
+      {feedback && (
+        <div className={styles.summaryBox}>
+          <p className={styles.summaryText}>{feedback}</p>
         </div>
       )}
 

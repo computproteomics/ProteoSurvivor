@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { enterStation, runStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
-import { getStationDescription, getStationTitle } from '../assets/stationConfig';
+import { STATION_IDS, getStationDescription, getStationTitle } from '../assets/stationConfig';
 import styles from './StationView.module.css';
 
 const INTRO_VIDEO_STATIONS = {
@@ -27,13 +27,35 @@ const INTRO_VIDEO_STATIONS = {
 export default function StationView() {
   const { stationId } = useParams();
   const navigate = useNavigate();
-  const { sessionId, markStationComplete } = useGameStore();
+  const { sessionId, markStationComplete, completedStations } = useGameStore();
 
   const [stationData, setStationData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const introConfig = stationId ? INTRO_VIDEO_STATIONS[stationId] : null;
   const hasIntroVideoFlow = Boolean(introConfig);
+
+  const allowedStations = (() => {
+    if (!completedStations.includes('sample_prep')) {
+      return ['sample_prep'];
+    }
+    if (!completedStations.includes('mass_spec')) {
+      return ['mass_spec'];
+    }
+    if (!completedStations.includes('spectral_search')) {
+      return ['spectral_search'];
+    }
+    return STATION_IDS;
+  })();
+
+  const isBlockedStation = stationId && !allowedStations.includes(stationId);
+  const blockedMessage = stationId === 'mass_spec'
+    ? 'You must complete Sample Preparation before running Mass Spectrometry.'
+    : stationId === 'spectral_search'
+      ? !completedStations.includes('mass_spec')
+        ? 'You need to go to the mass spectrometer first.'
+        : 'You need data before you can use this computer!'
+      : 'You need data before you can use this computer!';
 
   const [phase, setPhase] = useState(hasIntroVideoFlow ? 'welcome' : 'default');
   const [stationResult, setStationResult] = useState(null);
@@ -158,6 +180,25 @@ export default function StationView() {
       );
     }
 
+    if (stationResult?.blocked) {
+      return (
+        <>
+          <h1 className={styles.title}>Station Locked</h1>
+          <p className={styles.text}>
+            {stationResult.feedback || 'You need to complete a previous station before continuing.'}
+          </p>
+          <div className={styles.buttonRow}>
+            <button
+              className={styles.primaryButton}
+              onClick={() => navigate('/world')}
+            >
+              Back to map
+            </button>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         <h1 className={styles.title}>{introConfig.doneTitle}</h1>
@@ -194,7 +235,20 @@ export default function StationView() {
       <div className={styles.card}>
         {loading && <p className={styles.info}>Loading station...</p>}
 
-        {hasIntroVideoFlow ? (
+        {isBlockedStation ? (
+          <>
+            <h1 className={styles.title}>Station Locked</h1>
+            <p className={styles.text}>{blockedMessage}</p>
+            <div className={styles.buttonRow}>
+              <button
+                className={styles.primaryButton}
+                onClick={() => navigate('/world')}
+              >
+                Back to map
+              </button>
+            </div>
+          </>
+        ) : hasIntroVideoFlow ? (
           renderIntroVideoStationFlow()
         ) : (
           <>

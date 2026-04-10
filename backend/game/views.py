@@ -8,7 +8,9 @@ from typing import cast
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
+from django.db.models import Count
 from django.middleware.csrf import get_token
+from .models import StationRun
 from .serializers import (
     NewPlayerSerializer,
     RunStationSerializer,
@@ -18,7 +20,8 @@ from .services import run_station
 
 
 def _build_unique_user_id(base_name: str) -> str:
-    base = "".join(ch.lower() if ch.isalnum() else "_" for ch in base_name).strip("_")
+    base = "".join(ch.lower() if ch.isalnum()
+                   else "_" for ch in base_name).strip("_")
     base = base[:120] or "player"
 
     suffix = 1
@@ -92,10 +95,37 @@ def run_station_view(request, station_id):
     validated_data = cast(dict, serializer.validated_data)
 
     result = run_station(request,
-        station_id=station_id,
-        params=validated_data["params"],
-    )
+                         station_id=station_id,
+                         params=validated_data["params"],
+                         )
     return Response(result, status=status.HTTP_201_CREATED)
+
+
+class VisitedStationsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "Authentication required to view visited station counts."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        counts = (
+            StationRun.objects.filter(player=request.user)
+            .values("station_id")
+            .annotate(visits=Count("id"))
+            .order_by("station_id")
+        )
+
+        return Response(
+            {
+                "station_visit_counts": {
+                    item["station_id"]: item["visits"] for item in counts
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class LeaderboardView(APIView):
@@ -124,7 +154,8 @@ class LeaderboardView(APIView):
         current_user_result = None
         if request.user.is_authenticated:
             current_user_result = next(
-                (entry for entry in leaderboard if entry["user_id"] == request.user.username),
+                (entry for entry in leaderboard if entry["user_id"]
+                 == request.user.username),
                 None,
             )
 

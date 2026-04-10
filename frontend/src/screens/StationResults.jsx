@@ -38,6 +38,25 @@ export default function StationResults() {
     );
   }
 
+  if (stationResults.blocked) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>Station Locked</h1>
+          <p className={styles.text}>
+            {stationResults.feedback || 'You need to complete a previous station before accessing this one.'}
+          </p>
+
+          <div className={styles.buttonRow}>
+            <button className={styles.primaryButton} onClick={() => navigate('/world')}>
+              Back to map
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const StationResultContent = getStationResultsRenderer(stationId);
 
   return (

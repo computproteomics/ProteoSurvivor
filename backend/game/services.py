@@ -5,12 +5,13 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 import random
 from typing import Any, cast
 import pandas as pd
+from django.conf import settings
 from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
 from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms
-from statsmodels.stats.multitest import multipletests 
+from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
 
 from sklearn.impute import SimpleImputer, KNNImputer
@@ -65,7 +66,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    result = runner(dataset, params)
+    result = runner(request, dataset, params)
     print(f"Simulation result for station '{station_id}': {result}")
     run = StationRun(
         player=request.user,
@@ -75,16 +76,50 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
             "score", 0
         ),  # Score can be calculated based on results if needed
     )
-    if result.get("success"):
+
+    completed = result.get("success", True)
+    blocked = result.get("blocked", False)
+    visited_stations = request.session.get("visited_stations", [])
+    visited_station_names = request.session.get("visited_station_names", [])
+
+    if completed and not blocked:
         run.save()
-        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+        print(
+            f"Saved StationRun with ID {run.id} for user {request.user.username}")
+
+        visited_stations.append(station_id)
+        station_title = (
+            settings.STATIONS_CONFIG.get(station_id, {}).get("title")
+            or station_id
+        )
+        visited_station_names.append(station_title)
+        request.session["visited_stations"] = visited_stations
+        request.session["visited_station_names"] = visited_station_names
+
+    result["visited_stations"] = visited_stations
+    result["visited_station_names"] = visited_station_names
+    result["visited"] = visited_station_names
+    result["visited_station_counts"] = {
+        station: visited_stations.count(station) for station in set(visited_stations)
+    }
+    result["visit_count"] = len([s for s in visited_stations if s != "veit"])
+    result["visit_debug"] = {
+        "session_visited_ids": visited_stations,
+        "session_visited_names": visited_station_names,
+        "session_visit_counts": {
+            station: visited_stations.count(station)
+            for station in set(visited_stations)
+        },
+    }
+
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
     print(f"Updated session dataset for user {request.user.username}")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
-    response_payload = {key: value for key, value in result.items() if key != "dataset"}
+    response_payload = {key: value for key,
+                        value in result.items() if key != "dataset"}
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
@@ -97,8 +132,21 @@ def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
-    # TODO: Add check to see if sample prep was done previously
+def _has_completed_station(request, station_id: str) -> bool:
+    visited_stations = request.session.get("visited_stations", [])
+    return station_id in visited_stations
+
+
+def _simulate_mass_spec(request, dataset: dict, params: dict) -> dict:
+    if not _has_completed_station(request, "sample_prep"):
+        return {
+            "success": False,
+            "blocked": True,
+            "feedback": "You must complete Sample Preparation before running Mass Spectrometry.",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     return {
         "success": True,
         "feedback": "Mass spectrometry intro completed.",
@@ -107,8 +155,24 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-    # TODO: Add check to see if sample prep + MS was done previously
+def _simulate_spectral_search(request, dataset: dict, params: dict) -> dict:
+    if not _has_completed_station(request, "sample_prep"):
+        return {
+            "success": False,
+            "blocked": True,
+            "feedback": "You must complete Sample Preparation before running Spectral Search.",
+            "score": 0,
+            "dataset": dataset,
+        }
+    if not _has_completed_station(request, "mass_spec"):
+        return {
+            "success": False,
+            "blocked": True,
+            "feedback": "You must complete Mass Spectrometry before running Spectral Search.",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
     # set match_between_runs to upper case
@@ -217,11 +281,15 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
             ]
 
             # Make a vector of all count_cols_a columns into one column "Total Spectral Count A"
-            spec_a = np.log2(np.concatenate([dataset[c].values for c in count_cols_a]))
-            spec_b = np.log2(np.concatenate([dataset[c].values for c in count_cols_b]))
+            spec_a = np.log2(np.concatenate(
+                [dataset[c].values for c in count_cols_a]))
+            spec_b = np.log2(np.concatenate(
+                [dataset[c].values for c in count_cols_b]))
 
-            int_a = np.log2(np.concatenate([dataset[c].values for c in int_cols_a]))
-            int_b = np.log2(np.concatenate([dataset[c].values for c in int_cols_b]))
+            int_a = np.log2(np.concatenate(
+                [dataset[c].values for c in int_cols_a]))
+            int_b = np.log2(np.concatenate(
+                [dataset[c].values for c in int_cols_b]))
 
             tr_scatter = sp_scatterplot(
                 x=spec_a,
@@ -272,7 +340,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
     if dataset is None:
         return {
@@ -289,8 +357,9 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         num_prot = int(dataset["Protein ID"].nunique())
         num_pep = int(dataset["Combined Total Peptides"].sum())
 
-    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
-    
+    relevant_cols = [
+        col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+
     try:
         img_before = tr_boxplot(
             df, relevant_cols, title="Intensities Before Transformation"
@@ -348,27 +417,34 @@ def _simulate_filtering(dataset: dict, params: dict) -> dict:
     filtered = int(proteins * (1 - reduction))
 
     return {
+        "success": True,
         "summary": "Filtering complete.",
         "proteins_before": proteins,
         "proteins_after": filtered,
         "removed_fraction": round(reduction, 2),
+        "score": 0,
+        "dataset": dataset,
     }
 
 
 def _simulate_normalize(dataset: dict, params: dict) -> dict:
     method = params.get("normalization", "none")
+    shift = 0
 
     if method == "none":
         shift = 0
     elif method in ["median", "total_intensity"]:
-        shift *= 0.5
+        shift = 0.5
     elif method in ["quantile", "vsn"]:
-        shift *= 0.3
+        shift = 0.3
 
     return {
+        "success": True,
         "summary": f"{method} normalization applied.",
         "batch_effect": round(shift, 3),
         "status": "Normalized" if method != "none" else "Skipped",
+        "score": 0,
+        "dataset": dataset,
     }
 
 
@@ -396,7 +472,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     imgs: list[str] = []
     success = False
     feedback = None
-    
+
     # Sanity check
     if not relevant_cols:
         return {
@@ -422,7 +498,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
         if method == "none":
             return x
-        
+
         if method == "mean":
             imputer = SimpleImputer(strategy="mean")
         elif method == "median":
@@ -431,9 +507,9 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             imputer = KNNImputer(n_neighbors=5)
         elif method == "regression":
             imputer = IterativeImputer(
-                estimator = LinearRegression(),
-                random_state = 42,
-                max_iter = 15
+                estimator=LinearRegression(),
+                random_state=42,
+                max_iter=15
             )
         elif method == "randomforest":
             imputer = IterativeImputer(
@@ -447,10 +523,10 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             )
         elif method == "bayesian":
             imputer = IterativeImputer(
-                estimator = BayesianRidge(),
-                sample_posterior = True,
-                random_state = 42,
-                max_iter = 15
+                estimator=BayesianRidge(),
+                sample_posterior=True,
+                random_state=42,
+                max_iter=15
             )
         elif method == "minprob":
             out = x.copy()
@@ -464,7 +540,8 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                     continue
                 mu = float(obs.mean())
                 sigma = float(obs.std())
-                out.loc[miss, col] = rng.normal(mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
+                out.loc[miss, col] = rng.normal(
+                    mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
             return out
         else:
             raise ValueError(f"Unknown imputation method: {method}")
@@ -488,12 +565,12 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         df_new = df.copy()
         df_new[relevant_cols] = x_new
         success = True
-        feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied.")
     except Exception as e:
         df_new = df.copy()
         success = False
         feedback = f"Error applying imputation: {str(e)}"
-
 
     return {
         "success": success,
@@ -511,7 +588,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
     if dataset is None:
         return {
@@ -546,7 +623,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     try:
         if method == "none":
-            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
+            # No adjustment, just copy p-values
+            df["p_adjusted"] = df["p_value"]
             success = True
             feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
         elif method == "bh":
@@ -597,6 +675,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "dataset": df
     }
 
+
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
@@ -607,20 +686,51 @@ def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     final_hits = int(candidates / (1 + strictness * 0.1))
 
     return {
+        "success": True,
         "summary": "Final candidate selection complete.",
         "initial_candidates": candidates,
         "final_hits": final_hits,
         "cutoffs": {"log2FC": fc, "FDR": pval},
+        "score": 0,
+        "dataset": dataset,
     }
 
 
-def _simulate_veit(dataset: Any, params: dict) -> dict:
+def _simulate_veit(request, dataset: Any, params: dict) -> dict:
     score = random.randint(70, 100)
+    visited_stations = request.session.get("visited_stations", [])
+
+    station_names = {
+        "sample_prep": "Sample Preparation",
+        "mass_spec": "Mass Spectrometry",
+        "spectral_search": "Spectral Search",
+        "filtering": "Filtering",
+        "transform": "Transform",
+        "normalize": "Normalization",
+        "imputer": "Imputation",
+        "multiple_testing_corrector": "Multiple Testing Correction",
+        "the_cutter": "Candidate Selection",
+        "statistical_analysis": "Statistical Analysis",
+        "veit": "Veit",
+    }
+
+    visited_station_names = [station_names.get(s, s) for s in visited_stations]
+    visited_text = (
+        "Visited stations: " + ", ".join(visited_station_names)
+        if visited_station_names
+        else "No stations were recorded in this session."
+    )
 
     return {
         "success": True,
-        "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
+        "summary": "Veit completed.",
+        "feedback": (
+            "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence. "
+            + visited_text
+        ),
         "score": score,
+        "visited_stations": visited_stations,
+        "visited_station_names": visited_station_names,
         "dataset": dataset,
     }
 
@@ -638,24 +748,27 @@ def _simulate_statistical_analysis(dataset: dict, params: dict) -> dict:
     # TODO should return a new col "p_value"
 
     return {
+        "success": True,
         "summary": f"{test} analysis completed.",
         "statistical_power": round(power, 2),
         "significant_features": int(power * random.randint(100, 500)),
+        "score": 0,
+        "dataset": dataset,
     }
 
 
 STATION_SIMULATORS.update(
     {
-        "sample_prep": _simulate_sample_prep,
+        "sample_prep": lambda request, dataset, params: _simulate_sample_prep(dataset, params),
         "mass_spec": _simulate_mass_spec,
         "spectral_search": _simulate_spectral_search,
-        "filtering": _simulate_filtering,
-        "transform": _simulate_transform,
-        "normalize": _simulate_normalize,
-        "imputer": _simulate_normalize,
-        "multiple_testing_corrector": _simulate_multiple_testing_corrector,
-        "the_cutter": _simulate_the_cutter,
-        "statistical_analysis": _simulate_statistical_analysis,
+        "filtering": lambda request, dataset, params: _simulate_filtering(dataset, params),
+        "transform": lambda request, dataset, params: _simulate_transform(dataset, params),
+        "normalize": lambda request, dataset, params: _simulate_normalize(dataset, params),
+        "imputer": lambda request, dataset, params: _simulate_imputer(dataset, params),
+        "multiple_testing_corrector": lambda request, dataset, params: _simulate_multiple_testing_corrector(dataset, params),
+        "the_cutter": lambda request, dataset, params: _simulate_the_cutter(dataset, params),
+        "statistical_analysis": lambda request, dataset, params: _simulate_statistical_analysis(dataset, params),
         "veit": _simulate_veit,
         # ...
     }
