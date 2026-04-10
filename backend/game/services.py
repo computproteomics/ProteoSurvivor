@@ -923,8 +923,8 @@ def _simulate_multiple_testing_corrector(
         score = 0
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
-    if success and P_VALUE_COL in df.columns:
-        imgs.extend(mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM))
+    if success and PVALUE in df.columns:
+        imgs.extend(mtc_histograms(df, value_col=PVALUE, species_col=ORGANISM))
 
     return {
         "success": success,
