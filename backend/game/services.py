@@ -497,7 +497,7 @@ def _simulate_filtering(
         missing_num = sample_values.isna().sum(axis=1)
 
         # Filter proteins: keep only those with missing number <= threshold
-        df_filtered = df[missing_num <= missing_thresh].copy()
+        df_filtered = df[zmissing_num <= missing_thresh].copy()
 
         # filter for mimimum number of peptides
         df_filtered = df_filtered[df_filtered[TOT_PEP] >= min_pep_num]
@@ -1067,19 +1067,15 @@ def _simulate_statistical_analysis(
             "dataset": df,
         }
 
-    p_cutoff = 0.05
-    fc_cutoff = 2.0
-
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
+        # Replace ±inf (e.g. log(0)) with NaN so dropna() removes them before tests
+        expr = expr.replace([np.inf, -np.inf], np.nan)
 
         # Compute log2 fold-change: log2(mean condition B / mean condition A)
         mean_a = expr[COND_A].mean(axis=1, skipna=True)
         mean_b = expr[COND_B].mean(axis=1, skipna=True)
-        ratio = mean_b / mean_a
-        ratio = ratio.where((mean_a > 0) & (mean_b > 0))
-        computed_fc = np.log2(ratio)
-        df[FC] = computed_fc
+        df[FC] = mean_b - mean_a
 
         p_values = np.full(len(expr), np.nan)
 
@@ -1159,8 +1155,6 @@ def _simulate_statistical_analysis(
                 df,
                 title="Volcano Plot",
                 p_val_col=PVALUE,
-                sig_threshold=p_cutoff,
-                fc_threshold=fc_cutoff,
                 fc_col=FC,
             )
             if volcano_img is not None:
