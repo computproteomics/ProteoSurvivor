@@ -91,7 +91,9 @@ export default function StationView() {
   }
 
   function finishIntroStation() {
-    markStationComplete(stationId);
+    if (stationResult?.success === true) {
+      markStationComplete(stationId);
+    }
     navigate('/world');
   }
 

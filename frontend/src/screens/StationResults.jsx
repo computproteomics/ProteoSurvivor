@@ -12,10 +12,13 @@ export default function StationResults() {
   const { stationResults, markStationComplete } = useGameStore();
 
   const title = getStationTitle(stationId);
+  const didRunSucceed = stationResults?.success === true || stationResults?.succes === true;
 
   function handleBackToMap() {
-    // Mark the station done before returning to the map.
-    markStationComplete(stationId);
+    // Only successful runs should count as completed stations.
+    if (didRunSucceed) {
+      markStationComplete(stationId);
+    }
     navigate('/world');
   }
 
@@ -45,7 +48,9 @@ export default function StationResults() {
       <div className={styles.card}>
         <div className={styles.headerRow}>
           <span className={styles.stationBadge}>{title}</span>
-          <span className={styles.completeBadge}>✅ Run complete</span>
+          <span className={styles.completeBadge}>
+            {didRunSucceed ? '✅ Run complete' : '⚠️ Run failed'}
+          </span>
         </div>
 
         <h1 className={styles.title}>Results</h1>

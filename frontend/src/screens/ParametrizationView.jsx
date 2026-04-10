@@ -118,10 +118,19 @@ export default function ParametrizationView() {
 
     try {
       const res = await runStation(stationId, values);
-      setStationResults(res.data.results ?? res.data);
+      const responseData = res.data ?? {};
+      const resultPayload = responseData.results ?? responseData;
+      const runSuccess =
+        responseData.success ?? responseData.succes ?? resultPayload.success ?? resultPayload.succes;
+
+      setStationResults({
+        ...resultPayload,
+        success: runSuccess,
+      });
       navigate(`/station/${stationId}/results`);
     } catch (err) {
       setStationResults({
+        success: false,
         summary: `Parameters recorded for ${title}. (Backend not reachable - showing offline results.)`,
         params_received: values,
       });
