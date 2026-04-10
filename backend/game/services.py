@@ -9,7 +9,7 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot
+from .helper_functions import tr_boxplot, sp_scatterplot, histogram_compare
 
 
 STATION_SIMULATORS = {}
@@ -336,21 +336,125 @@ def _simulate_filtering(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_normalize(dataset: dict, params: dict) -> dict:
+def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("normalization", "none")
 
-    if method == "none":
-        shift = 0
-    elif method in ["median", "total_intensity"]:
-        shift *= 0.5
-    elif method in ["quantile", "vsn"]:
-        shift *= 0.3
+    if dataset is None:
+        df = pd.DataFrame()
+    else:
+        df = dataset.copy()
+
+    num_pro = int(df["Protein ID"].nunique()) if "Protein ID" in df.columns else 0
+    num_pep = (
+        int(df["Combined Total Peptides"].sum())
+        if "Combined Total Peptides" in df.columns
+        else 0
+    )
+
+    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    imgs = []
+    success = False
+    feedback = None
+
+    if df.empty:
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "Dataset is empty. No normalization applied.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "No columns ending with 'MaxLFQ Intensity' were found.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    df_before = df.copy()
+
+    try:
+        if method == "none":
+            success = True
+            feedback = "No normalization applied. Data remains unchanged."
+
+        elif method == "median":
+            df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
+            success = True
+            feedback = "Median normalization applied. Intensities centered by column median."
+
+        elif method == "total_intensity":
+            col_sums = df[relevant_cols].sum().replace(0, np.nan)
+            df[relevant_cols] = df[relevant_cols].divide(col_sums, axis=1)
+            success = True
+            feedback = "Total intensity normalization applied. Intensities scaled by column totals."
+
+        elif method == "quantile":
+            rank_means = (
+                df[relevant_cols]
+                .stack()
+                .groupby(df[relevant_cols].rank(method="first").stack().astype(int))
+                .mean()
+            )
+            ranks = df[relevant_cols].rank(method="min").stack().astype(int)
+            df[relevant_cols] = ranks.map(rank_means).unstack()
+            success = True
+            feedback = "Quantile normalization applied. Distributions aligned across samples."
+
+        elif method == "reference_sample":
+            reference = df[relevant_cols].median()
+            df[relevant_cols] = df[relevant_cols].subtract(reference)
+            success = True
+            feedback = "Reference sample normalization applied. Intensities centered to reference median."
+
+        elif method == "zscore":
+            std = df[relevant_cols].std().replace(0, np.nan)
+            df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
+            success = True
+            feedback = "Z-score normalization applied. Intensities standardized per column."
+
+        elif method == "vsn":
+            df[relevant_cols] = np.log2(df[relevant_cols].clip(lower=0) + 1.0)
+            success = True
+            feedback = "VSN-like normalization applied using log2(1 + intensity)."
+
+        else:
+            success = False
+            feedback = f"Unknown normalization method '{method}'. No changes applied."
+
+        if success:
+            imgs.extend(
+                histogram_compare(
+                    before_df=df_before,
+                    after_df=df,
+                    cols=relevant_cols,
+                    title_before="Distribution Before Normalization",
+                    title_after=f"Distribution After {method} Normalization",
+                    bins=50,
+                )
+            )
+
+    except Exception as e:
+        success = False
+        feedback = f"Error applying normalization: {str(e)}"
 
     return {
-        "summary": f"{method} normalization applied.",
-        "batch_effect": round(shift, 3),
-        "status": "Normalized" if method != "none" else "Skipped",
+        "success": success,
+        "num_pro": num_pro,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df if success else dataset,
     }
+
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:

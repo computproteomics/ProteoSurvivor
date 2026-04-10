@@ -1,8 +1,11 @@
 import io
 import base64
+import matplotlib
 import seaborn as sns
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 def fig_to_base64(fig):
     """
@@ -14,7 +17,6 @@ def fig_to_base64(fig):
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
-
 
 def tr_boxplot(df, cols, title="Distribution Comparison"):
     """Generate a boxplot for the specified columns in the dataframe."""
@@ -44,3 +46,41 @@ def sp_scatterplot(
     ax.set_ylabel(y_col)
 
     return fig_to_base64(fig)
+
+def histogram_compare(before_df, after_df, cols, title_before="Before", title_after="After", bins=50):
+    # Flatten numeric values and drop NaN/inf
+    before = before_df[cols].to_numpy(dtype=float).ravel()
+    after = after_df[cols].to_numpy(dtype=float).ravel()
+    before = before[np.isfinite(before)]
+    after = after[np.isfinite(after)]
+
+    if before.size == 0 or after.size == 0:
+        return []
+
+    # Shared x-range and shared bins
+    x_min = float(min(before.min(), after.min()))
+    x_max = float(max(before.max(), after.max()))
+    if x_min == x_max:
+        x_max = x_min + 1.0
+
+    bin_edges = np.linspace(x_min, x_max, bins + 1)
+
+    images = []
+
+    fig1, ax1 = plt.subplots(figsize=(6, 5))
+    ax1.hist(before, bins=bin_edges, alpha=0.8, color="#1f77b4")
+    ax1.set_title(title_before)
+    ax1.set_xlabel("Intensity")
+    ax1.set_ylabel("Count")
+    ax1.set_xlim(x_min, x_max)
+    images.append(fig_to_base64(fig1))
+
+    fig2, ax2 = plt.subplots(figsize=(6, 5))
+    ax2.hist(after, bins=bin_edges, alpha=0.8, color="#ff7f0e")
+    ax2.set_title(title_after)
+    ax2.set_xlabel("Intensity")
+    ax2.set_ylabel("Count")
+    ax2.set_xlim(x_min, x_max)
+    images.append(fig_to_base64(fig2))
+
+    return images
