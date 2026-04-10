@@ -8,6 +8,7 @@ import pandas as pd
 from .models import StationRun
 import pandas
 import numpy as np
+import os
 from .serializers import DataFrameSessionSerializer
 from .helper_functions import (
     tr_boxplot,
@@ -171,7 +172,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
 
     # check whether datafile exists
-    if not pandas.os.path.exists(f"data/{data_file_name}"):
+    if not os.path.exists(f"data/{data_file_name}"):
         return {
             "success": False,
             "feedback": "Unfortunately, we do not have a data search result for this set of parameters.",
@@ -377,7 +378,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """""
+    """ ""
 
     method = str(params.get("imputation_method", "none")).lower()
     if dataset is None:
@@ -389,7 +390,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     imgs: list[str] = []
     success = False
     feedback = None
-    
+
     # Sanity check
     if not relevant_cols:
         return {
@@ -415,7 +416,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
         if method == "none":
             return x
-        
+
         if method == "mean":
             imputer = SimpleImputer(strategy="mean")
         elif method == "median":
@@ -424,26 +425,22 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             imputer = KNNImputer(n_neighbors=5)
         elif method == "regression":
             imputer = IterativeImputer(
-                estimator = LinearRegression(),
-                random_state = 42,
-                max_iter = 15
+                estimator=LinearRegression(), random_state=42, max_iter=15
             )
         elif method == "randomforest":
             imputer = IterativeImputer(
                 estimator=RandomForestRegressor(
-                    n_estimators=200,
-                    random_state=42,
-                    n_jobs=-1
+                    n_estimators=200, random_state=42, n_jobs=-1
                 ),
                 random_state=42,
-                max_iter=10
+                max_iter=10,
             )
         elif method == "bayesian":
             imputer = IterativeImputer(
-                estimator = BayesianRidge(),
-                sample_posterior = True,
-                random_state = 42,
-                max_iter = 15
+                estimator=BayesianRidge(),
+                sample_posterior=True,
+                random_state=42,
+                max_iter=15,
             )
         elif method == "minprob":
             out = x.copy()
@@ -457,7 +454,9 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                     continue
                 mu = float(obs.mean())
                 sigma = float(obs.std())
-                out.loc[miss, col] = rng.normal(mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
+                out.loc[miss, col] = rng.normal(
+                    mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum()
+                )
             return out
         else:
             raise ValueError(f"Unknown imputation method: {method}")
@@ -481,12 +480,13 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         df_new = df.copy()
         df_new[relevant_cols] = x_new
         success = True
-        feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
+        )
     except Exception as e:
         df_new = df.copy()
         success = False
         feedback = f"Error applying imputation: {str(e)}"
-
 
     return {
         "success": success,
@@ -495,7 +495,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         "feedback": feedback,
         "img": imgs,
         "score": 0,
-        "dataset": df_new
+        "dataset": df_new,
     }
 
 
