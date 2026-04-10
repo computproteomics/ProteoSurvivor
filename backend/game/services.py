@@ -604,13 +604,13 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pandas.to_numeric, errors="coerce")
+        .apply(pd.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
 
     # Function to impute missing values based on method
-    def impute_matrix(x: pandas.DataFrame, method: str) -> pandas.DataFrame:
+    def impute_matrix(x: pd.DataFrame, method: str) -> pd.DataFrame:
 
         if method == "none":
             return x
@@ -660,7 +660,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             raise ValueError(f"Unknown imputation method: {method}")
 
         arr = imputer.fit_transform(x)
-        return pandas.DataFrame(arr, index=x.index, columns=x.columns)
+        return pd.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
         "none": "👻 No imputation applied. Some data remain missing 👻",
@@ -672,7 +672,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
         "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
-
+    imgs = []
     try:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
