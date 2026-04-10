@@ -157,3 +157,45 @@ def plot_significant_proteins(df):
     ax.legend()
 
     return fig_to_base64(fig)
+
+
+def filtering_piechart(num_before, num_after):
+    """Generate a pie chart showing proteins retained vs removed during filtering."""
+    removed = num_before - num_after
+    sizes = [num_after, removed]
+    labels = [f'Retained\n({num_after})', f'Removed\n({removed})']
+    colors = ['#2ca02c', '#d62728']
+    
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+    ax.set_title('Proteins: Retained vs Removed')
+    
+    return fig_to_base64(fig)
+
+
+def filtering_scatterplot(df, relevant_cols=None, spectral_count_col="Spectral Count"):
+    """
+    Generate a scatter plot showing missing data fraction vs spectral count (abundance).
+    Shows the quality and abundance trade-off after filtering.
+    """
+    if df is None or df.empty:
+        return None
+    
+    if relevant_cols is None:
+        relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    
+    if not relevant_cols or spectral_count_col not in df.columns:
+        return None
+    
+    # Calculate missing fraction for each protein
+    missing_fraction = df[relevant_cols].isna().sum(axis=1) / len(relevant_cols)
+    spectral_counts = df[spectral_count_col]
+    
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.scatterplot(x=missing_fraction, y=spectral_counts, alpha=0.6, s=50, ax=ax, color='#2563eb')
+    ax.set_xlabel('Missing Data Fraction')
+    ax.set_ylabel('Spectral Count (Abundance)')
+    ax.set_title('Protein Quality: Missing Data vs Abundance (After Filtering)')
+    ax.grid(True, alpha=0.3)
+    
+    return fig_to_base64(fig)
