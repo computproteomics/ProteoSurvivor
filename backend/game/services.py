@@ -5,17 +5,19 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 import random
 from typing import Any, cast
 import pandas as pd
-from .models import StationRun, CutterStationResult
+from .models import StationRun, FinalStationResult
 import numpy as np
 import os
 from .serializers import DataFrameSessionSerializer
 from .helper_functions import (
     tr_boxplot,
     sp_scatterplot,
-    histogram_compare,
     mtc_histograms,
     _create_histogram,
+    imputer_before_after_stripgrid,
+    histogram_compare,
     plot_significant_proteins,
+    plot_scores
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -25,6 +27,8 @@ from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+
+from django.conf import settings
 
 # Variables for column names
 PROTEIN = "Protein"
@@ -115,14 +119,14 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
         run.save()
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-        if station_id == "the_cutter":
-            cutter_result = CutterStationResult(
+        if settings.STATIONS_CONFIG[station_id].get("final", False):
+            final_result = FinalStationResult(
                 station_run=run,
                 true_positives=result.get("true_positives", 0),
                 false_positives=result.get("false_positives", 0),
             )
-            cutter_result.save()
-            print(f"Saved CutterStationResult for StationRun ID {run.id}")
+            final_result.save()
+            print(f"Saved FinalStationResult for StationRun ID {run.id}")
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
@@ -299,16 +303,16 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "score": 0,
         "feedback": """
         ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
-        FragPipe is a software tool that</br></br> 
-        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical 
+        FragPipe is a software tool that</br></br>
+        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical
         spectra generated from a protein sequence database.</br>
-        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating 
+        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating
         the confidence of each identification.</br>
-        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br> 
-        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives 
-         are at stake. The search results contain many details about identification such as the identified 
+        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br>
+        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives
+         are at stake. The search results contain many details about identification such as the identified
          proteins and their associated data, such as the number of peptides identified for each protein,
-        protein length, identification confidence, and quantification values. The figures show some of these.</br></br> 
+        protein length, identification confidence, and quantification values. The figures show some of these.</br></br>
         ❗Take a moment to explore the data and the figures. </br/>
         Do you see differences for the different species? </br/>
         Do the values look reasonable?</br/>
@@ -545,7 +549,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    """""
+    """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
     - "knn"         : k-nearest neighbors imputation with k = 5.
@@ -556,19 +560,31 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """ ""
+    """
 
     method = str(params.get("imputation_method", "none")).lower()
-    if dataset is None:
-        df = pd.DataFrame()
-    else:
-        df = dataset.copy()
+
+    # Check if dataset is None or empty
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
+            "img": [],
+            "score": 0,
+            "dataset": pd.DataFrame()
+        }
+
+    relevant_cols = COND_A + COND_B
+
+    df = dataset.copy()
 
     success = False
     feedback = None
 
-    # Sanity check
-    if not relevant_cols:
+    # Sanity check - are relevant columns present in the dataset?
+    if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
         return {
             "success": False,
             "num_pro": None,
@@ -582,7 +598,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pd.to_numeric, errors="coerce")
+        .apply(pandas.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
@@ -641,20 +657,36 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         return pandas.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
-        "none": "No imputation applied. Missing values remain as is.",
-        "mean": "Mean imputation applied across samples.",
-        "median": "Median imputation applied across samples.",
-        "knn": "kNN imputation applied with k = 5.",
-        "regression": "Regression-based imputation applied.",
-        "randomforest": "Random forest-based iterative imputation applied.",
-        "bayesian": "Bayesian ridge-based iterative imputation applied.",
-        "minprob": "MinProb imputation applied using low-intensity random draws.",
+        "none": "👻 No imputation applied. Some data remain missing 👻",
+        "mean": "🔴🟢🔵 Missing values are now equal to the sample mean ⚪️",
+        "median": "🔴🟢🔵 Missing values are now equal to the sample median 🟢",
+        "knn": "📊 Missing values are now replaced using k-Nearest Neighbors 🕵️",
+        "regression": "📈 Regression-based imputation applied 📈",
+        "randomforest": "🌲🌳🌴 Random forest-based iterative imputation applied 🌲🌳🌴",
+        "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
+        "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
 
     try:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
         df_new[relevant_cols] = x_new
+
+        imgs.append(
+            imputer_before_after_stripgrid(
+                before_df=x,
+                after_df=x_new,
+                cond_a_cols=COND_A,
+                cond_b_cols=COND_B,
+                title=f"Before vs After Imputation ({method})",
+            )
+        )
+
+        success = True
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
+        )
+
         success = True
         feedback = feedback_by_method.get(
             method, f"Imputation method '{method}' applied."
@@ -666,8 +698,8 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": None,
-        "num_pep": None,
+        "num_prot": int(df_new[PROTEIN].nunique()),
+        "num_pep": int(df_new[TOT_PEP].sum()),
         "feedback": feedback,
         "img": imgs,
         "score": 0,
@@ -787,6 +819,33 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     significant = dataset.loc[dataset[FC].abs() >= fc]
     if PVALUE in dataset.columns:
         significant = significant.loc[significant[PVALUE] <= pval]
+
+    imgs.append(plot_significant_proteins(significant))
+
+    return {
+        "summary": "Final candidate selection complete.",
+
+        "score": 0,
+        "cutoffs": {"log2FC": fc, "FDR": pval},
+        "dataset": significant,
+        "feedback": f"You identified {len(significant)} significant candidates with the given cutoffs.",
+        "img": imgs,
+    }
+
+
+def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+    imgs = []
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "score": 0,
+            "dataset": pd.DataFrame(),
+            "true_positives": 0,
+            "false_positives": 0,
+            "img": imgs,
+        }
+    significant = dataset.copy()
     true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
     true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
     false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
@@ -795,6 +854,7 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
+<<<<<<< HEAD
     score = (
         true_positives * (1 - false_positives / len(significant))
         if len(significant) > 0
@@ -819,12 +879,19 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
 
 def _simulate_veit(dataset: Any, params: dict) -> dict:
     score = random.randint(70, 100)
+=======
+    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    imgs.append(plot_scores(true_positives, false_positives))
+>>>>>>> origin
 
     return {
         "success": True,
         "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
         "score": score,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
         "dataset": dataset,
+        "img": imgs,
     }
 
 
@@ -855,7 +922,7 @@ STATION_SIMULATORS.update(
         "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
-        "imputer": _simulate_normalize,
+        "imputer": _simulate_imputer,
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,

@@ -333,6 +333,7 @@
   "veit": {
     "id": "veit",
     "title": "Veit",
+    "final": true,
     "description": "Hand in your comprehensive report with findings and interpretations."
   }
 }
