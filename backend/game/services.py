@@ -235,30 +235,37 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     }
 
     try:
-        for species in dataset["Organism"].unique():
+        for species in unique_species:
+            species_df = dataset[dataset["Organism"] == species]
 
             tr_hist = _create_histogram(
-                dataset[SPEC_COUNT],
+                species_df[SPEC_COUNT],
                 species + ": spectral counts",
                 "Spectral Counts",
                 "Frequency",
+                30,
                 color=species_palette[species],
+                xlim=None,
             )
             imgs.append(tr_hist)
             tr_hist = _create_histogram(
-                dataset[PROTEIN_LENGTH],
+                species_df[PROTEIN_LENGTH],
                 species + ": protein lengths",
                 "Protein Lengths",
                 "Frequency",
+                30,
                 color=species_palette[species],
+                xlim=None,
             )
             imgs.append(tr_hist)
             tr_hist = _create_histogram(
-                dataset[PROBABILITY],
+                species_df[PROBABILITY],
                 species + ": protein identification probabilities",
                 "Protein probabilities",
                 "Frequency",
+                30,
                 color=species_palette[species],
+                xlim=(0, 1),
             )
             imgs.append(tr_hist)
 
@@ -272,8 +279,8 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     return {
         "success": success,
         "dataset": dataset,
-        "num_prot": int(dataset["Protein ID"].nunique()),
-        "num_pep": int(dataset["Combined Total Peptides"].sum()),
+        "num_prot": int(dataset[PROTEIN].nunique()),
+        "num_pep": int(dataset[TOT_PEP].sum()),
         "img": imgs,
         "score": 0,
         "feedback": """
@@ -306,8 +313,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
+        num_prot = int(dataset[PROTEIN].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
 
@@ -544,8 +551,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
+        num_prot = int(dataset[PROTEIN].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     p_val_col = "p_value"
 
