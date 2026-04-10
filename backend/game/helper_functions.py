@@ -1,5 +1,6 @@
 import io
 import base64
+import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -71,3 +72,58 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
             imgs.append(_create_histogram(species_values, title, "Adjusted p-value", "Protein count", 30, "#16a34a"))
 
     return imgs
+
+
+def imputer_before_after_swarmgrid(
+    before_df: pd.DataFrame,
+    after_df: pd.DataFrame,
+    cond_a_cols: list[str],
+    cond_b_cols: list[str],
+    title: str = "Before vs After Imputation by Sample",
+):
+    """Create a 2x3 swarmplot grid comparing values before vs after imputation."""
+    sample_cols = cond_a_cols + cond_b_cols
+    if len(sample_cols) != 6:
+        raise ValueError("Expected exactly 6 sample columns (3 for condition A and 3 for condition B).")
+
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10), sharey=True)
+    axes = axes.flatten()
+
+    palette = {"Before": "#0B3C8A", "After": "#FF1493"}
+
+    for idx, sample_col in enumerate(sample_cols):
+        ax = axes[idx]
+
+        before_vals = pd.to_numeric(before_df[sample_col], errors="coerce")
+        after_vals = pd.to_numeric(after_df[sample_col], errors="coerce")
+
+        plot_df = pd.DataFrame(
+            {
+                "stage": ["Before"] * len(before_vals) + ["After"] * len(after_vals),
+                "value": pd.concat([before_vals, after_vals], ignore_index=True),
+            }
+        ).dropna(subset=["value"])
+
+        sns.swarmplot(
+            data=plot_df,
+            x="stage",
+            y="value",
+            order=["Before", "After"],
+            palette=palette,
+            size=2,
+            alpha=0.75,
+            ax=ax,
+        )
+
+        condition_label = "Condition A" if idx < 3 else "Condition B"
+        ax.set_title(f"{condition_label} - {sample_col}")
+        ax.set_xlabel("")
+
+        if idx % 3 == 0:
+            ax.set_ylabel("Intensity")
+        else:
+            ax.set_ylabel("")
+
+    fig.suptitle(title, fontsize=14)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    return fig_to_base64(fig)

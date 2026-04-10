@@ -9,7 +9,7 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms
+from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms, imputer_before_after_swarmgrid
 from statsmodels.stats.multitest import multipletests 
 from qvalue import qvalue
 
@@ -413,18 +413,29 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     """""
 
     method = str(params.get("imputation_method", "none")).lower()
-    if dataset is None:
-        df = pd.DataFrame()
-    else:
-        df = dataset.copy()
-    relevant_cols = [c for c in df.columns if c.endswith("MaxLFQ Intensity")]
+
+    # Check if dataset is None or empty
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
+            "img": [],
+            "score": 0,
+            "dataset": pd.DataFrame()
+        }
+
+    relevant_cols = COND_A + COND_B
+
+    df = dataset.copy()
 
     imgs: list[str] = []
     success = False
     feedback = None
     
-    # Sanity check
-    if not relevant_cols:
+    # Sanity check - are relevant columns present in the dataset?
+    if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
         return {
             "success": False,
             "num_pro": None,
@@ -438,7 +449,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pd.to_numeric, errors="coerce")
+        .apply(pandas.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
@@ -513,6 +524,17 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
         df_new[relevant_cols] = x_new
+
+        imgs.append(
+            imputer_before_after_swarmgrid(
+                before_df=x,
+                after_df=x_new,
+                cond_a_cols=COND_A,
+                cond_b_cols=COND_B,
+                title=f"Before vs After Imputation ({method})",
+            )
+        )
+
         success = True
         feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
     except Exception as e:
@@ -678,7 +700,7 @@ STATION_SIMULATORS.update(
         "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
-        "imputer": _simulate_normalize,
+        "imputer": _simulate_imputer,
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
