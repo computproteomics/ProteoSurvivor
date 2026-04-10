@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { runStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
-import { getStationParameters, getStationTitle } from '../assets/stationConfig';
+import {
+  getStationBackgroundImage,
+  getStationParameters,
+  getStationTitle,
+} from '../assets/stationConfig';
 import styles from './ParametrizationView.module.css';
 
 function buildDefaults(schema) {
@@ -104,6 +108,15 @@ export default function ParametrizationView() {
 
   const schema = getStationParameters(stationId);
   const title = getStationTitle(stationId);
+  const stationBackground = getStationBackgroundImage(stationId);
+  const pageStyle = stationBackground
+    ? {
+      backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.5)), url(${stationBackground})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }
+    : undefined;
 
   const [values, setValues] = useState(buildDefaults(schema));
   const [loading, setLoading] = useState(false);
@@ -141,7 +154,7 @@ export default function ParametrizationView() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={pageStyle}>
       <div className={styles.card}>
         <div className={styles.header}>
           <h1 className={styles.title}>{title}</h1>

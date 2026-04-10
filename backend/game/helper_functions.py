@@ -1,7 +1,12 @@
 import io
 import base64
+import pandas as pd
+import math
+import matplotlib
+matplotlib.use("Agg")
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 ORGANISM = "Organism"
 FC = "fold_change"
@@ -17,8 +22,6 @@ def fig_to_base64(fig):
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
-
-
 
 def tr_boxplot(df, cols, title="Distribution Comparison"):
     """Generate a boxplot for the specified columns in the dataframe."""
@@ -50,6 +53,7 @@ def sp_scatterplot(
     return fig_to_base64(fig)
 
 
+
 def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.histplot(values, bins=bins, ax=ax, color=color, edgecolor="white")
@@ -59,24 +63,80 @@ def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
     ax.set_ylabel(ylabel)
     return fig_to_base64(fig)
 
-
-def mtc_histograms(df, value_col, species_col):
+def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
     """ Create one adjusted p-value histogram per species and return base64-encoded images."""
 
     # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
-        return _create_histogram(df[value_col], "Adjusted p-value distribution", "Adjusted p-value", "Protein count", 30, "#2563eb")
+        return _create_histogram(
+            df[value_col],
+            "Adjusted p-value distribution",
+            "Adjusted p-value",
+            "Protein count",
+            30,
+            "#2563eb",
+        )
 
     # Create histogram for each species
     imgs = []
-    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(species_col)
+    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(
+        species_col
+    )
     for species, species_df in grouped:
         species_values = species_df[value_col]
         if not species_values.empty:
             title = f"Adjusted p-value distribution - {species}"
-            imgs.append(_create_histogram(species_values, title, "Adjusted p-value", "Protein count", 30, "#16a34a"))
+            imgs.append(
+                _create_histogram(
+                    species_values,
+                    title,
+                    "Adjusted p-value",
+                    "Protein count",
+                    30,
+                    "#16a34a",
+                )
+            )
 
     return imgs
+
+
+def histogram_compare(before_df, after_df, cols, title_before="Before", title_after="After", bins=50):
+    # Flatten numeric values and drop NaN/inf
+    before = before_df[cols].to_numpy(dtype=float).ravel()
+    after = after_df[cols].to_numpy(dtype=float).ravel()
+    before = before[np.isfinite(before)]
+    after = after[np.isfinite(after)]
+
+    if before.size == 0 or after.size == 0:
+        return []
+
+    # Shared x-range and shared bins
+    x_min = float(min(before.min(), after.min()))
+    x_max = float(max(before.max(), after.max()))
+    if x_min == x_max:
+        x_max = x_min + 1.0
+
+    bin_edges = np.linspace(x_min, x_max, bins + 1)
+
+    images = []
+
+    fig1, ax1 = plt.subplots(figsize=(6, 5))
+    ax1.hist(before, bins=bin_edges, alpha=0.8, color="#1f77b4")
+    ax1.set_title(title_before)
+    ax1.set_xlabel("Intensity")
+    ax1.set_ylabel("Count")
+    ax1.set_xlim(x_min, x_max)
+    images.append(fig_to_base64(fig1))
+
+    fig2, ax2 = plt.subplots(figsize=(6, 5))
+    ax2.hist(after, bins=bin_edges, alpha=0.8, color="#ff7f0e")
+    ax2.set_title(title_after)
+    ax2.set_xlabel("Intensity")
+    ax2.set_ylabel("Count")
+    ax2.set_xlim(x_min, x_max)
+    images.append(fig_to_base64(fig2))
+
+    return images
 
 
 def plot_significant_proteins(df):
@@ -98,5 +158,119 @@ def plot_significant_proteins(df):
     ax.set_ylabel("Protein Count")
     ax.tick_params(axis="x", rotation=30)
     ax.legend()
+
+    return fig_to_base64(fig)
+
+
+def imputer_before_after_stripgrid(
+    before_df: pd.DataFrame,
+    after_df: pd.DataFrame,
+    cond_a_cols: list[str],
+    cond_b_cols: list[str],
+    title: str = "Before vs After Imputation by Sample",
+    max_points_per_stage: int = 1200,
+    random_state: int = 42,
+):
+    """Create a 2x3 stripplot grid comparing values before vs after imputation."""
+    sample_cols = cond_a_cols + cond_b_cols
+    if len(sample_cols) != 6:
+        raise ValueError("Expected exactly 6 sample columns (3 for condition A and 3 for condition B).")
+
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10), sharey=True)
+    axes = axes.flatten()
+
+    palette = {"Before": "#0B3C8A", "After": "#FF1493"}
+
+    for idx, sample_col in enumerate(sample_cols):
+        ax = axes[idx]
+
+        before_vals = pd.to_numeric(before_df[sample_col], errors="coerce").dropna()
+        after_vals = pd.to_numeric(after_df[sample_col], errors="coerce").dropna()
+
+        if len(before_vals) > max_points_per_stage:
+            before_vals = before_vals.sample(n=max_points_per_stage, random_state=random_state)
+        if len(after_vals) > max_points_per_stage:
+            after_vals = after_vals.sample(n=max_points_per_stage, random_state=random_state)
+
+        plot_df = pd.DataFrame(
+            {
+                "stage": ["Before"] * len(before_vals) + ["After"] * len(after_vals),
+                "value": pd.concat([before_vals, after_vals], ignore_index=True),
+            }
+        )
+
+        sns.stripplot(
+            data=plot_df,
+            x="stage",
+            y="value",
+            hue="stage",
+            order=["Before", "After"],
+            hue_order=["Before", "After"],
+            palette=palette,
+            jitter=0.25,
+            dodge=False,
+            size=2,
+            alpha=0.7,
+            ax=ax,
+        )
+        if ax.get_legend() is not None:
+            ax.get_legend().remove()
+
+        condition_label = "Condition A" if idx < 3 else "Condition B"
+        ax.set_title(f"{condition_label} - {sample_col}")
+        ax.set_xlabel("")
+        ax.set_ylabel("Intensity" if idx % 3 == 0 else "")
+
+    fig.suptitle(title, fontsize=14)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    return fig_to_base64(fig)
+
+
+def plot_scores(true_positives, false_positives):
+    """Generate a scatter plot of all the player's results."""
+    from .models import FinalStationResult
+
+    def _score_x_axis(tp, fp):
+        if tp <= 0:
+            return None
+        ratio = fp / tp
+        ratio = max(ratio, 1e-12)
+        return -math.log10(ratio)
+
+    results = FinalStationResult.objects.all().values_list("true_positives", "false_positives")
+
+    x_values = []
+    y_values = []
+    for tp, fp in results:
+        x_val = _score_x_axis(tp, fp)
+        if x_val is None:
+            continue
+        x_values.append(x_val)
+        y_values.append(tp)
+
+    current_x = _score_x_axis(true_positives, false_positives)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if x_values:
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+
+    if current_x is not None:
+        sns.scatterplot(
+            x=[current_x],
+            y=[true_positives],
+            ax=ax,
+            color="#ef4444",
+            s=170,
+            edgecolor="black",
+            linewidth=0.8,
+            label="Your result",
+        )
+
+    ax.set_title("Final Station Scores")
+    ax.set_xlabel("-log10(False Positive Rate)")
+    ax.set_ylabel("True Positives")
+    ax.grid(alpha=0.25)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
 
     return fig_to_base64(fig)

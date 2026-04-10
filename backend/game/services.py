@@ -5,7 +5,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 import random
 from typing import Any, cast
 import pandas as pd
-from .models import StationRun, CutterStationResult
+from .models import StationRun, FinalStationResult
 import numpy as np
 import os
 from .serializers import DataFrameSessionSerializer
@@ -14,7 +14,10 @@ from .helper_functions import (
     sp_scatterplot,
     mtc_histograms,
     _create_histogram,
-    plot_significant_proteins
+    imputer_before_after_stripgrid,
+    histogram_compare,
+    plot_significant_proteins,
+    plot_scores
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -26,6 +29,8 @@ from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
 from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
+
+from django.conf import settings
 
 # Variables for column names
 PROTEIN = "Protein"
@@ -116,14 +121,14 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
         run.save()
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-        if station_id == "the_cutter":
-            cutter_result = CutterStationResult(
+        if settings.STATIONS_CONFIG[station_id].get("final", False):
+            final_result = FinalStationResult(
                 station_run=run,
                 true_positives=result.get("true_positives", 0),
                 false_positives=result.get("false_positives", 0),
             )
-            cutter_result.save()
-            print(f"Saved CutterStationResult for StationRun ID {run.id}")
+            final_result.save()
+            print(f"Saved FinalStationResult for StationRun ID {run.id}")
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
@@ -300,16 +305,16 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "score": 0,
         "feedback": """
         ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
-        FragPipe is a software tool that</br></br> 
-        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical 
+        FragPipe is a software tool that</br></br>
+        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical
         spectra generated from a protein sequence database.</br>
-        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating 
+        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating
         the confidence of each identification.</br>
-        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br> 
-        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives 
-         are at stake. The search results contain many details about identification such as the identified 
+        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br>
+        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives
+         are at stake. The search results contain many details about identification such as the identified
          proteins and their associated data, such as the number of peptides identified for each protein,
-        protein length, identification confidence, and quantification values. The figures show some of these.</br></br> 
+        protein length, identification confidence, and quantification values. The figures show some of these.</br></br>
         ❗Take a moment to explore the data and the figures. </br/>
         Do you see differences for the different species? </br/>
         Do the values look reasonable?</br/>
@@ -319,7 +324,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
-    method = params.get("transform_method", "none")
+    method = params.get("transform_method", "ln")
     success = False
     imgs = []
     score = 0
@@ -330,17 +335,32 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "feedback": "No dataset available. Cannot perform transform nothing into something.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
         }
-    else:
-        df = dataset.copy()
-        num_pro = int(dataset[PROTEIN_ID].nunique())
-        num_pep = int(dataset[TOT_PEP].sum())
 
-    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    df = dataset.copy()
+    num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
+    num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
+
+    # Updated selector to match current TSV column names
+    relevant_cols = COND_A + COND_B
+
+    # check of existing columns
+    if not any(col in df.columns for col in relevant_cols):
+        # check for more than 2 rows
+        if len(df) <= 2:
+            return {
+                "success": False,
+                "num_pro": num_pro,
+                "num_pep": num_pep,
+                "feedback": "We need some data, not black holes!",
+                "img": imgs,
+                "score": 0,
+                "dataset": df,
+            }
 
     try:
         img_before = tr_boxplot(
@@ -355,7 +375,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 applied. The wild intensities have been domesticated."
+            feedback = "Log2 transformation applied."
             score = 10
 
         elif method == "ln":
@@ -367,16 +387,16 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Your data has been gently persuaded into natural log space."
+            feedback = "Natural log transformation applied."
             score = 10
 
         else:
             success = False
-            feedback = "Unknown transformation method. The proteome looks confused."
+            feedback = f"Unknown transformation method '{method}'."
 
-    except Exception:
+    except Exception as e:
         success = False
-        feedback = "⚠️🧪 Transformation failed. The proteome destabilizes — something in your data cannot survive the logarithm. Did you prepare it properly?"
+        feedback = f"Error applying transformation: {str(e)}"
 
     return {
         "success": success,
@@ -408,25 +428,130 @@ def _simulate_filtering(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_normalize(dataset: dict, params: dict) -> dict:
+def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("normalization", "none")
 
-    if method == "none":
-        shift = 0
-    elif method in ["median", "total_intensity"]:
-        shift *= 0.5
-    elif method in ["quantile", "vsn"]:
-        shift *= 0.3
+    if dataset is None:
+        df = pd.DataFrame()
+    else:
+        df = dataset.copy()
+
+    num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
+    num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
+
+    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
+    imgs = []
+    success = False
+    feedback = None
+
+    if df.empty:
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "Dataset is empty. No normalization applied.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "No columns ending with ' Intensity' were found.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    df_before = df.copy()
+
+    try:
+        if method == "none":
+            success = True
+            feedback = "No normalization applied. Data remains unchanged."
+
+        elif method == "median":
+            df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
+            success = True
+            feedback = (
+                "Median normalization applied. Intensities centered by column median."
+            )
+
+        elif method == "total_intensity":
+            col_sums = df[relevant_cols].sum().replace(0, np.nan)
+            df[relevant_cols] = df[relevant_cols].divide(col_sums, axis=1)
+            success = True
+            feedback = "Total intensity normalization applied. Intensities scaled by column totals."
+
+        elif method == "quantile":
+            rank_means = (
+                df[relevant_cols]
+                .stack()
+                .groupby(df[relevant_cols].rank(method="first").stack().astype(int))
+                .mean()
+            )
+            ranks = df[relevant_cols].rank(method="min").stack().astype(int)
+            df[relevant_cols] = ranks.map(rank_means).unstack()
+            success = True
+            feedback = (
+                "Quantile normalization applied. Distributions aligned across samples."
+            )
+
+        elif method == "reference_sample":
+            reference = df[relevant_cols].median()
+            df[relevant_cols] = df[relevant_cols].subtract(reference)
+            success = True
+            feedback = "Reference sample normalization applied. Intensities centered to reference median."
+
+        elif method == "zscore":
+            std = df[relevant_cols].std().replace(0, np.nan)
+            df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
+            success = True
+            feedback = (
+                "Z-score normalization applied. Intensities standardized per column."
+            )
+
+        elif method == "vsn":
+            df[relevant_cols] = np.log2(df[relevant_cols].clip(lower=0) + 1.0)
+            success = True
+            feedback = "VSN-like normalization applied using log2(1 + intensity)."
+
+        else:
+            success = False
+            feedback = f"Unknown normalization method '{method}'. No changes applied."
+
+        if success:
+            imgs.extend(
+                histogram_compare(
+                    before_df=df_before,
+                    after_df=df,
+                    cols=relevant_cols,
+                    title_before="Distribution Before Normalization",
+                    title_after=f"Distribution After {method} Normalization",
+                    bins=50,
+                )
+            )
+
+    except Exception as e:
+        success = False
+        feedback = f"Error applying normalization: {str(e)}"
 
     return {
-        "summary": f"{method} normalization applied.",
-        "batch_effect": round(shift, 3),
-        "status": "Normalized" if method != "none" else "Skipped",
+        "success": success,
+        "num_pro": num_pro,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df if success else dataset,
     }
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    """""
+    """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
     - "knn"         : k-nearest neighbors imputation with k = 5.
@@ -437,19 +562,31 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """ ""
+    """
 
     method = str(params.get("imputation_method", "none")).lower()
-    if dataset is None:
-        df = pd.DataFrame()
-    else:
-        df = dataset.copy()
+
+    # Check if dataset is None or empty
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
+            "img": [],
+            "score": 0,
+            "dataset": pd.DataFrame()
+        }
+
+    relevant_cols = COND_A + COND_B
+
+    df = dataset.copy()
 
     success = False
     feedback = None
 
-    # Sanity check
-    if not relevant_cols:
+    # Sanity check - are relevant columns present in the dataset?
+    if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
         return {
             "success": False,
             "num_pro": None,
@@ -463,7 +600,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pd.to_numeric, errors="coerce")
+        .apply(pandas.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
@@ -522,20 +659,36 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         return pandas.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
-        "none": "No imputation applied. Missing values remain as is.",
-        "mean": "Mean imputation applied across samples.",
-        "median": "Median imputation applied across samples.",
-        "knn": "kNN imputation applied with k = 5.",
-        "regression": "Regression-based imputation applied.",
-        "randomforest": "Random forest-based iterative imputation applied.",
-        "bayesian": "Bayesian ridge-based iterative imputation applied.",
-        "minprob": "MinProb imputation applied using low-intensity random draws.",
+        "none": "👻 No imputation applied. Some data remain missing 👻",
+        "mean": "🔴🟢🔵 Missing values are now equal to the sample mean ⚪️",
+        "median": "🔴🟢🔵 Missing values are now equal to the sample median 🟢",
+        "knn": "📊 Missing values are now replaced using k-Nearest Neighbors 🕵️",
+        "regression": "📈 Regression-based imputation applied 📈",
+        "randomforest": "🌲🌳🌴 Random forest-based iterative imputation applied 🌲🌳🌴",
+        "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
+        "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
 
     try:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
         df_new[relevant_cols] = x_new
+
+        imgs.append(
+            imputer_before_after_stripgrid(
+                before_df=x,
+                after_df=x_new,
+                cond_a_cols=COND_A,
+                cond_b_cols=COND_B,
+                title=f"Before vs After Imputation ({method})",
+            )
+        )
+
+        success = True
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
+        )
+
         success = True
         feedback = feedback_by_method.get(
             method, f"Imputation method '{method}' applied."
@@ -547,8 +700,8 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": None,
-        "num_pep": None,
+        "num_prot": int(df_new[PROTEIN].nunique()),
+        "num_pep": int(df_new[TOT_PEP].sum()),
         "feedback": feedback,
         "img": imgs,
         "score": 0,
@@ -668,6 +821,33 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     significant = dataset.loc[dataset[FC].abs() >= fc]
     if PVALUE in dataset.columns:
         significant = significant.loc[significant[PVALUE] <= pval]
+
+    imgs.append(plot_significant_proteins(significant))
+
+    return {
+        "summary": "Final candidate selection complete.",
+
+        "score": 0,
+        "cutoffs": {"log2FC": fc, "FDR": pval},
+        "dataset": significant,
+        "feedback": f"You identified {len(significant)} significant candidates with the given cutoffs.",
+        "img": imgs,
+    }
+
+
+def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+    imgs = []
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "score": 0,
+            "dataset": pd.DataFrame(),
+            "true_positives": 0,
+            "false_positives": 0,
+            "img": imgs,
+        }
+    significant = dataset.copy()
     true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
     true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
     false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
@@ -677,31 +857,16 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
     score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
-    final_hits = len(significant)
-    imgs.append(plot_significant_proteins(significant))
-
-    return {
-        "summary": "Final candidate selection complete.",
-        "true_positives": true_positives,
-        "false_positives": false_positives,
-        "final_hits": final_hits,
-        "success": true_positives > 0,
-        "score": score,
-        "cutoffs": {"log2FC": fc, "FDR": pval},
-        "dataset": significant,
-        "feedback": f"You identified {final_hits} significant candidates with the given cutoffs. Among them, {true_positives} are true positives (correctly identified yeast or E. coli proteins) and {false_positives} are false positives (incorrectly identified human proteins or misclassified yeast/E. coli). Your score reflects the balance between maximizing true positives and minimizing false positives.",
-        "img": imgs,
-    }
-
-
-def _simulate_veit(dataset: Any, params: dict) -> dict:
-    score = random.randint(70, 100)
+    imgs.append(plot_scores(true_positives, false_positives))
 
     return {
         "success": True,
         "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
         "score": score,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
         "dataset": dataset,
+        "img": imgs,
     }
 
 
@@ -845,7 +1010,7 @@ STATION_SIMULATORS.update(
         "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
-        "imputer": _simulate_normalize,
+        "imputer": _simulate_imputer,
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
