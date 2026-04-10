@@ -307,17 +307,29 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "feedback": "No dataset available. Cannot perform transformation.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
         }
-    else:
-        df = dataset.copy()
-        num_pro = int(dataset[PROTEIN_ID].nunique())
-        num_pep = int(dataset[TOT_PEP].sum())
 
-    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    df = dataset.copy()
+    num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
+    num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
+
+    # Updated selector to match current TSV column names
+    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro,
+            "num_pep": num_pep,
+            "feedback": "No columns ending with ' Intensity' were found.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
 
     try:
         img_before = tr_boxplot(
@@ -325,14 +337,19 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         )
         imgs.append(img_before)
 
-        if method == "log2":
+        if method == "none":
+            success = True
+            feedback = "No transformation applied. Data remains unchanged."
+            score = 0
+
+        elif method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = tr_boxplot(
                 df, relevant_cols, title="Intensities After Transformation (Log2)"
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 applied. The wild intensities have been domesticated."
+            feedback = "Log2 transformation applied."
             score = 10
 
         elif method == "ln":
@@ -344,16 +361,16 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Your data has been gently persuaded into natural log space."
+            feedback = "Natural log transformation applied."
             score = 10
-        
-        else: 
-            success = False
-            feedback = "Unknown transformation method. The proteome looks confused."
 
-    except Exception:
+        else:
+            success = False
+            feedback = f"Unknown transformation method '{method}'."
+
+    except Exception as e:
         success = False
-        feedback = "⚠️🧪 Transformation failed. The proteome destabilizes — something in your data cannot survive the logarithm. Did you prepare it properly?"
+        feedback = f"Error applying transformation: {str(e)}"
 
     return {
         "success": success,
@@ -393,12 +410,8 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
     else:
         df = dataset.copy()
 
-    num_pro = int(df["Protein ID"].nunique()) if "Protein ID" in df.columns else 0
-    num_pep = (
-        int(df["Combined Total Peptides"].sum())
-        if "Combined Total Peptides" in df.columns
-        else 0
-    )
+    num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
+    num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
 
     relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
     imgs = []
