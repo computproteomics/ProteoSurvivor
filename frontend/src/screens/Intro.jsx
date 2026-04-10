@@ -30,7 +30,7 @@ export default function Intro() {
 
       setPlayerProfile({ userId: stableUserId, userName: data.user_name || cleanName });
       startLabSession(nextSessionId);
-      navigate('/world');
+      navigate('/news');
     } catch {
       setStartError('Could not start the game right now. Please try again.');
     } finally {

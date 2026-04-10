@@ -1,0 +1,112 @@
+.layout {
+  display: grid;
+  background: white;
+} 
+
+.canvas {
+  min-height: 100vh;
+  width: 50%;
+  margin-top: 150px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 150px;
+  justify-content: center;
+  background: pink;
+}
+
+.header {
+  position:fixed;
+  top: 0px;
+  width:100%;
+  background: green;
+  display: flex;
+  justify-content: center;
+}
+
+.leftHeader {
+  left: 0px;
+  width: 50%;
+  display: flex;
+  justify-content: center;
+}
+.rightHeader {
+  right: 0px;
+  width: 50%;
+  display: flex;
+  justify-content: center;
+}
+
+.aside {
+  position: fixed;
+  top: 25%;
+  bottom: 25%;
+  width:400px;
+  padding: 1rem;
+  background: blue;
+}
+
+.leftAside {
+  left: 16px;
+  justify-content: center;
+  display: flex;
+}
+
+.rightAside {
+  right: 16px;
+  justify-content: center;
+  display: flex;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.textBox {
+  display:flex;
+
+} 
+
+.tabloidChaosTitle {
+  font-family: "Comic Sans MS", cursive;
+
+  font-size: 34px;
+  font-weight: 900;
+
+  color: white;
+  background: red;
+
+  text-transform: uppercase;
+  letter-spacing: 3px;
+
+  text-align: center;
+
+  text-shadow:
+    2px 2px black,
+    -2px -2px black;
+
+  padding: 16px;
+
+  border: 6px dashed yellow;
+
+  transform: rotate(2deg);
+
+  animation: flash 0.5s infinite alternate;
+}
+
+.textBoxText {
+  font-family: "Times New Roman", Times, serif;
+
+  font-size: 17px;
+  line-height: 1.8;
+
+  color: #1a1a1a;
+
+  text-align: justify;
+
+  hyphens: auto;
+
+  padding: 8px 16px;
+}

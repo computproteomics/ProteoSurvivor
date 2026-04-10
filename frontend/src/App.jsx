@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Intro from './screens/Intro';
+import BreakingNews from './screens/BreakingNews'
 import WorldMap from './screens/WorldMap';
 import StationView from './screens/StationView';
 import ParametrizationView from './screens/ParametrizationView';
@@ -11,6 +12,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Intro />} />
+        <Route path="/news" element={<BreakingNews />} />
         <Route path="/world" element={<WorldMap />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/station/:stationId" element={<StationView />} />
