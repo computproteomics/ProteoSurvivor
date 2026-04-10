@@ -93,6 +93,7 @@ def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
+    # TODO: Add check to see if sample prep was done previously
     return {
         "success": True,
         "feedback": "Mass spectrometry intro completed.",
@@ -102,7 +103,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-
+    # TODO: Add check to see if sample prep + MS was done previously
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
     # set match_between_runs to upper case
