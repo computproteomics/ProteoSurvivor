@@ -3,6 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { enterStation, runStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import { STATION_IDS, getStationDescription, getStationTitle } from '../assets/stationConfig';
+import {
+  getStationBackgroundImage,
+  getStationDescription,
+  getStationTitle,
+} from '../assets/stationConfig';
 import styles from './StationView.module.css';
 
 const INTRO_VIDEO_STATIONS = {
@@ -67,6 +72,15 @@ export default function StationView() {
     description: getStationDescription(stationId),
     objective: 'Configure and run this station before returning to the map.',
   };
+  const stationBackground = getStationBackgroundImage(stationId);
+  const pageStyle = stationBackground
+    ? {
+      backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.5)), url(${stationBackground})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }
+    : undefined;
 
   useEffect(() => {
     if (!stationId) return;
@@ -113,7 +127,9 @@ export default function StationView() {
   }
 
   function finishIntroStation() {
-    markStationComplete(stationId);
+    if (stationResult?.success === true) {
+      markStationComplete(stationId);
+    }
     navigate('/world');
   }
 
@@ -231,7 +247,7 @@ export default function StationView() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={pageStyle}>
       <div className={styles.card}>
         {loading && <p className={styles.info}>Loading station...</p>}
 

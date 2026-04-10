@@ -174,16 +174,14 @@
         "label": "Transform Method",
         "type": "select",
         "options": [
-          "none",
           "ln",
           "log2"
         ],
         "optionLabels": {
-          "none": "No log transformation",
           "ln": "Natural logarithm (ln)",
           "log2": "Log2"
         },
-        "defaultValue": "none"
+        "defaultValue": "ln"
       }
     ]
   },
@@ -261,7 +259,6 @@
         "label": "Multiple Testing Correction",
         "type": "select",
         "options": [
-          "none",
           "bh",
           "bt",
           "storey",
@@ -269,7 +266,6 @@
           "holm"
         ],
         "optionLabels": {
-          "none": "No correction",
           "bh": "Benjamini-Hochberg",
           "bt": "Benjamini-Tekutieli",
           "storey": "Storey's q-value",
@@ -315,20 +311,16 @@
         "label": "Statistical Test",
         "type": "select",
         "options": [
-          "none",
-          "polystest",
-          "student",
           "welch",
           "limma",
-          "anova"
+          "mannwhitneyu",
+          "permutation"
         ],
         "optionLabels": {
-          "none": "No test",
-          "polystest": "PolySTest",
-          "student": "T-test (Student)",
           "welch": "Welch t-test",
           "limma": "Limma",
-          "anova": "ANOVA"
+          "mannwhitneyu": "Mann-Whitney U test",
+          "permutation": "Permutation test"
         },
         "defaultValue": "none"
       }
@@ -337,6 +329,7 @@
   "veit": {
     "id": "veit",
     "title": "Veit",
+    "final": true,
     "description": "Hand in your comprehensive report with findings and interpretations."
   }
 }

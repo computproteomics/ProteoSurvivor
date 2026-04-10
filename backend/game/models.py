@@ -21,3 +21,16 @@ class StationRun(models.Model):
 
     def __str__(self):
         return f"StationRun {self.pk} by {self.player} at {self.created_at}"
+
+
+class FinalStationResult(models.Model):
+    """Stores the results of a final station run, including the generated peptides."""
+
+    station_run = models.OneToOneField(
+        StationRun, on_delete=models.CASCADE, related_name="final_result"
+    )
+    true_positives = models.PositiveIntegerField()
+    false_positives = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"FinalStationResult for StationRun {self.station_run.pk}"

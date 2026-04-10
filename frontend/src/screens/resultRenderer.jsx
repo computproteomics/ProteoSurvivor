@@ -6,19 +6,7 @@ export function getStationResultsRenderer(stationId) {
 }
 
 function GenericStationResultsContent({ stationResults }) {
-  const {
-    summary,
-    recommendation,
-    feedback,
-    img,
-    visit_count,
-    visited_station_names,
-    visited_station_counts,
-    visited_stations,
-    visited,
-    visit_debug,
-    ...detailFields
-  } = stationResults;
+  const { summary, recommendation, feedback, img, ...detailFields } = stationResults;
   const resultImages = normalizeImageList(img);
 
   return (
@@ -48,6 +36,13 @@ function GenericStationResultsContent({ stationResults }) {
             ))}
           </tbody>
         </table>
+      )}
+
+      {typeof feedback === 'string' && feedback.trim().length > 0 && (
+        <div className={styles.recommendationBox}>
+          <strong>Feedback</strong>
+          {renderTextOrHtml(feedback, styles.recommendationText)}
+        </div>
       )}
 
       {resultImages.length > 0 && (
@@ -94,6 +89,17 @@ function normalizeImageList(imgValue) {
 
 function toImageDataUrl(value) {
   return value.startsWith('data:image/') ? value : `data:image/png;base64,${value}`;
+}
+
+function renderTextOrHtml(value, className) {
+  const trimmedValue = value.trim();
+  const containsHtmlTag = /<\/?[a-z][\s\S]*>/i.test(trimmedValue);
+
+  if (containsHtmlTag) {
+    return <div className={className} dangerouslySetInnerHTML={{ __html: trimmedValue }} />;
+  }
+
+  return <p className={className}>{value}</p>;
 }
 
 function formatKey(key) {
