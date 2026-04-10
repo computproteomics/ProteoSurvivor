@@ -7,6 +7,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+ORGANISM = "Organism"
+FC = "fold_change"
+
+
 def fig_to_base64(fig):
     """
     Convert Matplotlib figure into a Base64-encoded PNG string which
@@ -60,11 +64,11 @@ def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
 
 def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
     """ Create one adjusted p-value histogram per species and return base64-encoded images."""
-    
+
     # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
         return _create_histogram(df[value_col], "Adjusted p-value distribution", "Adjusted p-value", "Protein count", 30, "#2563eb")
-    
+
     # Create histogram for each species
     imgs = []
     grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(species_col)
@@ -113,3 +117,25 @@ def histogram_compare(before_df, after_df, cols, title_before="Before", title_af
     images.append(fig_to_base64(fig2))
 
     return images
+
+def plot_significant_proteins(df):
+    """Generate a bar plot showing the number of significant proteins by organism."""
+    positive_counts = df[df[FC] > 0].groupby(ORGANISM).size()
+    negative_counts = df[df[FC] < 0].groupby(ORGANISM).size()
+
+    organisms = sorted(set(positive_counts.index).union(negative_counts.index))
+    positive_values = [int(positive_counts.get(org, 0)) for org in organisms]
+    negative_values = [-int(negative_counts.get(org, 0)) for org in organisms]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(organisms, positive_values, color="#2ca02c", label="FC > 0")
+    ax.bar(organisms, negative_values, color="#d62728", label="FC < 0")
+
+    ax.axhline(0, color="black", linewidth=1)
+    ax.set_title("Significant Proteins by Organism")
+    ax.set_xlabel(ORGANISM)
+    ax.set_ylabel("Protein Count")
+    ax.tick_params(axis="x", rotation=30)
+    ax.legend()
+
+    return fig_to_base64(fig)
