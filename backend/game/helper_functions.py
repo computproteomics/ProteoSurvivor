@@ -275,11 +275,27 @@ def plot_scores(true_positives, false_positives):
 
     return fig_to_base64(fig)
 
-def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold):
-    """Generate a volcano plot for the given dataframe."""
+def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold, fc_col):
+    """Generate a volcano plot for the given dataframe.
+
+    Returns a base64 image string, or None when required inputs are invalid/empty.
+    """
+    if p_val_col not in df.columns or fc_col not in df.columns:
+        return None
+    if sig_threshold <= 0 or fc_threshold <= 0:
+        return None
+
+    plot_df = df[[fc_col, p_val_col]].copy()
+    plot_df[fc_col] = pd.to_numeric(plot_df[fc_col], errors="coerce")
+    plot_df[p_val_col] = pd.to_numeric(plot_df[p_val_col], errors="coerce")
+    plot_df = plot_df.replace([np.inf, -np.inf], np.nan).dropna(subset=[fc_col, p_val_col])
+    plot_df = plot_df[plot_df[p_val_col] > 0]
+    if plot_df.empty:
+        return None
+
     fig, ax = plt.subplots(figsize=(7, 5))
-    df["neg_log_p"] = -np.log10(df[p_val_col])
-    sns.scatterplot(x="FC", y="neg_log_p", data=df, ax=ax, color="#2563eb", edgecolor="none")
+    plot_df["neg_log_p"] = -np.log10(plot_df[p_val_col])
+    sns.scatterplot(x=fc_col, y="neg_log_p", data=plot_df, ax=ax, color="#2563eb", edgecolor="none")
     ax.set_title(title)
     ax.set_xlabel("Fold Change")
     ax.set_ylabel("-log10(p-value)")

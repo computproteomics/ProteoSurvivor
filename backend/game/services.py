@@ -17,7 +17,8 @@ from .helper_functions import (
     imputer_before_after_stripgrid,
     histogram_compare,
     plot_significant_proteins,
-    plot_scores
+    plot_scores,
+    volcano_plot,
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -47,7 +48,6 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
-P_VALUE_COL = "p_value"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -107,7 +107,11 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    result = runner(dataset, params)
+    runner_params = dict(params)
+    if request.user.is_authenticated:
+        runner_params["__player_id"] = request.user.pk
+
+    result = runner(dataset, runner_params)
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
         run = StationRun(
@@ -732,7 +736,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         num_pep = int(dataset[TOT_PEP].sum())
 
     # Handle missing p-value column
-    if P_VALUE_COL not in df.columns:
+    if PVALUE not in df.columns:
         return {
             "success": success,
             "num_pro": num_pro,
@@ -743,36 +747,36 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "dataset": df,
         }
 
-    pvals = df[P_VALUE_COL].values
+    pvals = df[PVALUE].values
 
     try:
         if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 10
             feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
-            df[P_VALUE_COL] = qvals
+            df[PVALUE] = qvals
             success = True
             score = 15
             feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 6
             feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 9
             feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
@@ -786,8 +790,8 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         score = 0
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
-    if success and P_VALUE_COL in df.columns:
-        imgs.extend(mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM))
+    if success and PVALUE in df.columns:
+        imgs.extend(mtc_histograms(df, value_col=PVALUE, species_col=ORGANISM))
 
     return {
         "success": success,
@@ -904,6 +908,27 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             "score": score,
             "dataset": df,
         }
+
+    p_cutoff = 0.05
+    fc_cutoff = 2.0
+    cutter_not_visited = True
+    player_id = params.get("__player_id")
+    if player_id is not None:
+        last_cutter_run = (
+            StationRun.objects.filter(player_id=player_id, station_id="the_cutter")
+            .order_by("-id")
+            .first()
+        )
+        cutter_not_visited = last_cutter_run is None
+        if last_cutter_run and isinstance(last_cutter_run.params, dict):
+            try:
+                p_cutoff = float(last_cutter_run.params.get("pvalue_cutoff", p_cutoff))
+            except (TypeError, ValueError):
+                p_cutoff = 0.05
+            try:
+                fc_cutoff = float(last_cutter_run.params.get("fold_change_cutoff", fc_cutoff))
+            except (TypeError, ValueError):
+                fc_cutoff = 2.0
     
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
@@ -986,7 +1011,21 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             success = False
             feedback = "Unknown statistical test."
 
-        df[P_VALUE_COL] = p_values
+        df[PVALUE] = p_values
+
+        if success:
+            volcano_img = volcano_plot(
+                df,
+                title="Volcano Plot",
+                p_val_col=PVALUE,
+                sig_threshold=p_cutoff,
+                fc_threshold=fc_cutoff,
+                fc_col=FC,
+            )
+            if volcano_img is not None:
+                imgs.append(volcano_img)
+            if cutter_not_visited:
+                feedback = f"{feedback} | OBS default values chosen as cutter is not yet visited"
     
     except Exception:
         success = False
