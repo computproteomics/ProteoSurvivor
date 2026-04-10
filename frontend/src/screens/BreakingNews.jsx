@@ -36,25 +36,24 @@ function Title({ text }) {
   )
 }
 
-function Aside( {className, adPic, adText }) {
+function Aside( {className, adPic, adText, adTitle }) {
   return(
     <div className={className}>
       <img className={styles.adImage} src={adPic} alt="Add"></img>
-      <div className={styles.adText}>
-        <p>
-          {adText}
-        </p>
-      </div>
+      <h3 className={styles.adTitle}>{adTitle}</h3>
+      <p className={styles.adText}>{adText}</p>
+
     </div>
   );
 }
 
-function GetImageURL(advertisement) {
 
-}
-
-function MainAdd(advertisement) {
-  return 
+function MainAd({ advertisement }) {
+  return(
+    <div className={adBox}>
+      
+    </div>
+  ) 
 }
 
 function TextBox({ text }) {
@@ -68,7 +67,7 @@ function TextBox({ text }) {
 }
 
 function NextButton() {
-  
+  return
 }
 
 function Page() {  // all the text and main adds on the page
@@ -102,16 +101,19 @@ function Canvas() {    // the title box plus the Page
 export default function News() {
   const adPic1 = advertisement1
   const adText1 = "This is placeholder for ad text 1"
+  const adTitle1 = "PLACEHOLDER 1"
   const adPic2 = advertisement2
   const adText2 = "This is placeholder for ad text 2"
+  const adTitle2 = "PLACEHOLDER 2"
 
 
   return(
     <div className={styles.layout}>
       <Header ></Header>
-      <Aside className={`${styles.aside} ${styles.leftAside}`} adPic={adPic1} adText={adText1}></Aside>
+      <Aside className={`${styles.aside} ${styles.leftAside}`} adPic={adPic1} adText={adText1} adTitle={adTitle1}></Aside>
       <Canvas ></Canvas>
-      <Aside className={`${styles.aside} ${styles.rightAside}`} adPic={adPic2} adText={adText2}></Aside>
+      <Aside className={`${styles.aside} ${styles.rightAside}`} adPic={adPic2} adText={adText2} adTitle={adTitle2}></Aside>
+      <Button></Button>
     </div>
   )
 }
