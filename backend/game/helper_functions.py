@@ -3,6 +3,7 @@ import base64
 import pandas as pd
 import math
 import matplotlib
+
 matplotlib.use("Agg")
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -22,6 +23,7 @@ def fig_to_base64(fig):
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
+
 
 def tr_boxplot(df, cols, title="Distribution Comparison"):
     """Generate a boxplot for the specified columns in the dataframe."""
@@ -53,7 +55,6 @@ def sp_scatterplot(
     return fig_to_base64(fig)
 
 
-
 def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.histplot(values, bins=bins, ax=ax, color=color, edgecolor="white")
@@ -63,8 +64,9 @@ def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
     ax.set_ylabel(ylabel)
     return fig_to_base64(fig)
 
+
 def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
-    """ Create one adjusted p-value histogram per species and return base64-encoded images."""
+    """Create one adjusted p-value histogram per species and return base64-encoded images."""
 
     # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
@@ -100,7 +102,9 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
     return imgs
 
 
-def histogram_compare(before_df, after_df, cols, title_before="Before", title_after="After", bins=50):
+def histogram_compare(
+    before_df, after_df, cols, title_before="Before", title_after="After", bins=50
+):
     # Flatten numeric values and drop NaN/inf
     before = before_df[cols].to_numpy(dtype=float).ravel()
     after = after_df[cols].to_numpy(dtype=float).ravel()
@@ -174,7 +178,9 @@ def imputer_before_after_stripgrid(
     """Create a 2x3 stripplot grid comparing values before vs after imputation."""
     sample_cols = cond_a_cols + cond_b_cols
     if len(sample_cols) != 6:
-        raise ValueError("Expected exactly 6 sample columns (3 for condition A and 3 for condition B).")
+        raise ValueError(
+            "Expected exactly 6 sample columns (3 for condition A and 3 for condition B)."
+        )
 
     fig, axes = plt.subplots(2, 3, figsize=(16, 10), sharey=True)
     axes = axes.flatten()
@@ -188,9 +194,13 @@ def imputer_before_after_stripgrid(
         after_vals = pd.to_numeric(after_df[sample_col], errors="coerce").dropna()
 
         if len(before_vals) > max_points_per_stage:
-            before_vals = before_vals.sample(n=max_points_per_stage, random_state=random_state)
+            before_vals = before_vals.sample(
+                n=max_points_per_stage, random_state=random_state
+            )
         if len(after_vals) > max_points_per_stage:
-            after_vals = after_vals.sample(n=max_points_per_stage, random_state=random_state)
+            after_vals = after_vals.sample(
+                n=max_points_per_stage, random_state=random_state
+            )
 
         plot_df = pd.DataFrame(
             {
@@ -237,7 +247,9 @@ def plot_scores(true_positives=None, false_positives=None):
         ratio = max(ratio, 1e-12)
         return -math.log10(ratio)
 
-    results = FinalStationResult.objects.all().values_list("true_positives", "false_positives")
+    results = FinalStationResult.objects.all().values_list(
+        "true_positives", "false_positives"
+    )
 
     x_values = []
     y_values = []
@@ -254,7 +266,17 @@ def plot_scores(true_positives=None, false_positives=None):
 
     fig, ax = plt.subplots(figsize=(7, 5))
     if x_values:
-        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results" if current_x is not None else "Final Station Results")
+        sns.scatterplot(
+            x=x_values,
+            y=y_values,
+            ax=ax,
+            color="#94a3b8",
+            s=55,
+            edgecolor="none",
+            label=(
+                "Others' results" if current_x is not None else "Final Station Results"
+            ),
+        )
 
     if current_x is not None and true_positives is not None:
         sns.scatterplot(
@@ -282,13 +304,13 @@ def filtering_piechart(num_before, num_after):
     """Generate a pie chart showing proteins retained vs removed during filtering."""
     removed = num_before - num_after
     sizes = [num_after, removed]
-    labels = [f'Retained\n({num_after})', f'Removed\n({removed})']
-    colors = ['#2ca02c', '#d62728']
-    
+    labels = [f"Retained\n({num_after})", f"Removed\n({removed})"]
+    colors = ["#2ca02c", "#d62728"]
+
     fig, ax = plt.subplots(figsize=(6, 5))
-    ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    ax.set_title('Proteins: Retained vs Removed')
-    
+    ax.pie(sizes, labels=labels, colors=colors, autopct="%1.1f%%", startangle=90)
+    ax.set_title("Proteins: Retained vs Removed")
+
     return fig_to_base64(fig)
 
 
@@ -304,7 +326,8 @@ def filtering_scatterplot(df, relevant_cols=None):
         relevant_cols = [
             col
             for col in df.columns
-            if col.startswith("ConditionA_Sample") or col.startswith("ConditionB_Sample")
+            if col.startswith("ConditionA_Sample")
+            or col.startswith("ConditionB_Sample")
         ]
 
     cond_a_cols = [col for col in relevant_cols if col.startswith("ConditionA_Sample")]
@@ -317,7 +340,9 @@ def filtering_scatterplot(df, relevant_cols=None):
     cond_a_mean = values[cond_a_cols].mean(axis=1)
     cond_b_mean = values[cond_b_cols].mean(axis=1)
 
-    plot_df = pd.DataFrame({"Condition A": cond_a_mean, "Condition B": cond_b_mean}).dropna()
+    plot_df = pd.DataFrame(
+        {"Condition A": cond_a_mean, "Condition B": cond_b_mean}
+    ).dropna()
     if plot_df.empty:
         return None
 
@@ -336,7 +361,9 @@ def filtering_scatterplot(df, relevant_cols=None):
         ax=ax,
         color="#2563eb",
     )
-    ax.plot([x_min, x_max], [x_min, x_max], linestyle="--", color="#6b7280", linewidth=1.2)
+    ax.plot(
+        [x_min, x_max], [x_min, x_max], linestyle="--", color="#6b7280", linewidth=1.2
+    )
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(x_min, x_max)
     ax.set_xlabel("Condition A mean intensity")
@@ -347,46 +374,65 @@ def filtering_scatterplot(df, relevant_cols=None):
     return fig_to_base64(fig)
 
 
-def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold, fc_col):
+def volcano_plot(
+    df, title, p_val_col, sig_threshold=None, fc_threshold=None, fc_col="FC"
+):
     """Generate a volcano plot for the given dataframe.
 
     Returns a base64 image string, or None when required inputs are invalid/empty.
     """
     if p_val_col not in df.columns or fc_col not in df.columns:
         return None
-    if sig_threshold <= 0 or fc_threshold <= 0:
-        return None
 
     plot_df = df[[fc_col, p_val_col]].copy()
     plot_df[fc_col] = pd.to_numeric(plot_df[fc_col], errors="coerce")
     plot_df[p_val_col] = pd.to_numeric(plot_df[p_val_col], errors="coerce")
-    plot_df = plot_df.replace([np.inf, -np.inf], np.nan).dropna(subset=[fc_col, p_val_col])
+    plot_df = plot_df.replace([np.inf, -np.inf], np.nan).dropna(
+        subset=[fc_col, p_val_col]
+    )
     plot_df = plot_df[plot_df[p_val_col] > 0]
     if plot_df.empty:
         return None
 
     fig, ax = plt.subplots(figsize=(7, 5))
     plot_df["neg_log10_p"] = -np.log10(plot_df[p_val_col])
-    
-    # Classify significance based on thresholds
-    plot_df["significant"] = "not_sig"
-    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] >= fc_threshold),"significant",] = "up"
-    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] <= -fc_threshold),"significant",] = "down"
 
-    sns.scatterplot(
-        data=plot_df,
-        x=fc_col,
-        y="neg_log10_p",
-        hue="significant",
-        hue_order=["up", "down", "not_sig"],
-        palette={"up": "red", "down": "blue", "not_sig": "grey"},
-        ax=ax,
-        edgecolor="none",
-    )
+    if sig_threshold is None or fc_threshold is None:
+        sns.scatterplot(
+            data=plot_df,
+            x=fc_col,
+            y="neg_log10_p",
+            ax=ax,
+            color="grey",
+            edgecolor="none",
+        )
+    else:
+        # Classify significance based on thresholds
+        plot_df["significant"] = "not_sig"
+        plot_df.loc[
+            (plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] >= fc_threshold),
+            "significant",
+        ] = "up"
+        plot_df.loc[
+            (plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] <= -fc_threshold),
+            "significant",
+        ] = "down"
+
+        sns.scatterplot(
+            data=plot_df,
+            x=fc_col,
+            y="neg_log10_p",
+            hue="significant",
+            hue_order=["up", "down", "not_sig"],
+            palette={"up": "red", "down": "blue", "not_sig": "grey"},
+            ax=ax,
+            edgecolor="none",
+        )
+        ax.axhline(-np.log10(sig_threshold), color="red", linestyle="--", linewidth=1)
+        ax.axvline(-fc_threshold, color="red", linestyle="--", linewidth=1)
+        ax.axvline(fc_threshold, color="red", linestyle="--", linewidth=1)
+
     ax.set_title(title)
     ax.set_xlabel("log2 fold change")
     ax.set_ylabel("-log10(p-value)")
-    ax.axhline(-np.log10(sig_threshold), color="red", linestyle="--", linewidth=1)
-    ax.axvline(-fc_threshold, color="red", linestyle="--", linewidth=1)
-    ax.axvline(fc_threshold, color="red", linestyle="--", linewidth=1)
     return fig_to_base64(fig)
