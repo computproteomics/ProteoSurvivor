@@ -17,7 +17,7 @@ from .helper_functions import (
     imputer_before_after_stripgrid,
     histogram_compare,
     plot_significant_proteins,
-    plot_scores
+    plot_scores,
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -573,7 +573,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
             "img": [],
             "score": 0,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
 
     relevant_cols = COND_A + COND_B
@@ -824,7 +824,6 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
 
     return {
         "summary": "Final candidate selection complete.",
-
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
@@ -854,7 +853,6 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-<<<<<<< HEAD
     score = (
         true_positives * (1 - false_positives / len(significant))
         if len(significant) > 0
@@ -879,10 +877,12 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
 
 def _simulate_veit(dataset: Any, params: dict) -> dict:
     score = random.randint(70, 100)
-=======
-    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    score = (
+        true_positives * (1 - false_positives / len(significant))
+        if len(significant) > 0
+        else 0
+    )
     imgs.append(plot_scores(true_positives, false_positives))
->>>>>>> origin
 
     return {
         "success": True,
