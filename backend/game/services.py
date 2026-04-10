@@ -8,9 +8,15 @@ import pandas as pd
 from .models import StationRun
 import pandas
 import numpy as np
+import os
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, histogram_compare, mtc_histograms
-from statsmodels.stats.multitest import multipletests 
+from .helper_functions import (
+    tr_boxplot,
+    sp_scatterplot,
+    histogram_compare, mtc_histograms,
+    _create_histogram,
+)
+from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
 
 from sklearn.impute import SimpleImputer, KNNImputer
@@ -34,6 +40,7 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
+P_VALUE_COL = "p_value"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -134,7 +141,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-    # TODO: Add check to see if sample prep + MS was done previously
+
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
     # set match_between_runs to upper case
@@ -146,6 +153,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     min_pep_len = int(params.get("min_peptide_length", 7))
     max_pep_len = int(params.get("max_peptide_length", 35))
 
+    # reading parameter file
     file_map = pandas.read_csv("data/ParameterTable.csv")  # Mapping table
     # Make key of all columns but ParameterSet
     file_map["key"] = (
@@ -190,6 +198,15 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         raise ValueError(f"No data file found for parameters: {params}")
     data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
 
+    # check whether datafile exists
+    if not os.path.exists(f"data/{data_file_name}"):
+        return {
+            "success": False,
+            "feedback": "Unfortunately, we do not have a data search result for this set of parameters.",
+            "score": 0,
+            "dataset": dataset,
+        }
+
     # Load the corresponding data file and extract results
     dataset = pandas.read_csv(f"data/{data_file_name}", sep="\t")
 
@@ -219,54 +236,39 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     }
 
     try:
-        for species in dataset["Organism"].unique():
+        for species in unique_species:
+            species_df = dataset[dataset["Organism"] == species]
 
-            count_cols_a = [
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Total Spectral Count",
-            ]
-            int_cols_a = [
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity",
-            ]
-            count_cols_b = [
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Total Spectral Count",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Total Spectral Count",
-            ]
-            int_cols_b = [
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_01 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_02 Intensity",
-                "LFQ_Orbitrap_DDA_Condition_B_Sample_Alpha_03 Intensity",
-            ]
-
-            # Make a vector of all count_cols_a columns into one column "Total Spectral Count A"
-            spec_a = np.log2(np.concatenate([dataset[c].values for c in count_cols_a]))
-            spec_b = np.log2(np.concatenate([dataset[c].values for c in count_cols_b]))
-
-            int_a = np.log2(np.concatenate([dataset[c].values for c in int_cols_a]))
-            int_b = np.log2(np.concatenate([dataset[c].values for c in int_cols_b]))
-
-            tr_scatter = sp_scatterplot(
-                x=spec_a,
-                y=int_a,
-                x_col="Total Spectral Count A",
-                y_col="log2(Intensity A)",
+            tr_hist = _create_histogram(
+                species_df[SPEC_COUNT],
+                species + ": spectral counts",
+                "Spectral Counts",
+                "Frequency",
+                30,
                 color=species_palette[species],
-                title=f"Spectral Count vs Intensity for {species} - Condition A",
+                xlim=None,
             )
-            imgs.append(tr_scatter)
-            tr_scatter = sp_scatterplot(
-                x=spec_b,
-                y=int_b,
-                x_col="Total Spectral Count B",
-                y_col="log2(Intensity B)",
+            imgs.append(tr_hist)
+            tr_hist = _create_histogram(
+                species_df[PROTEIN_LENGTH],
+                species + ": protein lengths",
+                "Protein Lengths",
+                "Frequency",
+                30,
                 color=species_palette[species],
-                title=f"Spectral Count vs Intensity for {species} - Condition B",
+                xlim=None,
             )
-            imgs.append(tr_scatter)
+            imgs.append(tr_hist)
+            tr_hist = _create_histogram(
+                species_df[PROBABILITY],
+                species + ": protein identification probabilities",
+                "Protein probabilities",
+                "Frequency",
+                30,
+                color=species_palette[species],
+                xlim=(0, 1),
+            )
+            imgs.append(tr_hist)
 
         success = True
         feedback = None
@@ -278,8 +280,8 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     return {
         "success": success,
         "dataset": dataset,
-        "num_prot": int(dataset["Protein ID"].nunique()),
-        "num_pep": int(dataset["Combined Total Peptides"].sum()),
+        "num_prot": int(dataset[PROTEIN].nunique()),
+        "num_pep": int(dataset[TOT_PEP].sum()),
         "img": imgs,
         "score": 0,
         "feedback": """
@@ -298,43 +300,40 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
+        num_pro = int(dataset[PROTEIN_ID].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
-    
+
     try:
         img_before = tr_boxplot(
             df, relevant_cols, title="Intensities Before Transformation"
         )
         imgs.append(img_before)
 
-        if method == "none":
-            success = True
-            feedback = "No transformation applied. Data remains unchanged."
-
-        elif method == "log2":
+        if method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = tr_boxplot(
                 df, relevant_cols, title="Intensities After Transformation (Log2)"
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Log2 applied. The wild intensities have been domesticated."
+            score = 10
 
         elif method == "ln":
             df[relevant_cols] = np.log(df[relevant_cols])
@@ -345,19 +344,24 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Your data has been gently persuaded into natural log space."
+            score = 10
+        
+        else: 
+            success = False
+            feedback = "Unknown transformation method. The proteome looks confused."
 
-    except Exception as e:
+    except Exception:
         success = False
-        feedback = f"Error applying transformation: {str(e)}"
+        feedback = "⚠️🧪 Transformation failed. The proteome destabilizes — something in your data cannot survive the logarithm. Did you prepare it properly?"
 
     return {
         "success": success,
-        "num_pro": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
+        "score": score,
         "dataset": df,
     }
 
@@ -514,7 +518,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """""
+    """ ""
 
     method = str(params.get("imputation_method", "none")).lower()
     if dataset is None:
@@ -526,7 +530,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     imgs: list[str] = []
     success = False
     feedback = None
-    
+
     # Sanity check
     if not relevant_cols:
         return {
@@ -552,7 +556,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
         if method == "none":
             return x
-        
+
         if method == "mean":
             imputer = SimpleImputer(strategy="mean")
         elif method == "median":
@@ -561,26 +565,22 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             imputer = KNNImputer(n_neighbors=5)
         elif method == "regression":
             imputer = IterativeImputer(
-                estimator = LinearRegression(),
-                random_state = 42,
-                max_iter = 15
+                estimator=LinearRegression(), random_state=42, max_iter=15
             )
         elif method == "randomforest":
             imputer = IterativeImputer(
                 estimator=RandomForestRegressor(
-                    n_estimators=200,
-                    random_state=42,
-                    n_jobs=-1
+                    n_estimators=200, random_state=42, n_jobs=-1
                 ),
                 random_state=42,
-                max_iter=10
+                max_iter=10,
             )
         elif method == "bayesian":
             imputer = IterativeImputer(
-                estimator = BayesianRidge(),
-                sample_posterior = True,
-                random_state = 42,
-                max_iter = 15
+                estimator=BayesianRidge(),
+                sample_posterior=True,
+                random_state=42,
+                max_iter=15,
             )
         elif method == "minprob":
             out = x.copy()
@@ -594,7 +594,9 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                     continue
                 mu = float(obs.mean())
                 sigma = float(obs.std())
-                out.loc[miss, col] = rng.normal(mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
+                out.loc[miss, col] = rng.normal(
+                    mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum()
+                )
             return out
         else:
             raise ValueError(f"Unknown imputation method: {method}")
@@ -618,12 +620,13 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         df_new = df.copy()
         df_new[relevant_cols] = x_new
         success = True
-        feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
+        )
     except Exception as e:
         df_new = df.copy()
         success = False
         feedback = f"Error applying imputation: {str(e)}"
-
 
     return {
         "success": success,
@@ -632,7 +635,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         "feedback": feedback,
         "img": imgs,
         "score": 0,
-        "dataset": df_new
+        "dataset": df_new,
     }
 
 
@@ -641,91 +644,93 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     success = False
     imgs = []
     score = 0
-    
+
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
-
-    p_val_col = "p_value"
+        num_pro = int(dataset[PROTEIN_ID].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     # Handle missing p-value column
-    if p_val_col not in df.columns:
+    if P_VALUE_COL not in df.columns:
         return {
             "success": success,
-            "num_prot": num_prot,
+            "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "⚠️ No p-values found. The experiment loses its grip on significance.",
             "img": imgs,
             "score": score,
-            "dataset": df
+            "dataset": df,
         }
 
-    pvals = df[p_val_col].values
+    pvals = df[P_VALUE_COL].values
 
     try:
-        if method == "none":
-            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
-            success = True
-            feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
-        elif method == "bh":
+        if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+            score = 10
+            feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+            score = 12
+            feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
-            df["p_adjusted"] = qvals
+            df[P_VALUE_COL] = qvals
             success = True
-            feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+            score = 15
+            feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
-            df["p_adjusted"] = adjusted[1]
-            success = True
-            feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+            df[P_VALUE_COL] = adjusted[1]
+            success = True  
+            score = 6
+            feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
-    except Exception as e:
+            score = 9
+            feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
+        else:
+            success = False
+            score = 0
+            feedback = "⚠️ Unknown correction method. Statistical defenses not deployed."
+    
+    except Exception:
         success = False
-        feedback = f"Error applying multiple testing correction: {str(e)}"
+        score = 0
+        feedback = "💥 Correction failed. The proteome resists statistical control."
 
-    if success and "p_adjusted" in df.columns:
+    if success and P_VALUE_COL in df.columns:
         imgs.extend(
-            mtc_histograms(
-                df,
-                value_col="p_adjusted",
-                species_col="Organism"
-            )
+            mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM)
         )
 
     return {
         "success": success,
-        "num_prot": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
+        "score": score,
         "dataset": df
     }
+
 
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
