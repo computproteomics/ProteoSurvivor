@@ -67,16 +67,34 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
 
     # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
-        return _create_histogram(df[value_col], "Adjusted p-value distribution", "Adjusted p-value", "Protein count", 30, "#2563eb")
+        return _create_histogram(
+            df[value_col],
+            "Adjusted p-value distribution",
+            "Adjusted p-value",
+            "Protein count",
+            30,
+            "#2563eb",
+        )
 
     # Create histogram for each species
     imgs = []
-    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(species_col)
+    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(
+        species_col
+    )
     for species, species_df in grouped:
         species_values = species_df[value_col]
         if not species_values.empty:
             title = f"Adjusted p-value distribution - {species}"
-            imgs.append(_create_histogram(species_values, title, "Adjusted p-value", "Protein count", 30, "#16a34a"))
+            imgs.append(
+                _create_histogram(
+                    species_values,
+                    title,
+                    "Adjusted p-value",
+                    "Protein count",
+                    30,
+                    "#16a34a",
+                )
+            )
 
     return imgs
 

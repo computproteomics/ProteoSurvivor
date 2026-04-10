@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
-import { getStationTitle } from '../assets/stationConfig';
+import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
 import { getStationResultsRenderer } from './resultRenderer';
 import styles from './StationResults.module.css';
 
@@ -12,6 +12,15 @@ export default function StationResults() {
   const { stationResults, markStationComplete } = useGameStore();
 
   const title = getStationTitle(stationId);
+  const stationBackground = getStationBackgroundImage(stationId);
+  const pageStyle = stationBackground
+    ? {
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.5)), url(${stationBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+    }
+    : undefined;
   const didRunSucceed = stationResults?.success === true || stationResults?.succes === true;
 
   function handleBackToMap() {
@@ -29,7 +38,7 @@ export default function StationResults() {
 
   if (!stationResults) {
     return (
-      <div className={styles.page}>
+      <div className={styles.page} style={pageStyle}>
         <div className={styles.card}>
           <h1 className={styles.title}>No Results</h1>
           <p className={styles.text}>No results are available for this station yet.</p>
@@ -44,7 +53,7 @@ export default function StationResults() {
   const StationResultContent = getStationResultsRenderer(stationId);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={pageStyle}>
       <div className={styles.card}>
         <div className={styles.headerRow}>
           <span className={styles.stationBadge}>{title}</span>

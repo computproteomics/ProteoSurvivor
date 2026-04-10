@@ -9,7 +9,7 @@
 
 .card {
   width: min(720px, 92vw);
-  background: white;
+  background: rgba(255, 255, 255, 0.65);
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -51,10 +51,10 @@
 
 .input {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(203, 213, 225, 0.65);
   border-radius: 8px;
   font-size: 0.95rem;
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.65);
   width: 100%;
   box-sizing: border-box;
   transition: border-color 0.15s;
@@ -63,15 +63,15 @@
 .input:focus {
   outline: none;
   border-color: #3b82f6;
-  background: white;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .textarea {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(203, 213, 225, 0.65);
   border-radius: 8px;
   font-size: 0.95rem;
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.65);
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
@@ -82,7 +82,7 @@
 .textarea:focus {
   outline: none;
   border-color: #3b82f6;
-  background: white;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .noParams {
@@ -106,7 +106,7 @@
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 10px;
-  background: #0f172a;
+  background: rgba(15, 23, 42, 0.65);
   color: white;
   font-size: 0.95rem;
   cursor: pointer;
@@ -114,7 +114,7 @@
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: #1e293b;
+  background: rgba(30, 41, 59, 0.65);
 }
 
 .primaryButton:disabled {
@@ -125,15 +125,15 @@
 .secondaryButton {
   padding: 0.75rem 1.25rem;
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  border: 1px solid rgba(203, 213, 225, 0.65);
+  background: rgba(255, 255, 255, 0.65);
   font-size: 0.95rem;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .secondaryButton:hover:not(:disabled) {
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.65);
 }
 
 .secondaryButton:disabled {
