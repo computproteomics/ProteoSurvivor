@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './BreakingNews.module.css';
-import aiCompany from '../../public/shitty_logo.png'
-import advertisement1 from '../assets/backgrounds/normalize.png';
-import advertisement2 from '../assets/backgrounds/cutter.png';
-import advertisement3 from '../assets/backgrounds/cutter.png';
-import advertisement4 from '../assets/backgrounds/cutter.png';
-import advertisement5 from '../assets/backgrounds/cutter.png';
-import advertisement6 from '../assets/backgrounds/cutter.png';
+import aiCompany from '../assets/shitty_logo.png'
+import advertisement1 from '../assets/Protein_separation_ad.png';
+import advertisement2 from '../assets/Grow_hela.png';
+import advertisement3 from '../assets/Omnispec.png';
+import advertisement4 from '../assets/EscapeRoom.png';
+import advertisement5 from '../assets/proteomics_ad.png';
+import advertisement6 from '../assets/spectrometry_ad.png';
 
 
 function Header({  }) {
@@ -88,16 +88,16 @@ function Page() {  // all the text and main adds on the page
   const text3 = " Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32."
   const text4 = "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc."
   const adPic1 = advertisement1 
-  const adTitle1 = "Title placeholder"
-  const adText1 = "Minor placeholder"
+  const adTitle1 = "THE ULTIMATE PROTEIN SEPARATOR THAT PUTS SCIENTISTS OUT OF WORK"
+  const adText1 = ""
   const adPic2 = advertisement2
-  const adTitle2 = "Title placeholder"
+  const adTitle2 = "Title placeholder2"
   const adText2 = "Minor placeholder"
   const adPic3 = advertisement3
-  const adTitle3 = "Title placeholder"
+  const adTitle3 = "Title placeholder3"
   const adText3 = "Minor placeholder"
   const adPic4 = advertisement4
-  const adTitle4 = "Title placeholder"
+  const adTitle4 = "Title placeholder4"
   const adText4 = "Minor placeholder"
   
   return(
@@ -128,11 +128,11 @@ function Canvas() {    // the title box plus the Page
 
 export default function News() {
   const adPic1 = advertisement5
-  const adText1 = "This is placeholder for ad text 1"
-  const adTitle1 = "PLACEHOLDER 1"
+  const adTitle1 = "RESEARCHERS DON'T WANT YOU TO KNOW"
+  const adText1 = "THe best proteomics software in the world. Who needs school, when you can, with the click of a button, perform the most advanced research in the world."
   const adPic2 = advertisement6
-  const adText2 = "This is placeholder for ad text 2"
   const adTitle2 = "PLACEHOLDER 2"
+  const adText2 = "This is placeholder for ad text 2"
 
 
   return(
