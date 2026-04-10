@@ -5,8 +5,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 import random
 from typing import Any, cast
 import pandas as pd
-from .models import StationRun
-import pandas
+from .models import StationRun, CutterStationResult
 import numpy as np
 import os
 from .serializers import DataFrameSessionSerializer
@@ -103,17 +102,27 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
     result = runner(dataset, params)
     print(f"Simulation result for station '{station_id}': {result}")
-    run = StationRun(
-        player=request.user,
-        station_id=station_id,
-        params=params,
-        score=result.get(
-            "score", 0
-        ),  # Score can be calculated based on results if needed
-    )
     if result.get("success"):
+        run = StationRun(
+            player=request.user,
+            station_id=station_id,
+            params=params,
+            score=result.get(
+                "score", 0
+            ),  # Score can be calculated based on results if needed
+        )
+
         run.save()
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+        if station_id == "the_cutter":
+            cutter_result = CutterStationResult(
+                station_run=run,
+                true_positives=result.get("true_positives", 0),
+                false_positives=result.get("false_positives", 0),
+            )
+            cutter_result.save()
+            print(f"Saved CutterStationResult for StationRun ID {run.id}")
+
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
@@ -157,7 +166,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
     max_pep_len = int(params.get("max_peptide_length", 35))
 
     # reading parameter file
-    file_map = pandas.read_csv("data/ParameterTable.csv")  # Mapping table
+    file_map = pd.read_csv("data/ParameterTable.csv")  # Mapping table
     # Make key of all columns but ParameterSet
     file_map["key"] = (
         file_map["tool"]
@@ -211,7 +220,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         }
 
     # Load the corresponding data file and extract results
-    dataset = pandas.read_csv(f"data/{data_file_name}", sep="\t")
+    dataset = pd.read_csv(f"data/{data_file_name}", sep="\t")
 
     # Making plots
     imgs = []
