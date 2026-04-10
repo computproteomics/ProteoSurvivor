@@ -254,7 +254,7 @@ def plot_scores(true_positives=None, false_positives=None):
 
     fig, ax = plt.subplots(figsize=(7, 5))
     if x_values:
-        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results" if current_x is not None else "Final Station Results")
 
     if current_x is not None and true_positives is not None:
         sns.scatterplot(
