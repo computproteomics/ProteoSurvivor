@@ -1,7 +1,48 @@
-.layout {
-  display: grid;
-  background: white;
-} 
+.adBox {
+  display: flex;
+  width: 90%;
+}
+
+.adBoxRight {
+  left: 0px;
+}
+
+.adImage {
+  width: 100%;
+  flex: 1;
+  object-fit: cover;
+}
+
+.adText {
+  width: 75%;
+  padding: 16px;
+  text-align: center;
+}
+
+.aside {
+  position: fixed;
+  top: 15%;
+  bottom: 15%;
+  width:400px;
+  padding: 1rem;
+  background: blue;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leftAside {
+  left: 16px;
+  justify-content: center;
+  display: flex;
+}
+
+.rightAside {
+  right: 16px;
+  justify-content: center;
+  display: flex;
+}
+
 
 .canvas {
   min-height: 100vh;
@@ -13,6 +54,12 @@
   justify-content: center;
   background: pink;
 }
+
+.layout {
+  position: relative;
+  display: grid;
+  background: white;
+} 
 
 .header {
   position:fixed;
@@ -36,27 +83,6 @@
   justify-content: center;
 }
 
-.aside {
-  position: fixed;
-  top: 25%;
-  bottom: 25%;
-  width:400px;
-  padding: 1rem;
-  background: blue;
-}
-
-.leftAside {
-  left: 16px;
-  justify-content: center;
-  display: flex;
-}
-
-.rightAside {
-  right: 16px;
-  justify-content: center;
-  display: flex;
-}
-
 .center {
   display: flex;
   justify-content: center;
@@ -66,7 +92,7 @@
 
 .textBox {
   display:flex;
-
+  width:100%;
 } 
 
 .tabloidChaosTitle {
@@ -90,6 +116,7 @@
   padding: 16px;
 
   border: 6px dashed yellow;
+  /* width: 50%; */
 
   transform: rotate(2deg);
 
