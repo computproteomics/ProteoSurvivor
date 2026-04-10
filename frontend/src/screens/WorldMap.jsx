@@ -144,8 +144,13 @@ export default function WorldMap() {
   return (
     <div className={styles.page}>
       <div className={styles.headerRow}>
-        <h1 className={styles.title}>Proteomics Lab Map</h1>
-        <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
+        <div>
+          <h1 className={styles.title}>Proteomics Lab Map</h1>
+          <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
+        </div>
+        <button className={styles.leaderboardButton} onClick={() => navigate('/leaderboard')}>
+          View leaderboard
+        </button>
       </div>
 
       <div className={styles.mapContainer}>
