@@ -43,6 +43,28 @@
   font-size: 1rem;
 }
 
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1rem;
+}
+
+.scatterButton {
+  border: 1px solid #2f5c8a;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1f3d63, #2e6b9f);
+  color: #fff;
+  padding: 0.72rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(23, 49, 76, 0.24);
+}
+
+.scatterButton:hover {
+  filter: brightness(1.08);
+}
+
 .backButton {
   border: 1px solid #91a8bf;
   background: rgba(255, 255, 255, 0.82);
@@ -195,6 +217,84 @@
   background: linear-gradient(90deg, rgba(254, 243, 204, 0.75), rgba(234, 244, 255, 0.55));
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(9, 17, 30, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modalWindow {
+  width: min(940px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  border-radius: 22px;
+  border: 1px solid rgba(80, 105, 131, 0.34);
+  background: linear-gradient(170deg, rgba(247, 251, 255, 0.97), rgba(255, 247, 232, 0.94));
+  box-shadow: 0 30px 60px rgba(10, 18, 30, 0.32);
+  padding: 1.1rem;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.4vw, 1.55rem);
+  color: #1b2b3b;
+}
+
+.modalCloseButton {
+  border: 1px solid #99acc0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f3347;
+  font-size: 0.9rem;
+  padding: 0.52rem 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalMessage,
+.modalError {
+  border-radius: 12px;
+  padding: 0.9rem;
+}
+
+.modalMessage {
+  background: rgba(232, 242, 253, 0.88);
+  color: #294560;
+}
+
+.modalError {
+  background: rgba(118, 31, 31, 0.11);
+  color: #6f1010;
+}
+
+.modalImageWrap {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 16px;
+  border: 1px solid rgba(70, 95, 122, 0.24);
+  padding: 0.75rem;
+}
+
+.modalImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+}
+
 @media (max-width: 900px) {
   .hero,
   .grid {
@@ -204,6 +304,14 @@
 
   .currentUserGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actionsRow {
+    justify-content: stretch;
+  }
+
+  .scatterButton {
+    width: 100%;
   }
 }
 

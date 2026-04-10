@@ -226,8 +226,8 @@ def imputer_before_after_stripgrid(
     return fig_to_base64(fig)
 
 
-def plot_scores(true_positives, false_positives):
-    """Generate a scatter plot of all the player's results."""
+def plot_scores(true_positives=None, false_positives=None):
+    """Generate a scatter plot of all players' final-station results."""
     from .models import FinalStationResult
 
     def _score_x_axis(tp, fp):
@@ -248,13 +248,15 @@ def plot_scores(true_positives, false_positives):
         x_values.append(x_val)
         y_values.append(tp)
 
-    current_x = _score_x_axis(true_positives, false_positives)
+    current_x = None
+    if true_positives is not None and false_positives is not None:
+        current_x = _score_x_axis(true_positives, false_positives)
 
     fig, ax = plt.subplots(figsize=(7, 5))
     if x_values:
-        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results" if current_x is not None else "Final Station Results")
 
-    if current_x is not None:
+    if current_x is not None and true_positives is not None:
         sns.scatterplot(
             x=[current_x],
             y=[true_positives],

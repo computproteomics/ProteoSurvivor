@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getLeaderboard } from '../api/client';
+import { getLeaderboard, getScatterPlot } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import styles from './Leaderboard.module.css';
 
 function scoreValue(score) {
   return typeof score === 'number' ? score : Number.NEGATIVE_INFINITY;
 }
+
 
 function sortEntries(entries) {
   return [...entries].sort((left, right) => {
@@ -81,6 +82,10 @@ export default function Leaderboard() {
   const [leaderboard, setLeaderboard] = useState({ finished: [], dnf: [], current_user_result: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isScatterOpen, setIsScatterOpen] = useState(false);
+  const [scatterLoading, setScatterLoading] = useState(false);
+  const [scatterError, setScatterError] = useState('');
+  const [scatterImage, setScatterImage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +133,30 @@ export default function Leaderboard() {
     currentUserResult && currentUserResult.user_id === userId && !displayedUserIds.has(userId)
   );
 
+  async function handleOpenScatterPlot() {
+    setIsScatterOpen(true);
+    setScatterError('');
+
+    if (scatterImage) {
+      return;
+    }
+
+    setScatterLoading(true);
+    try {
+      const { data } = await getScatterPlot();
+      const image = typeof data?.img === 'string' ? data.img.trim() : '';
+      if (image.length === 0) {
+        setScatterError('No scatter plot is available yet.');
+        return;
+      }
+      setScatterImage(image.startsWith('data:image/') ? image : `data:image/png;base64,${image}`);
+    } catch {
+      setScatterError('Could not load the scatter plot right now.');
+    } finally {
+      setScatterLoading(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
@@ -142,6 +171,12 @@ export default function Leaderboard() {
 
           <button className={styles.backButton} onClick={() => navigate('/world')}>
             Back to map
+          </button>
+        </div>
+
+        <div className={styles.actionsRow}>
+          <button className={styles.scatterButton} onClick={handleOpenScatterPlot}>
+            Show scatter plot
           </button>
         </div>
 
@@ -191,6 +226,33 @@ export default function Leaderboard() {
           </>
         ) : null}
       </div>
+
+      {isScatterOpen ? (
+        <div className={styles.modalOverlay} role="presentation" onClick={() => setIsScatterOpen(false)}>
+          <div
+            className={styles.modalWindow}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Leaderboard scatter plot"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Final Station Score Scatter Plot</h2>
+              <button className={styles.modalCloseButton} onClick={() => setIsScatterOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            {scatterLoading ? <div className={styles.modalMessage}>Loading scatter plot...</div> : null}
+            {scatterError ? <div className={styles.modalError}>{scatterError}</div> : null}
+            {!scatterLoading && !scatterError && scatterImage ? (
+              <div className={styles.modalImageWrap}>
+                <img src={scatterImage} alt="Scatter plot of final station results" className={styles.modalImage} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
