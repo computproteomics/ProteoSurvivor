@@ -312,7 +312,7 @@
           "mannwhitneyu": "Mann-Whitney U test",
           "permutation": "Permutation test"
         },
-        "defaultValue": "none"
+        "defaultValue": "welch"
       }
     ]
   },

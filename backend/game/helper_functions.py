@@ -345,3 +345,48 @@ def filtering_scatterplot(df, relevant_cols=None):
     ax.grid(True, alpha=0.25)
 
     return fig_to_base64(fig)
+
+
+def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold, fc_col):
+    """Generate a volcano plot for the given dataframe.
+
+    Returns a base64 image string, or None when required inputs are invalid/empty.
+    """
+    if p_val_col not in df.columns or fc_col not in df.columns:
+        return None
+    if sig_threshold <= 0 or fc_threshold <= 0:
+        return None
+
+    plot_df = df[[fc_col, p_val_col]].copy()
+    plot_df[fc_col] = pd.to_numeric(plot_df[fc_col], errors="coerce")
+    plot_df[p_val_col] = pd.to_numeric(plot_df[p_val_col], errors="coerce")
+    plot_df = plot_df.replace([np.inf, -np.inf], np.nan).dropna(subset=[fc_col, p_val_col])
+    plot_df = plot_df[plot_df[p_val_col] > 0]
+    if plot_df.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    plot_df["neg_log10_p"] = -np.log10(plot_df[p_val_col])
+    
+    # Classify significance based on thresholds
+    plot_df["significant"] = "not_sig"
+    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] >= fc_threshold),"significant",] = "up"
+    plot_df.loc[(plot_df[p_val_col] < sig_threshold) & (plot_df[fc_col] <= -fc_threshold),"significant",] = "down"
+
+    sns.scatterplot(
+        data=plot_df,
+        x=fc_col,
+        y="neg_log10_p",
+        hue="significant",
+        hue_order=["up", "down", "not_sig"],
+        palette={"up": "red", "down": "blue", "not_sig": "grey"},
+        ax=ax,
+        edgecolor="none",
+    )
+    ax.set_title(title)
+    ax.set_xlabel("log2 fold change")
+    ax.set_ylabel("-log10(p-value)")
+    ax.axhline(-np.log10(sig_threshold), color="red", linestyle="--", linewidth=1)
+    ax.axvline(-fc_threshold, color="red", linestyle="--", linewidth=1)
+    ax.axvline(fc_threshold, color="red", linestyle="--", linewidth=1)
+    return fig_to_base64(fig)
