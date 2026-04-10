@@ -396,7 +396,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
         else 0
     )
 
-    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
     imgs = []
     success = False
     feedback = None
@@ -417,7 +417,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             "success": False,
             "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": "No columns ending with 'MaxLFQ Intensity' were found.",
+            "feedback": "No columns ending with ' Intensity' were found.",
             "img": imgs,
             "score": 0,
             "dataset": df,
