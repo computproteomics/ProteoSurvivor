@@ -9,7 +9,7 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, adjusted_pvalue_histograms_by_species
+from .helper_functions import tr_boxplot, sp_scatterplot, mtc_histograms
 from statsmodels.stats.multitest import multipletests 
 from qvalue import qvalue
 
@@ -263,17 +263,28 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+    success = False
+    imgs = []
+    score = 0
+    
+    # Handle missing dataset
     if dataset is None:
-        df = pd.DataFrame()
+        return {
+            "success": success,
+            "num_prot": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame()
+        }
     else:
         df = dataset.copy()
-    num_pro = int(df["Protein ID"].nunique())
-    num_pep = int(df["Combined Total Peptides"].sum())
-    relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
-    imgs = []
-    success = False
-    feedback = None
+        num_prot = int(dataset["Protein ID"].nunique())
+        num_pep = int(dataset["Combined Total Peptides"].sum())
 
+    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    
     try:
         img_before = tr_boxplot(
             df, relevant_cols, title="Intensities Before Transformation"
@@ -310,7 +321,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": num_pro,
+        "num_pro": num_prot,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
@@ -374,7 +385,6 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
 def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("correction_method", "none")
-    
     success = False
     imgs = []
     score = 0
@@ -385,7 +395,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "success": success,
             "num_prot": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform multiple testing correction.",
+            "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame()
@@ -403,7 +413,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "success": success,
             "num_prot": num_prot,
             "num_pep": num_pep,
-            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction.",
+            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
             "img": imgs,
             "score": score,
             "dataset": df
@@ -447,10 +457,10 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     if success and "p_adjusted" in df.columns:
         imgs.extend(
-            adjusted_pvalue_histograms_by_species(
+            mtc_histograms(
                 df,
                 value_col="p_adjusted",
-                species_col="Organism",
+                species_col="Organism"
             )
         )
 
