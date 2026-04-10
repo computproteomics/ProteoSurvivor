@@ -274,3 +274,16 @@ def plot_scores(true_positives, false_positives):
         ax.legend()
 
     return fig_to_base64(fig)
+
+def volcano_plot(df, title, p_val_col, sig_threshold, fc_threshold):
+    """Generate a volcano plot for the given dataframe."""
+    fig, ax = plt.subplots(figsize=(7, 5))
+    df["neg_log_p"] = -np.log10(df[p_val_col])
+    sns.scatterplot(x="FC", y="neg_log_p", data=df, ax=ax, color="#2563eb", edgecolor="none")
+    ax.set_title(title)
+    ax.set_xlabel("Fold Change")
+    ax.set_ylabel("-log10(p-value)")
+    ax.axhline(-np.log10(sig_threshold), color="red", linestyle="--", linewidth=1)
+    ax.axvline(-fc_threshold, color="red", linestyle="--", linewidth=1)
+    ax.axvline(fc_threshold, color="red", linestyle="--", linewidth=1)
+    return fig_to_base64(fig)
