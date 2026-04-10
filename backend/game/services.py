@@ -14,7 +14,9 @@ from .helper_functions import (
     sp_scatterplot,
     histogram_compare, mtc_histograms,
     _create_histogram,
-    plot_significant_proteins
+    plot_significant_proteins,
+    filtering_piechart,
+    filtering_scatterplot
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -404,22 +406,86 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_filtering(dataset: dict, params: dict) -> dict:
-    remove_cont = params.get("remove_contaminants", "yes") == "yes"
+def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
     missing_thresh = int(params.get("remove_missing_proteins", 0))
+    success = False
+    imgs = []
+    score = 0
+    df = dataset.copy() if dataset is not None else pd.DataFrame()
 
-    proteins = dataset.get("proteins", 1000)
+    # Handle missing dataset
+    if dataset is None or dataset.empty:
+        return {
+            "success": success,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame(),
+        }
 
-    reduction = 0.1 if remove_cont else 0
-    reduction += missing_thresh * 0.02
+    num_pro_before = int(dataset[PROTEIN_ID].nunique())
+    num_pep = int(dataset[TOT_PEP].sum())
 
-    filtered = int(proteins * (1 - reduction))
+    # Find intensity columns
+    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro_before,
+            "num_pep": num_pep,
+            "feedback": "⚠️ No intensity columns found for filtering.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    try:
+        # Calculate missing fraction for each protein
+        missing_fraction = df[relevant_cols].isna().sum(axis=1) / len(relevant_cols)
+        
+        # Convert missing_thresh (0-6) to fraction threshold (0.0 to 1.0)
+        # 0 = remove proteins with >0% missing, 6 = remove proteins with >100% missing (i.e., keep all)
+        threshold_fraction = missing_thresh / 6.0
+        
+        # Filter proteins: keep only those with missing fraction <= threshold
+        df_filtered = df[missing_fraction <= threshold_fraction].copy()
+        
+        num_pro_after = int(df_filtered[PROTEIN_ID].nunique())
+        removed_count = num_pro_before - num_pro_after
+        removed_fraction = removed_count / num_pro_before if num_pro_before > 0 else 0
+        
+        success = True
+        score = 10 if removed_count > 0 else 5
+        
+        feedback = f"✅ Filtering complete. Removed {removed_count} proteins with excessive missing data (>{(1-threshold_fraction)*100:.1f}% missing samples). "
+        feedback += f"Proteins: {num_pro_before} → {num_pro_after}"
+        
+        # Generate visualizations
+        pie_img = filtering_piechart(num_pro_before, num_pro_after)
+        if pie_img:
+            imgs.append(pie_img)
+        
+        scatter_img = filtering_scatterplot(df_filtered, relevant_cols, SPEC_COUNT)
+        if scatter_img:
+            imgs.append(scatter_img)
+
+    except Exception as e:
+        success = False
+        df_filtered = df
+        num_pro_after = num_pro_before
+        feedback = f"⚠️ Filtering failed: {str(e)}"
 
     return {
-        "summary": "Filtering complete.",
-        "proteins_before": proteins,
-        "proteins_after": filtered,
-        "removed_fraction": round(reduction, 2),
+        "success": success,
+        "num_pro": num_pro_after,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": score,
+        "dataset": df_filtered,
     }
 
 
