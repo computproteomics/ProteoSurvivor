@@ -858,30 +858,6 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
         if len(significant) > 0
         else 0
     )
-    final_hits = len(significant)
-    imgs.append(plot_significant_proteins(significant))
-
-    return {
-        "summary": "Final candidate selection complete.",
-        "true_positives": true_positives,
-        "false_positives": false_positives,
-        "final_hits": final_hits,
-        "success": true_positives > 0,
-        "score": score,
-        "cutoffs": {"log2FC": fc, "FDR": pval},
-        "dataset": significant,
-        "feedback": f"You identified {final_hits} significant candidates with the given cutoffs. Among them, {true_positives} are true positives (correctly identified yeast or E. coli proteins) and {false_positives} are false positives (incorrectly identified human proteins or misclassified yeast/E. coli). Your score reflects the balance between maximizing true positives and minimizing false positives.",
-        "img": imgs,
-    }
-
-
-def _simulate_veit(dataset: Any, params: dict) -> dict:
-    score = random.randint(70, 100)
-    score = (
-        true_positives * (1 - false_positives / len(significant))
-        if len(significant) > 0
-        else 0
-    )
     imgs.append(plot_scores(true_positives, false_positives))
 
     return {
