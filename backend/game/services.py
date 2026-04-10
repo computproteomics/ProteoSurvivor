@@ -1,4 +1,3 @@
-
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
@@ -21,7 +20,7 @@ from .helper_functions import (
     plot_scores,
     volcano_plot,
     filtering_scatterplot,
-    filtering_piechart
+    filtering_piechart,
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -121,12 +120,12 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
             station_id=station_id,
             params=params,
             score=result.get(
-                "score", 0)  # Score can be calculated based on results if needed
+                "score", 0
+            ),  # Score can be calculated based on results if needed
         )
 
         run.save()
-        print(
-            f"Saved StationRun with ID {run.id} for user {request.user.username}")
+        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
         if settings.STATIONS_CONFIG[station_id].get("final", False):
             final_result = FinalStationResult(
                 station_run=run,
@@ -142,8 +141,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     print(f"Updated session dataset for user {request.user.username}")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
-    response_payload = {key: value for key,
-                        value in result.items() if key != "dataset"}
+    response_payload = {key: value for key, value in result.items() if key != "dataset"}
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
@@ -152,7 +150,7 @@ def _simulate_sample_prep(dataset: dict, params: dict, visited_stations: set) ->
         "success": True,
         "feedback": "Sample preparation intro completed.",
         "score": 0,
-        "dataset": dataset
+        "dataset": dataset,
     }
 
 
@@ -173,7 +171,9 @@ def _simulate_mass_spec(dataset: dict, params: dict, visited_stations: set) -> d
     }
 
 
-def _simulate_spectral_search(dataset: dict, params: dict, visited_stations: set) -> dict:
+def _simulate_spectral_search(
+    dataset: dict, params: dict, visited_stations: set
+) -> dict:
 
     if "sample_prep" and "mass_spec" not in visited_stations:
         return {
@@ -345,7 +345,9 @@ def _simulate_spectral_search(dataset: dict, params: dict, visited_stations: set
     }
 
 
-def _simulate_transform(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_transform(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -440,7 +442,9 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict, visited_stations: s
     }
 
 
-def _simulate_filtering(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_filtering(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -450,8 +454,8 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict, visited_stations: s
             "dataset": dataset,
         }
 
-    remove_cont = params.get("remove_contaminants", "yes") == "yes"
     missing_thresh = int(params.get("remove_missing_proteins", 0))
+    min_pep_num = int(params.get("min_peptides_per_protein", 1))
     success = False
     imgs = []
     score = 0
@@ -487,31 +491,29 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict, visited_stations: s
         }
 
     try:
-        # Calculate missing fraction for each protein
+
+        # Calculate missing values for each protein
         sample_values = df[relevant_cols].replace([np.inf, -np.inf], np.nan)
-        missing_fraction = sample_values.isna().sum(axis=1) / len(relevant_cols)
-        # Convert missing_thresh (0-6) to fraction threshold (0.0 to 1.0)
-        # 0 = remove proteins with >0% missing, 6 = remove proteins with >100% missing (i.e., keep all)
-        threshold_fraction = missing_thresh / 6.0
-        
-        # Filter proteins: keep only those with missing fraction <= threshold
-        df_filtered = df[missing_fraction <= threshold_fraction].copy()
-        
+        missing_num = sample_values.isna().sum(axis=1)
+
+        # Filter proteins: keep only those with missing number <= threshold
+        df_filtered = df[missing_num <= missing_thresh].copy()
+
+        # filter for mimimum number of peptides
+        df_filtered = df_filtered[df_filtered[TOT_PEP] >= min_pep_num]
+
         num_pro_after = int(df_filtered[PROTEIN_ID].nunique())
         removed_count = num_pro_before - num_pro_after
-        removed_fraction = removed_count / num_pro_before if num_pro_before > 0 else 0
-        
+
         success = True
-        score = 10 if removed_count > 0 else 5
-        
-        feedback = f"✅ Filtering complete. Removed {removed_count} proteins with excessive missing data (>{(1-threshold_fraction)*100:.1f}% missing samples). "
-        feedback += f"Proteins: {num_pro_before} → {num_pro_after}"
-        
+
+        feedback = f"✅ Filtering complete. Removed {removed_count} proteins. They were not deemed worthy to survive the harsh conditions of this station."
+
         # Generate visualizations
         pie_img = filtering_piechart(num_pro_before, num_pro_after)
         if pie_img:
             imgs.append(pie_img)
-        
+
         scatter_img = filtering_scatterplot(df_filtered, relevant_cols)
         if scatter_img:
             imgs.append(scatter_img)
@@ -528,12 +530,14 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict, visited_stations: s
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": score,
+        "score": 0,
         "dataset": df_filtered,
     }
 
 
-def _simulate_normalize(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_normalize(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -588,8 +592,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict, visited_stations: s
             feedback = "No normalization applied. Data remains unchanged."
 
         elif method == "median":
-            df[relevant_cols] = df[relevant_cols].subtract(
-                df[relevant_cols].median())
+            df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
             success = True
             feedback = (
                 "Median normalization applied. Intensities centered by column median."
@@ -623,8 +626,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict, visited_stations: s
 
         elif method == "zscore":
             std = df[relevant_cols].std().replace(0, np.nan)
-            df[relevant_cols] = (df[relevant_cols] -
-                                 df[relevant_cols].mean()) / std
+            df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
             success = True
             feedback = (
                 "Z-score normalization applied. Intensities standardized per column."
@@ -833,7 +835,9 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
     }
 
 
-def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_multiple_testing_corrector(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -920,8 +924,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, vi
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
     if success and P_VALUE_COL in df.columns:
-        imgs.extend(mtc_histograms(
-            df, value_col=P_VALUE_COL, species_col=ORGANISM))
+        imgs.extend(mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM))
 
     return {
         "success": success,
@@ -934,7 +937,9 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, vi
     }
 
 
-def _simulate_the_cutter(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_the_cutter(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -1016,7 +1021,9 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_statistical_analysis(
+    dataset: pd.DataFrame, params: dict, visited_stations: set
+) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -1062,7 +1069,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
 
     p_cutoff = 0.05
     fc_cutoff = 2.0
-    
+
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
 
@@ -1073,7 +1080,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
         ratio = ratio.where((mean_a > 0) & (mean_b > 0))
         computed_fc = np.log2(ratio)
         df[FC] = computed_fc
-        
+
         p_values = np.full(len(expr), np.nan)
 
         if test == "welch":
@@ -1104,19 +1111,11 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
                     continue
 
                 try:
-                    _, p = mannwhitneyu(
-                        a,
-                        b,
-                        alternative="two-sided",
-                        method="exact"
-                    )
+                    _, p = mannwhitneyu(a, b, alternative="two-sided", method="exact")
                     p_values[idx] = p
                 except ValueError:
                     _, p = mannwhitneyu(
-                        a,
-                        b,
-                        alternative="two-sided",
-                        method="asymptotic"
+                        a, b, alternative="two-sided", method="asymptotic"
                     )
                     p_values[idx] = p
             success = True
@@ -1142,7 +1141,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
                     vectorized=False,
                     n_resamples=N_PERMUTATIONS,
                     alternative="two-sided",
-                    random_state=42
+                    random_state=42,
                 )
                 p = max(res.pvalue, 1 / (N_PERMUTATIONS + 1))
                 p_values[idx] = p
@@ -1166,7 +1165,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
             )
             if volcano_img is not None:
                 imgs.append(volcano_img)
-    
+
     except Exception:
         success = False
         feedback = "Error applying statistical test. The proteome descends into chaos."
@@ -1201,4 +1200,3 @@ STATION_SIMULATORS.update(
 """Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
 The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
 and the value is a function that takes (dataset, params) and returns a dict with results."""
-
