@@ -101,6 +101,11 @@
   background: white;
 } 
 
+.logo {
+  height: 60px;
+  max-width: 100%;
+  object-fit: contain;
+}
 .header {
   position:fixed;
   top: 0px;
