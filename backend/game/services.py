@@ -1,3 +1,4 @@
+
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
@@ -17,7 +18,10 @@ from .helper_functions import (
     imputer_before_after_stripgrid,
     histogram_compare,
     plot_significant_proteins,
-    plot_scores
+    plot_scores,
+    volcano_plot,
+    filtering_scatterplot,
+    filtering_piechart
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -47,7 +51,6 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
-P_VALUE_COL = "p_value"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -437,7 +440,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict, visited_stations: s
     }
 
 
-def _simulate_filtering(dataset: dict, params: dict, visited_stations: set) -> dict:
+def _simulate_filtering(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
 
     if "spectral_search" not in visited_stations:
         return {
@@ -449,19 +452,84 @@ def _simulate_filtering(dataset: dict, params: dict, visited_stations: set) -> d
 
     remove_cont = params.get("remove_contaminants", "yes") == "yes"
     missing_thresh = int(params.get("remove_missing_proteins", 0))
+    success = False
+    imgs = []
+    score = 0
+    df = dataset.copy() if dataset is not None else pd.DataFrame()
 
-    proteins = dataset.get("proteins", 1000)
+    # Handle missing dataset
+    if dataset is None or dataset.empty:
+        return {
+            "success": success,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame(),
+        }
 
-    reduction = 0.1 if remove_cont else 0
-    reduction += missing_thresh * 0.02
+    num_pro_before = int(dataset[PROTEIN_ID].nunique())
+    num_pep = int(dataset[TOT_PEP].sum())
 
-    filtered = int(proteins * (1 - reduction))
+    # Find intensity columns
+    relevant_cols = COND_A + COND_B
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro_before,
+            "num_pep": num_pep,
+            "feedback": "⚠️ No intensity columns found for filtering.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    try:
+        # Calculate missing fraction for each protein
+        sample_values = df[relevant_cols].replace([np.inf, -np.inf], np.nan)
+        missing_fraction = sample_values.isna().sum(axis=1) / len(relevant_cols)
+        # Convert missing_thresh (0-6) to fraction threshold (0.0 to 1.0)
+        # 0 = remove proteins with >0% missing, 6 = remove proteins with >100% missing (i.e., keep all)
+        threshold_fraction = missing_thresh / 6.0
+        
+        # Filter proteins: keep only those with missing fraction <= threshold
+        df_filtered = df[missing_fraction <= threshold_fraction].copy()
+        
+        num_pro_after = int(df_filtered[PROTEIN_ID].nunique())
+        removed_count = num_pro_before - num_pro_after
+        removed_fraction = removed_count / num_pro_before if num_pro_before > 0 else 0
+        
+        success = True
+        score = 10 if removed_count > 0 else 5
+        
+        feedback = f"✅ Filtering complete. Removed {removed_count} proteins with excessive missing data (>{(1-threshold_fraction)*100:.1f}% missing samples). "
+        feedback += f"Proteins: {num_pro_before} → {num_pro_after}"
+        
+        # Generate visualizations
+        pie_img = filtering_piechart(num_pro_before, num_pro_after)
+        if pie_img:
+            imgs.append(pie_img)
+        
+        scatter_img = filtering_scatterplot(df_filtered, relevant_cols)
+        if scatter_img:
+            imgs.append(scatter_img)
+
+    except Exception as e:
+        success = False
+        df_filtered = df
+        num_pro_after = num_pro_before
+        feedback = f"⚠️ Filtering failed: {str(e)}"
 
     return {
-        "summary": "Filtering complete.",
-        "proteins_before": proteins,
-        "proteins_after": filtered,
-        "removed_fraction": round(reduction, 2),
+        "success": success,
+        "num_pro": num_pro_after,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": score,
+        "dataset": df_filtered,
     }
 
 
@@ -485,7 +553,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict, visited_stations: s
     num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
     num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
 
-    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
+    relevant_cols = COND_A + COND_B
     imgs = []
     success = False
     feedback = None
@@ -630,7 +698,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
             "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
             "img": [],
             "score": 0,
-            "dataset": pd.DataFrame()
+            "dataset": pd.DataFrame(),
         }
 
     relevant_cols = COND_A + COND_B
@@ -639,6 +707,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
 
     success = False
     feedback = None
+    imgs = []
 
     # Sanity check - are relevant columns present in the dataset?
     if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
@@ -655,13 +724,13 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pandas.to_numeric, errors="coerce")
+        .apply(pd.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
 
     # Function to impute missing values based on method
-    def impute_matrix(x: pandas.DataFrame, method: str) -> pandas.DataFrame:
+    def impute_matrix(x: pd.DataFrame, method: str) -> pd.DataFrame:
 
         if method == "none":
             return x
@@ -711,7 +780,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
             raise ValueError(f"Unknown imputation method: {method}")
 
         arr = imputer.fit_transform(x)
-        return pandas.DataFrame(arr, index=x.index, columns=x.columns)
+        return pd.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
         "none": "👻 No imputation applied. Some data remain missing 👻",
@@ -723,7 +792,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
         "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
         "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
-
+    imgs = []
     try:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
@@ -796,7 +865,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, vi
         num_pep = int(dataset[TOT_PEP].sum())
 
     # Handle missing p-value column
-    if P_VALUE_COL not in df.columns:
+    if PVALUE not in df.columns:
         return {
             "success": success,
             "num_pro": num_pro,
@@ -807,36 +876,36 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict, vi
             "dataset": df,
         }
 
-    pvals = df[P_VALUE_COL].values
+    pvals = df[PVALUE].values
 
     try:
         if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 10
             feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
-            df[P_VALUE_COL] = qvals
+            df[PVALUE] = qvals
             success = True
             score = 15
             feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 6
             feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
-            df[P_VALUE_COL] = adjusted[1]
+            df[PVALUE] = adjusted[1]
             success = True
             score = 9
             feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
@@ -900,7 +969,6 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict, visited_stations: 
 
     return {
         "summary": "Final candidate selection complete.",
-
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
@@ -930,8 +998,11 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = true_positives * (1 - false_positives /
-                              len(significant)) if len(significant) > 0 else 0
+    score = (
+        true_positives * (1 - false_positives / len(significant))
+        if len(significant) > 0
+        else 0
+    )
     imgs.append(plot_scores(true_positives, false_positives))
 
     return {
@@ -989,8 +1060,20 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
             "dataset": df,
         }
 
+    p_cutoff = 0.05
+    fc_cutoff = 2.0
+    
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
+
+        # Compute log2 fold-change: log2(mean condition B / mean condition A)
+        mean_a = expr[COND_A].mean(axis=1, skipna=True)
+        mean_b = expr[COND_B].mean(axis=1, skipna=True)
+        ratio = mean_b / mean_a
+        ratio = ratio.where((mean_a > 0) & (mean_b > 0))
+        computed_fc = np.log2(ratio)
+        df[FC] = computed_fc
+        
         p_values = np.full(len(expr), np.nan)
 
         if test == "welch":
@@ -1070,8 +1153,20 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict, visited_
             success = False
             feedback = "Unknown statistical test."
 
-        df[P_VALUE_COL] = p_values
+        df[PVALUE] = p_values
 
+        if success:
+            volcano_img = volcano_plot(
+                df,
+                title="Volcano Plot",
+                p_val_col=PVALUE,
+                sig_threshold=p_cutoff,
+                fc_threshold=fc_cutoff,
+                fc_col=FC,
+            )
+            if volcano_img is not None:
+                imgs.append(volcano_img)
+    
     except Exception:
         success = False
         feedback = "Error applying statistical test. The proteome descends into chaos."
@@ -1106,3 +1201,4 @@ STATION_SIMULATORS.update(
 """Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
 The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
 and the value is a function that takes (dataset, params) and returns a dict with results."""
+
