@@ -12,8 +12,10 @@ from .serializers import DataFrameSessionSerializer
 from .helper_functions import (
     tr_boxplot,
     sp_scatterplot,
-    histogram_compare, mtc_histograms,
+    mtc_histograms,
     _create_histogram,
+    imputer_before_after_stripgrid
+    histogram_compare,
     plot_significant_proteins,
     plot_scores
 )
@@ -544,7 +546,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    """""
+    """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
     - "knn"         : k-nearest neighbors imputation with k = 5.
@@ -555,19 +557,31 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
-    """ ""
+    """
 
     method = str(params.get("imputation_method", "none")).lower()
-    if dataset is None:
-        df = pd.DataFrame()
-    else:
-        df = dataset.copy()
+
+    # Check if dataset is None or empty
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
+            "img": [],
+            "score": 0,
+            "dataset": pd.DataFrame()
+        }
+
+    relevant_cols = COND_A + COND_B
+
+    df = dataset.copy()
 
     success = False
     feedback = None
-
-    # Sanity check
-    if not relevant_cols:
+    
+    # Sanity check - are relevant columns present in the dataset?
+    if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
         return {
             "success": False,
             "num_pro": None,
@@ -581,7 +595,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pd.to_numeric, errors="coerce")
+        .apply(pandas.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
@@ -640,20 +654,36 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         return pandas.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
-        "none": "No imputation applied. Missing values remain as is.",
-        "mean": "Mean imputation applied across samples.",
-        "median": "Median imputation applied across samples.",
-        "knn": "kNN imputation applied with k = 5.",
-        "regression": "Regression-based imputation applied.",
-        "randomforest": "Random forest-based iterative imputation applied.",
-        "bayesian": "Bayesian ridge-based iterative imputation applied.",
-        "minprob": "MinProb imputation applied using low-intensity random draws.",
+        "none": "👻 No imputation applied. Some data remain missing 👻",
+        "mean": "🔴🟢🔵 Missing values are now equal to the sample mean ⚪️",
+        "median": "🔴🟢🔵 Missing values are now equal to the sample median 🟢",
+        "knn": "📊 Missing values are now replaced using k-Nearest Neighbors 🕵️",
+        "regression": "📈 Regression-based imputation applied 📈",
+        "randomforest": "🌲🌳🌴 Random forest-based iterative imputation applied 🌲🌳🌴",
+        "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
+        "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
     }
 
     try:
         x_new = impute_matrix(x, method)
         df_new = df.copy()
         df_new[relevant_cols] = x_new
+
+        imgs.append(
+            imputer_before_after_stripgrid(
+                before_df=x,
+                after_df=x_new,
+                cond_a_cols=COND_A,
+                cond_b_cols=COND_B,
+                title=f"Before vs After Imputation ({method})",
+            )
+        )
+
+        success = True
+        feedback = feedback_by_method.get(
+            method, f"Imputation method '{method}' applied."
+        )
+
         success = True
         feedback = feedback_by_method.get(
             method, f"Imputation method '{method}' applied."
@@ -665,8 +695,8 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": None,
-        "num_pep": None,
+        "num_prot": int(df_new[PROTEIN].nunique()),
+        "num_pep": int(df_new[TOT_PEP].sum()),
         "feedback": feedback,
         "img": imgs,
         "score": 0,
@@ -862,7 +892,7 @@ STATION_SIMULATORS.update(
         "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
-        "imputer": _simulate_normalize,
+        "imputer": _simulate_imputer,
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
