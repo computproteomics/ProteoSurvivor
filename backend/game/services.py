@@ -272,16 +272,16 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     if dataset is None:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame()
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
+        num_pro = int(dataset["Protein ID"].nunique())
         num_pep = int(dataset["Combined Total Peptides"].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
@@ -292,18 +292,15 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         )
         imgs.append(img_before)
 
-        if method == "none":
-            success = True
-            feedback = "No transformation applied. Data remains unchanged."
-
-        elif method == "log2":
+        if method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = tr_boxplot(
                 df, relevant_cols, title="Intensities After Transformation (Log2)"
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Log2 applied. The wild intensities have been domesticated."
+            score = 10
 
         elif method == "ln":
             df[relevant_cols] = np.log(df[relevant_cols])
@@ -314,19 +311,24 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Your data has been gently persuaded into natural log space."
+            score = 10
+        
+        else: 
+            success = False
+            feedback = "Unknown transformation method. The proteome looks confused."
 
-    except Exception as e:
+    except Exception:
         success = False
-        feedback = f"Error applying transformation: {str(e)}"
+        feedback = "⚠️🧪 Transformation failed. The proteome destabilizes — something in your data cannot survive the logarithm. Did you prepare it properly?"
 
     return {
         "success": success,
-        "num_pro": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
+        "score": score,
         "dataset": df,
     }
 
