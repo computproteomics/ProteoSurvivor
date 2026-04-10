@@ -1,25 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './BreakingNews.module.css';
+import aiCompany from '../../public/shitty_logo.png'
+import advertisement1 from '../assets/backgrounds/normalize.png';
+import advertisement2 from '../assets/backgrounds/cutter.png';
+import advertisement3 from '../assets/backgrounds/cutter.png';
+import advertisement4 from '../assets/backgrounds/cutter.png';
+import advertisement5 from '../assets/backgrounds/cutter.png';
+import advertisement6 from '../assets/backgrounds/cutter.png';
 
-import advertisement1 from '../assets/backgrounds/normalize.png'
-import advertisement2 from '../assets/backgrounds/cutter.png'
 
-
-function Header({ children }) {
-  const company = "TEMP"
-  const time = "2003-09-11"
+function Header({  }) {
+  const company_logo = aiCompany;
+  const time = "2003-09-11";
   return(
     <div className={styles.header}>
       <div className={styles.rightHeader}>
-        <h1>
-          {company}
-        </h1>
+        <img className={styles.logo} src={aiCompany} alt="add company logo" />
       </div>
       <div className={styles.leftHeader}>
-        <h1> 
+        <h3> 
           {time}
-        </h1>
+        </h3>
       </div>
     </div>
   );
@@ -88,14 +90,26 @@ function Page() {  // all the text and main adds on the page
   const adPic1 = advertisement1 
   const adTitle1 = "Title placeholder"
   const adText1 = "Minor placeholder"
+  const adPic2 = advertisement2
+  const adTitle2 = "Title placeholder"
+  const adText2 = "Minor placeholder"
+  const adPic3 = advertisement3
+  const adTitle3 = "Title placeholder"
+  const adText3 = "Minor placeholder"
+  const adPic4 = advertisement4
+  const adTitle4 = "Title placeholder"
+  const adText4 = "Minor placeholder"
   
   return(
     <div className={styles.page}>
       <TextBox text={text1} ></TextBox>
       <AdBox adPic={adPic1} adTitle={adTitle1} adText={adText1} ></AdBox>
       <TextBox text={text2} ></TextBox>
+      <AdBox adPic={adPic2} adTitle={adTitle2} adText={adText2} ></AdBox>
       <TextBox text={text3} ></TextBox>
+      <AdBox adPic={adPic3} adTitle={adTitle3} adText={adText3} ></AdBox>
       <TextBox text={text4} ></TextBox>
+      <AdBox adPic={adPic4} adTitle={adTitle4} adText={adText4} ></AdBox>
     </div>
   )
 }
@@ -113,10 +127,10 @@ function Canvas() {    // the title box plus the Page
 
 
 export default function News() {
-  const adPic1 = advertisement1
+  const adPic1 = advertisement5
   const adText1 = "This is placeholder for ad text 1"
   const adTitle1 = "PLACEHOLDER 1"
-  const adPic2 = advertisement2
+  const adPic2 = advertisement6
   const adText2 = "This is placeholder for ad text 2"
   const adTitle2 = "PLACEHOLDER 2"
 
