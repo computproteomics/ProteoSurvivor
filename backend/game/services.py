@@ -820,14 +820,6 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     if PVALUE in dataset.columns:
         significant = significant.loc[significant[PVALUE] <= pval]
 
-    true_positives = len(true_yeast) + len(true_ecoli)
-    false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = (
-        true_positives * (1 - false_positives / len(significant))
-        if len(significant) > 0
-        else 0
-    )
-    final_hits = len(significant)
     imgs.append(plot_significant_proteins(significant))
 
     return {
