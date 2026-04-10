@@ -85,3 +85,10 @@
 .secondaryButton:hover {
   background: #f8fafc;
 }
+
+.video {
+  width: 100%;
+  max-width: 600px;
+  /* 👈 limits how big it gets */
+  height: auto;
+}
