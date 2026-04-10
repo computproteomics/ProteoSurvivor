@@ -1,0 +1,185 @@
+.adBox {
+  width: 90%;
+  margin-left: 5%;
+  margin-right: 5%;
+  height: 200px;
+
+  background: #0b2a5a;
+  color: white;
+
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.adBoxImage {
+  left: 0px;
+}
+.adBoxBox {
+  display: flex;
+  flex-direction: column;
+  right: 0px;
+  width: 60%;
+  
+}
+.adBoxTitle {
+  margin: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+.adBoxText {
+  height: 75%;
+  padding: 16px;
+  text-align: center;
+}
+
+.adImage {
+  width: 100%;
+  height: 45%;
+  object-fit: cover;
+}
+.adText {
+  width: 75%;
+  padding: 16px;
+  text-align: center;
+}
+.adTitle {
+  margin: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.aside {
+  position: fixed;
+  top: 15%;
+  bottom: 15%;
+  width: 380px;
+
+  background: #0b2a5a;
+  color: white;
+
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 12px;
+  overflow: hidden;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.leftAside {
+  left: 16px;
+  justify-content: center;
+  display: flex;
+}
+
+.rightAside {
+  right: 16px;
+  justify-content: center;
+  display: flex;
+}
+
+
+.canvas {
+  min-height: 100vh;
+  width: 50%;
+  margin-top: 150px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 150px;
+  justify-content: center;
+  background: pink;
+}
+
+.layout {
+  position: relative;
+  display: grid;
+  background: white;
+} 
+
+.logo {
+  height: 60px;
+  max-width: 100%;
+  object-fit: contain;
+}
+.header {
+  position:fixed;
+  top: 0px;
+  width:100%;
+  background: green;
+  display: flex;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.leftHeader {
+  left: 0px;
+  width: 50%;
+  display: flex;
+  justify-content: center;
+}
+.rightHeader {
+  right: 0px;
+  width: 50%;
+  display: flex;
+  justify-content: center;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.textBox {
+  display:flex;
+  width:100%;
+} 
+
+.tabloidChaosTitle {
+  font-family: "Comic Sans MS", cursive;
+
+  font-size: 34px;
+  font-weight: 900;
+
+  color: white;
+  background: red;
+
+  text-transform: uppercase;
+  letter-spacing: 3px;
+
+  text-align: center;
+
+  text-shadow:
+    2px 2px black,
+    -2px -2px black;
+
+  padding: 16px;
+
+  border: 6px dashed yellow;
+  /* width: 50%; */
+
+  transform: rotate(2deg);
+
+  animation: flash 0.5s infinite alternate;
+}
+
+.textBoxText {
+  font-family: "Times New Roman", Times, serif;
+
+  font-size: 17px;
+  line-height: 1.8;
+
+  color: #1a1a1a;
+
+  text-align: justify;
+
+  hyphens: auto;
+
+  padding: 8px 16px;
+}
