@@ -22,13 +22,43 @@ import left2 from '../assets/avatar_sprites/left_2.png';
 // Map Configuration
 // ===============================
 export const TILE = 48;
-export const COLS = 22;
-export const ROWS = 16;
+
+// O = bench/table obstacle (non-interactive)
+// X = walkable floor
+// A/B/C/D/E/F/I/J/M/S/V = station tile (walkable + interactable)
+// space = wall/void
+const RAW_ASCII_LAYOUT = [
+  ' OAXXXXXBOXXXOO',
+  ' OOXXOXXOOXXXCO',
+  ' XXXXXXXXXXXOXX',
+  ' XXXXXXXXXXXXXX',
+  '            XX',
+  'OOXXXXOEOXXXXXX',
+  'ODXXXXXXXXXXXXX',
+  'XXXXXXXXXXXXXFO',
+  'XXXXXXXXXXXXXXX XXXX',
+  'OXXOOOOOOOOOOXXXXXXX',
+  'IXXOOOOOOOOOOXXXXXVO',
+  'XXXXXXXXXXXXXXX XXOO',
+  'XXXXXXOOXXXXXXX',
+  'XOSXXXOJXXXXXOO',
+  'XOOXXXOOXXXXXMO',
+];
+
+const RAW_COLS = Math.max(...RAW_ASCII_LAYOUT.map((row) => row.length));
+const ASCII_LAYOUT = [
+  ' '.repeat(RAW_COLS + 2),
+  ...RAW_ASCII_LAYOUT.map((row) => ` ${row.padEnd(RAW_COLS, ' ')} `),
+  ' '.repeat(RAW_COLS + 2),
+];
+
+export const COLS = Math.max(...ASCII_LAYOUT.map((row) => row.length));
+export const ROWS = ASCII_LAYOUT.length;
 export const WIDTH = COLS * TILE;
 export const HEIGHT = ROWS * TILE;
 
 // Player start position
-export const PLAYER_START = { col: 2, row: 2 };
+export const PLAYER_START = { col: 4, row: 2 };
 
 // ===============================
 // Animation Configuration
@@ -50,8 +80,8 @@ export const COLORS = {
   wall: '#3a5070',
   wallTop: '#4a6888',
   wallShadow: '#243448',
-  bench: '#7a9ab8',
-  benchTop: '#9ab8d0',
+  woodLight: '#c48a4a',
+  woodDark: '#6b3f1e',
   player: '#1a2a3a',
   playerAccent: '#5ad4f8',
   ring: '#f8e45a',
@@ -103,19 +133,34 @@ export function loadSprites() {
 // Animation State Update
 // ===============================
 
-const STATION_POSITIONS_BY_ID = {
-  sample_prep: { col: 16, row: 3 },
-  mass_spec: { col: 8, row: 3 },
-  spectral_search: { col: 12, row: 6 },
-  filtering: { col: 8, row: 6 },
-  transform: { col: 8, row: 10 },
-  normalize: { col: 4, row: 3 },
-  imputer: { col: 12, row: 3 },
-  multiple_testing_corrector: { col: 16, row: 6 },
-  the_cutter: { col: 4, row: 10 },
-  statistical_analysis: { col: 4, row: 6 },
-  veit: { col: 12, row: 10 },
+const STATION_CHAR_TO_ID = {
+  A: 'sample_prep',
+  B: 'mass_spec',
+  C: 'spectral_search',
+  D: 'normalize',
+  E: 'transform',
+  F: 'filtering',
+  I: 'imputer',
+  J: 'the_cutter',
+  M: 'multiple_testing_corrector',
+  S: 'statistical_analysis',
+  V: 'veit',
 };
+
+const STATION_POSITIONS_BY_ID = (() => {
+  const positions = {};
+
+  ASCII_LAYOUT.forEach((rowString, row) => {
+    [...rowString].forEach((char, col) => {
+      const stationId = STATION_CHAR_TO_ID[char];
+      if (stationId) {
+        positions[stationId] = { col, row };
+      }
+    });
+  });
+
+  return positions;
+})();
 
 const STATION_COLORS = {
   sample_prep: '#f8b85a',
@@ -669,6 +714,10 @@ export const STATIONS = STATION_IDS.map((id) => ({
   color: STATION_COLORS[id],
 }));
 
+const STATION_TILE_SET = new Set(
+  STATIONS.map((station) => `${station.col},${station.row}`)
+);
+
 // Uses Manhattan distance so a station is reachable from adjacent tiles.
 export function getNearbyStation(playerCol, playerRow) {
   return STATIONS.find((station) => {
@@ -702,27 +751,19 @@ export function updateAnimation(animState, now) {
 }
 
 // ===============================
-// Map Layout (unchanged)
+// Map Layout (from ASCII)
+// 1 = wall/void, 2 = floor/station tile, 3 = bench/table obstacle
 // ===============================
-// Map Layout
-export const MAP = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
+function toTileType(char) {
+  if (char === 'O') return 3;
+  if (char === 'X' || STATION_CHAR_TO_ID[char]) return 2;
+  return 1;
+}
+
+export const MAP = ASCII_LAYOUT.map((rowString) => {
+  const padded = rowString.padEnd(COLS, ' ');
+  return [...padded].map((char) => toTileType(char));
+});
 export function fitCanvasToViewport(canvas) {
   const scale = Math.min((window.innerWidth * 0.9) / WIDTH, (window.innerHeight * 0.75) / HEIGHT);
   canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
@@ -753,13 +794,31 @@ function drawTile(context, col, row, tileType) {
   }
 
   if (tileType === 3) {
-    // Bench tiles are drawn on top of floor so they read as obstacles.
-    context.fillStyle = COLORS.floorA;
+    // Wooden obstacle tiles: full tile in light wood with dark borders
+    // only on edges that touch non-wood tiles (X/station/wall/void).
+    context.fillStyle = COLORS.woodLight;
     context.fillRect(x, y, TILE, TILE);
-    context.fillStyle = COLORS.bench;
-    context.fillRect(x + 6, y + 18, TILE - 12, TILE - 20);
-    context.fillStyle = COLORS.benchTop;
-    context.fillRect(x + 6, y + 8, TILE - 12, 12);
+
+    const touchesNonWood = (nCol, nRow) => {
+      if (nRow < 0 || nRow >= ROWS || nCol < 0 || nCol >= COLS) return true;
+      return MAP[nRow][nCol] !== 3;
+    };
+
+    const edge = 6;
+    context.fillStyle = COLORS.woodDark;
+
+    if (touchesNonWood(col, row - 1)) {
+      context.fillRect(x, y, TILE, edge);
+    }
+    if (touchesNonWood(col + 1, row)) {
+      context.fillRect(x + TILE - edge, y, edge, TILE);
+    }
+    if (touchesNonWood(col, row + 1)) {
+      context.fillRect(x, y + TILE - edge, TILE, edge);
+    }
+    if (touchesNonWood(col - 1, row)) {
+      context.fillRect(x, y, edge, TILE);
+    }
     return;
   }
 
@@ -800,20 +859,26 @@ function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
 
-  // Fill the station tile – lower portion, touching the bottom of the tile.
-  context.fillStyle = station.color;
-  context.fillRect(x + 6, y + 16, TILE - 12, TILE - 16);
+  // Draw bench/table block under station marker.
+  context.fillStyle = COLORS.woodLight;
+  context.fillRect(x, y, TILE, TILE);
+  context.fillStyle = COLORS.woodDark;
+  context.fillRect(x, y, TILE, 6);
+  context.fillRect(x, y + TILE - 6, TILE, 6);
+  context.fillRect(x, y, 6, TILE);
+  context.fillRect(x + TILE - 6, y, 6, TILE);
 
-  // Draw station-specific canvas vector icon centred and scaled to fit the box.
-  // The box spans y+16 to y+48 (32 px tall); scale 0.65 shrinks the ±20 px icons
-  // to ±13 px so they sit comfortably within the colored area.
-  // sample_prep is rotated and visually tall, so its centre is shifted 4 px lower.
+    // Fill station marker inset so wood border remains visible.
+  context.fillStyle = station.color;
+    context.fillRect(x + 7, y + 7, TILE - 14, TILE - 14);
+
+  // Draw station-specific icon nearly full-tile.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
   if (drawIcon) {
-    const iconCy = station.id === 'sample_prep' ? y + 36 : y + 32;
+    const iconCy = y + TILE / 2;
     context.save();
     context.translate(x + TILE / 2, iconCy);
-    context.scale(0.65, 0.65);
+    context.scale(0.88, 0.88);
     drawIcon(context, 0, 0);
     context.restore();
   }
@@ -855,7 +920,9 @@ export const KEY_TO_DIRECTION = {
 export function canMove(col, row) {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
   const tile = MAP[row][col];
-  return tile !== 1 && tile !== 3;
+  if (tile === 1 || tile === 3) return false;
+  if (STATION_TILE_SET.has(`${col},${row}`)) return false;
+  return true;
 }
 
 // ===============================
