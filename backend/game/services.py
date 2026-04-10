@@ -301,7 +301,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     score = 0
     
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
             "num_pro": None,
@@ -542,10 +542,10 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     score = 0
     
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
             "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
@@ -554,14 +554,14 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset[PROTEIN_ID].nunique())
+        num_pro = int(dataset[PROTEIN_ID].nunique())
         num_pep = int(dataset[TOT_PEP].sum())
 
     # Handle missing p-value column
     if P_VALUE_COL not in df.columns:
         return {
             "success": success,
-            "num_prot": num_prot,
+            "num_pro": num_pro,
             "num_pep": num_pep,
             "feedback": "⚠️ No p-values found. The experiment loses its grip on significance.",
             "img": imgs,
@@ -614,16 +614,12 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
     if success and P_VALUE_COL in df.columns:
         imgs.extend(
-            mtc_histograms(
-                df,
-                value_col=P_VALUE_COL,
-                species_col=ORGANISM
-            )
+            mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM)
         )
 
     return {
         "success": success,
-        "num_prot": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
