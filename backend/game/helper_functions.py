@@ -1,9 +1,9 @@
 import io
 import base64
-import matplotlib
-import seaborn as sns
+import math
 import matplotlib
 matplotlib.use("Agg")
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -155,5 +155,55 @@ def plot_significant_proteins(df):
     ax.set_ylabel("Protein Count")
     ax.tick_params(axis="x", rotation=30)
     ax.legend()
+
+    return fig_to_base64(fig)
+
+
+def plot_scores(df, true_positives, false_positives):
+    """Generate a scatter plot of all the player's results."""
+    from .models import FinalStationResult
+
+    def _score_x_axis(tp, fp):
+        if tp <= 0:
+            return None
+        ratio = fp / tp
+        ratio = max(ratio, 1e-12)
+        return -math.log10(ratio)
+
+    results = FinalStationResult.objects.all().values_list("true_positives", "false_positives")
+
+    x_values = []
+    y_values = []
+    for tp, fp in results:
+        x_val = _score_x_axis(tp, fp)
+        if x_val is None:
+            continue
+        x_values.append(x_val)
+        y_values.append(tp)
+
+    current_x = _score_x_axis(true_positives, false_positives)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if x_values:
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+
+    if current_x is not None:
+        sns.scatterplot(
+            x=[current_x],
+            y=[true_positives],
+            ax=ax,
+            color="#ef4444",
+            s=170,
+            edgecolor="black",
+            linewidth=0.8,
+            label="Your result",
+        )
+
+    ax.set_title("Final Station Scores")
+    ax.set_xlabel("-log10(False Positive Rate)")
+    ax.set_ylabel("True Positives")
+    ax.grid(alpha=0.25)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
 
     return fig_to_base64(fig)

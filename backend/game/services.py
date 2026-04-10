@@ -5,7 +5,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 import random
 from typing import Any, cast
 import pandas as pd
-from .models import StationRun, CutterStationResult
+from .models import StationRun, FinalStationResult
 import numpy as np
 import os
 from .serializers import DataFrameSessionSerializer
@@ -14,7 +14,8 @@ from .helper_functions import (
     sp_scatterplot,
     histogram_compare, mtc_histograms,
     _create_histogram,
-    plot_significant_proteins
+    plot_significant_proteins,
+    plot_scores
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -24,6 +25,8 @@ from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+
+from django.conf import settings
 
 # Variables for column names
 PROTEIN = "Protein"
@@ -114,14 +117,14 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
         run.save()
         print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-        if station_id == "the_cutter":
-            cutter_result = CutterStationResult(
+        if settings.STATIONS_CONFIG[station_id].get("final", False):
+            final_result = FinalStationResult(
                 station_run=run,
                 true_positives=result.get("true_positives", 0),
                 false_positives=result.get("false_positives", 0),
             )
-            cutter_result.save()
-            print(f"Saved CutterStationResult for StationRun ID {run.id}")
+            final_result.save()
+            print(f"Saved FinalStationResult for StationRun ID {run.id}")
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
@@ -298,16 +301,16 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         "score": 0,
         "feedback": """
         ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
-        FragPipe is a software tool that</br></br> 
-        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical 
+        FragPipe is a software tool that</br></br>
+        1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical
         spectra generated from a protein sequence database.</br>
-        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating 
+        2) creates a list of <i>identified</i> peptides and proteins, along with scores indicating
         the confidence of each identification.</br>
-        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br> 
-        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives 
-         are at stake. The search results contain many details about identification such as the identified 
+        3) quantifies the identified peptides and proteins based on the intensity of the matched spectra.</br></br>
+        From now on, you will use the protein table in the next stations. Fully up to you to screw it up when lives
+         are at stake. The search results contain many details about identification such as the identified
          proteins and their associated data, such as the number of peptides identified for each protein,
-        protein length, identification confidence, and quantification values. The figures show some of these.</br></br> 
+        protein length, identification confidence, and quantification values. The figures show some of these.</br></br>
         ❗Take a moment to explore the data and the figures. </br/>
         Do you see differences for the different species? </br/>
         Do the values look reasonable?</br/>
@@ -783,6 +786,33 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     significant = dataset.loc[dataset[FC].abs() >= fc]
     if PVALUE in dataset.columns:
         significant = significant.loc[significant[PVALUE] <= pval]
+
+    imgs.append(plot_significant_proteins(significant))
+
+    return {
+        "summary": "Final candidate selection complete.",
+
+        "score": 0,
+        "cutoffs": {"log2FC": fc, "FDR": pval},
+        "dataset": significant,
+        "feedback": f"You identified {len(significant)} significant candidates with the given cutoffs.",
+        "img": imgs,
+    }
+
+
+def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+    imgs = []
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "score": 0,
+            "dataset": pd.DataFrame(),
+            "true_positives": 0,
+            "false_positives": 0,
+            "img": imgs,
+        }
+    significant = dataset.copy()
     true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
     true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
     false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
@@ -792,31 +822,16 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
     score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
-    final_hits = len(significant)
-    imgs.append(plot_significant_proteins(significant))
-
-    return {
-        "summary": "Final candidate selection complete.",
-        "true_positives": true_positives,
-        "false_positives": false_positives,
-        "final_hits": final_hits,
-        "success": true_positives > 0,
-        "score": score,
-        "cutoffs": {"log2FC": fc, "FDR": pval},
-        "dataset": significant,
-        "feedback": f"You identified {final_hits} significant candidates with the given cutoffs. Among them, {true_positives} are true positives (correctly identified yeast or E. coli proteins) and {false_positives} are false positives (incorrectly identified human proteins or misclassified yeast/E. coli). Your score reflects the balance between maximizing true positives and minimizing false positives.",
-        "img": imgs,
-    }
-
-
-def _simulate_veit(dataset: Any, params: dict) -> dict:
-    score = random.randint(70, 100)
+    imgs.append(plot_scores(dataset, true_positives, false_positives))
 
     return {
         "success": True,
         "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
         "score": score,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
         "dataset": dataset,
+        "img": imgs,
     }
 
 
