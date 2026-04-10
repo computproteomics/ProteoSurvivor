@@ -740,7 +740,6 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             "dataset": df,
         }
     
-    # TODO: handle missing values in the data (e.g., skip proteins with missing values, or impute them before testing)   
     try:
         expr = df.set_index(PROTEIN)[COND_A + COND_B].copy()
         p_map = {}
@@ -748,12 +747,13 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         if test == "welch":
             for idx, protein in enumerate(expr.index):
                 row = expr.iloc[idx]
-                _, p = ttest_ind(
-                    row[COND_A],
-                    row[COND_B],
-                    equal_var=False,
-                    nan_policy="omit",
-                )
+                a = pd.to_numeric(row[COND_A], errors="coerce").dropna()
+                b = pd.to_numeric(row[COND_B], errors="coerce").dropna()
+
+                if len(a) == 0 or len(b) == 0:
+                    p = np.nan
+                else:
+                    _, p = ttest_ind(a, b, equal_var=False)
                 p_map[idx] = p
             success = True
             feedback = "Welch's t-test applied."
@@ -764,18 +764,25 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         elif test == "mannwhitneyu":
             for idx, protein in enumerate(expr.index):
                 row = expr.iloc[idx]
+                a = pd.to_numeric(row[COND_A], errors="coerce").dropna()
+                b = pd.to_numeric(row[COND_B], errors="coerce").dropna()
+
+                if len(a) == 0 or len(b) == 0:
+                    p_map[idx] = np.nan
+                    continue
+
                 try:
                     _, p = mannwhitneyu(
-                        row[COND_A],
-                        row[COND_B],
+                        a,
+                        b,
                         alternative="two-sided",
                         method="exact"
                     )
                     p_map[idx] = p
                 except ValueError:
                     _, p = mannwhitneyu(
-                        row[COND_A],
-                        row[COND_B],
+                        a,
+                        b,
                         alternative="two-sided",
                         method="asymptotic"
                     )
@@ -787,12 +794,8 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             N_PERMUTATIONS = 1000
             for idx, protein in enumerate(expr.index):
                 row = expr.iloc[idx]
-                A = row[COND_A].values
-                B = row[COND_B].values
-
-                # remove NaNs
-                A = A[~np.isnan(A)]
-                B = B[~np.isnan(B)]
+                A = pd.to_numeric(row[COND_A], errors="coerce").dropna().values
+                B = pd.to_numeric(row[COND_B], errors="coerce").dropna().values
 
                 if len(A) == 0 or len(B) == 0:
                     p_map[idx] = np.nan
