@@ -54,7 +54,7 @@ def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
     ax.set_ylabel(ylabel)
     return fig_to_base64(fig)
 
-def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
+def mtc_histograms(df, value_col, species_col):
     """ Create one adjusted p-value histogram per species and return base64-encoded images."""
     
     # If species column doesn't exist, create single histogram
