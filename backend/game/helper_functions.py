@@ -1,7 +1,11 @@
 import io
 import base64
-import seaborn as sns
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 ORGANISM = "Organism"
 FC = "fold_change"
@@ -17,7 +21,6 @@ def fig_to_base64(fig):
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
-
 
 
 def tr_boxplot(df, cols, title="Distribution Comparison"):
@@ -61,20 +64,38 @@ def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
 
 
 def mtc_histograms(df, value_col, species_col):
-    """ Create one adjusted p-value histogram per species and return base64-encoded images."""
+    """Create one adjusted p-value histogram per species and return base64-encoded images."""
 
     # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
-        return _create_histogram(df[value_col], "Adjusted p-value distribution", "Adjusted p-value", "Protein count", 30, "#2563eb")
+        return _create_histogram(
+            df[value_col],
+            "Adjusted p-value distribution",
+            "Adjusted p-value",
+            "Protein count",
+            30,
+            "#2563eb",
+        )
 
     # Create histogram for each species
     imgs = []
-    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(species_col)
+    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(
+        species_col
+    )
     for species, species_df in grouped:
         species_values = species_df[value_col]
         if not species_values.empty:
             title = f"Adjusted p-value distribution - {species}"
-            imgs.append(_create_histogram(species_values, title, "Adjusted p-value", "Protein count", 30, "#16a34a"))
+            imgs.append(
+                _create_histogram(
+                    species_values,
+                    title,
+                    "Adjusted p-value",
+                    "Protein count",
+                    30,
+                    "#16a34a",
+                )
+            )
 
     return imgs
 

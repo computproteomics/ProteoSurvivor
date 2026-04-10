@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startGame } from '../api/client';
 import useGameStore from '../store/gameSlice';
+import introBackground from '../assets/backgrounds/Introduction.png';
 import styles from './Intro.module.css';
 
 export default function Intro() {
@@ -37,8 +38,15 @@ export default function Intro() {
     }
   }
 
+  const pageStyle = {
+    backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.5)), url(${introBackground})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  };
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={pageStyle}>
       <div className={styles.card}>
         <h1 className={styles.title}>🔬 Welcome to the Proteomics Game</h1>
         <p className={styles.description}>
