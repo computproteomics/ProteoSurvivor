@@ -933,10 +933,12 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
 
-        # Compute fold change
+        # Compute log2 fold-change: log2(mean condition B / mean condition A)
         mean_a = expr[COND_A].mean(axis=1, skipna=True)
         mean_b = expr[COND_B].mean(axis=1, skipna=True)
-        computed_fc = mean_b - mean_a
+        ratio = mean_b / mean_a
+        ratio = ratio.where((mean_a > 0) & (mean_b > 0))
+        computed_fc = np.log2(ratio)
         df[FC] = computed_fc
         
         p_values = np.full(len(expr), np.nan)
