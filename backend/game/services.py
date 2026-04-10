@@ -12,9 +12,10 @@ from .serializers import DataFrameSessionSerializer
 from .helper_functions import (
     tr_boxplot,
     sp_scatterplot,
-    histogram_compare, mtc_histograms,
+    histogram_compare,
+    mtc_histograms,
     _create_histogram,
-    plot_significant_proteins
+    plot_significant_proteins,
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -317,7 +318,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
-    method = params.get("transform_method", "none")
+    method = params.get("transform_method", "ln")
     success = False
     imgs = []
     score = 0
@@ -328,7 +329,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform transformation.",
+            "feedback": "No dataset available. Cannot perform transform nothing into something.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
@@ -339,18 +340,21 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
 
     # Updated selector to match current TSV column names
-    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
+    relevant_cols = COND_A + COND_B
 
-    if not relevant_cols:
-        return {
-            "success": False,
-            "num_pro": num_pro,
-            "num_pep": num_pep,
-            "feedback": "No columns ending with ' Intensity' were found.",
-            "img": imgs,
-            "score": 0,
-            "dataset": df,
-        }
+    # check of existing columns
+    if not any(col in df.columns for col in relevant_cols):
+        # check for more than 2 rows
+        if len(df) <= 2:
+            return {
+                "success": False,
+                "num_pro": num_pro,
+                "num_pep": num_pep,
+                "feedback": "We need some data, not black holes!",
+                "img": imgs,
+                "score": 0,
+                "dataset": df,
+            }
 
     try:
         img_before = tr_boxplot(
@@ -358,12 +362,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         )
         imgs.append(img_before)
 
-        if method == "none":
-            success = True
-            feedback = "No transformation applied. Data remains unchanged."
-            score = 0
-
-        elif method == "log2":
+        if method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = tr_boxplot(
                 df, relevant_cols, title="Intensities After Transformation (Log2)"
@@ -471,7 +470,9 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
         elif method == "median":
             df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
             success = True
-            feedback = "Median normalization applied. Intensities centered by column median."
+            feedback = (
+                "Median normalization applied. Intensities centered by column median."
+            )
 
         elif method == "total_intensity":
             col_sums = df[relevant_cols].sum().replace(0, np.nan)
@@ -489,7 +490,9 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             ranks = df[relevant_cols].rank(method="min").stack().astype(int)
             df[relevant_cols] = ranks.map(rank_means).unstack()
             success = True
-            feedback = "Quantile normalization applied. Distributions aligned across samples."
+            feedback = (
+                "Quantile normalization applied. Distributions aligned across samples."
+            )
 
         elif method == "reference_sample":
             reference = df[relevant_cols].median()
@@ -501,7 +504,9 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             std = df[relevant_cols].std().replace(0, np.nan)
             df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
             success = True
-            feedback = "Z-score normalization applied. Intensities standardized per column."
+            feedback = (
+                "Z-score normalization applied. Intensities standardized per column."
+            )
 
         elif method == "vsn":
             df[relevant_cols] = np.log2(df[relevant_cols].clip(lower=0) + 1.0)
@@ -537,7 +542,6 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
         "score": 0,
         "dataset": df if success else dataset,
     }
-
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
@@ -791,7 +795,11 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    score = (
+        true_positives * (1 - false_positives / len(significant))
+        if len(significant) > 0
+        else 0
+    )
     final_hits = len(significant)
     imgs.append(plot_significant_proteins(significant))
 
