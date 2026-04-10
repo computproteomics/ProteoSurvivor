@@ -9,9 +9,14 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import boxplot
+from .helper_functions import (
+    boxplot,
+    plot_significant_proteins,
+)
 
 
+PVALUE = "p_value"
+FC = "fold_change"
 STATION_SIMULATORS = {}
 
 
@@ -286,7 +291,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         df = pd.DataFrame()
     else:
         df = dataset.copy()
-    
+
     success = False
     feedback = None
 
@@ -319,23 +324,53 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "img": imgs,
         "score": 0,
         "dataset": df
-    } 
+    }
 
 
-def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
+def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
+    dataset = dataset.copy() if dataset is not None else pd.DataFrame()
+    imgs = []
+    if FC not in dataset.columns:
+        return {
+            "summary": "Dataset missing required columns for cutter station.",
+            "success": False,
+            "score": 0,
+            "cutoffs": {"log2FC": fc, "FDR": pval},
+            "dataset": dataset,
+            "feedback": f"The dataset must contain {FC} columns for the cutter station to function properly.",
+            "img": imgs,
+            "true_positives": 0,
+            "false_positives": 0,
+            "final_hits": 0,
+        }
+    significant = dataset.loc[dataset[FC].abs() >= fc]
+    if PVALUE in dataset.columns:
+        significant = significant.loc[significant[PVALUE] <= pval]
+    true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
+    true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
+    false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
+    false_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} <= 0")
+    false_human = significant.query(f"{ORGANISM} == 'Human'")
 
-    candidates = random.randint(50, 300)
-
-    strictness = fc * (1 / pval)
-    final_hits = int(candidates / (1 + strictness * 0.1))
+    true_positives = len(true_yeast) + len(true_ecoli)
+    false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
+    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    final_hits = len(significant)
+    imgs.append(plot_significant_proteins(significant))
 
     return {
         "summary": "Final candidate selection complete.",
-        "initial_candidates": candidates,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
         "final_hits": final_hits,
+        "success": true_positives > 0,
+        "score": score,
         "cutoffs": {"log2FC": fc, "FDR": pval},
+        "dataset": significant,
+        "feedback": f"You identified {final_hits} significant candidates with the given cutoffs. Among them, {true_positives} are true positives (correctly identified yeast or E. coli proteins) and {false_positives} are false positives (incorrectly identified human proteins or misclassified yeast/E. coli). Your score reflects the balance between maximizing true positives and minimizing false positives.",
+        "img": imgs,
     }
 
 
