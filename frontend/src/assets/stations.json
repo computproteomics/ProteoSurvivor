@@ -139,18 +139,27 @@
     "parameters": [
       {
         "id": "remove_missing_proteins",
-        "label": "Remove Missing Proteins (How many samples are allowed to contain missing values)",
+        "label": "Maximum Number of Missing Values per Protein",
         "type": "select",
         "options": [
           "0",
           "1",
           "2",
           "3",
-          "4",
-          "5",
-          "6"
+          "4"
         ],
         "defaultValue": "0"
+      },
+      {
+        "id": "min_peptides_per_protein",
+        "label": "Minimum Peptides per Protein",
+        "type": "select",
+        "options": [
+          "1",
+          "2",
+          "3"
+        ],
+        "defaultValue": "1"
       }
     ]
   },
