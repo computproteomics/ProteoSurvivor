@@ -1,3 +1,4 @@
+
 """
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
@@ -18,6 +19,8 @@ from .helper_functions import (
     histogram_compare,
     plot_significant_proteins,
     plot_scores,
+    filtering_scatterplot,
+    filtering_piechart
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -409,23 +412,89 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     }
 
 
-def _simulate_filtering(dataset: dict, params: dict) -> dict:
-    remove_cont = params.get("remove_contaminants", "yes") == "yes"
+
+def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
     missing_thresh = int(params.get("remove_missing_proteins", 0))
+    success = False
+    imgs = []
+    score = 0
+    df = dataset.copy() if dataset is not None else pd.DataFrame()
 
-    proteins = dataset.get("proteins", 1000)
+    # Handle missing dataset
+    if dataset is None or dataset.empty:
+        return {
+            "success": success,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame(),
+        }
 
-    reduction = 0.1 if remove_cont else 0
-    reduction += missing_thresh * 0.02
+    num_pro_before = int(dataset[PROTEIN_ID].nunique())
+    num_pep = int(dataset[TOT_PEP].sum())
 
-    filtered = int(proteins * (1 - reduction))
+    # Find intensity columns
+    relevant_cols = COND_A + COND_B
+
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": num_pro_before,
+            "num_pep": num_pep,
+            "feedback": "⚠️ No intensity columns found for filtering.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
+
+    try:
+        # Calculate missing fraction for each protein
+        sample_values = df[relevant_cols].replace([np.inf, -np.inf], np.nan)
+        missing_fraction = sample_values.isna().sum(axis=1) / len(relevant_cols)
+        # Convert missing_thresh (0-6) to fraction threshold (0.0 to 1.0)
+        # 0 = remove proteins with >0% missing, 6 = remove proteins with >100% missing (i.e., keep all)
+        threshold_fraction = missing_thresh / 6.0
+        
+        # Filter proteins: keep only those with missing fraction <= threshold
+        df_filtered = df[missing_fraction <= threshold_fraction].copy()
+        
+        num_pro_after = int(df_filtered[PROTEIN_ID].nunique())
+        removed_count = num_pro_before - num_pro_after
+        removed_fraction = removed_count / num_pro_before if num_pro_before > 0 else 0
+        
+        success = True
+        score = 10 if removed_count > 0 else 5
+        
+        feedback = f"✅ Filtering complete. Removed {removed_count} proteins with excessive missing data (>{(1-threshold_fraction)*100:.1f}% missing samples). "
+        feedback += f"Proteins: {num_pro_before} → {num_pro_after}"
+        
+        # Generate visualizations
+        pie_img = filtering_piechart(num_pro_before, num_pro_after)
+        if pie_img:
+            imgs.append(pie_img)
+        
+        scatter_img = filtering_scatterplot(df_filtered, relevant_cols)
+        if scatter_img:
+            imgs.append(scatter_img)
+
+    except Exception as e:
+        success = False
+        df_filtered = df
+        num_pro_after = num_pro_before
+        feedback = f"⚠️ Filtering failed: {str(e)}"
 
     return {
-        "summary": "Filtering complete.",
-        "proteins_before": proteins,
-        "proteins_after": filtered,
-        "removed_fraction": round(reduction, 2),
+        "success": success,
+        "num_pro": num_pro_after,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": score,
+        "dataset": df_filtered,
     }
+
 
 
 def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
@@ -439,7 +508,7 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
     num_pro = int(df[PROTEIN].nunique()) if PROTEIN in df.columns else 0
     num_pep = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else 0
 
-    relevant_cols = [col for col in df.columns if col.endswith(" Intensity")]
+    relevant_cols = COND_A + COND_B
     imgs = []
     success = False
     feedback = None
@@ -584,6 +653,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
 
     success = False
     feedback = None
+    imgs = []
 
     # Sanity check - are relevant columns present in the dataset?
     if not relevant_cols or not all(col in dataset.columns for col in relevant_cols):
@@ -600,13 +670,13 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     # Numberic matrix for imputation work
     x = (
         df[relevant_cols]
-        .apply(pandas.to_numeric, errors="coerce")
+        .apply(pd.to_numeric, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
 
     # Function to impute missing values based on method
-    def impute_matrix(x: pandas.DataFrame, method: str) -> pandas.DataFrame:
+    def impute_matrix(x: pd.DataFrame, method: str) -> pd.DataFrame:
 
         if method == "none":
             return x
@@ -656,7 +726,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
             raise ValueError(f"Unknown imputation method: {method}")
 
         arr = imputer.fit_transform(x)
-        return pandas.DataFrame(arr, index=x.index, columns=x.columns)
+        return pd.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
         "none": "👻 No imputation applied. Some data remain missing 👻",
@@ -1024,3 +1094,4 @@ STATION_SIMULATORS.update(
 """Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
 The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
 and the value is a function that takes (dataset, params) and returns a dict with results."""
+

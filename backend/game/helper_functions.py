@@ -276,3 +276,72 @@ def plot_scores(true_positives=None, false_positives=None):
         ax.legend()
 
     return fig_to_base64(fig)
+
+
+def filtering_piechart(num_before, num_after):
+    """Generate a pie chart showing proteins retained vs removed during filtering."""
+    removed = num_before - num_after
+    sizes = [num_after, removed]
+    labels = [f'Retained\n({num_after})', f'Removed\n({removed})']
+    colors = ['#2ca02c', '#d62728']
+    
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+    ax.set_title('Proteins: Retained vs Removed')
+    
+    return fig_to_base64(fig)
+
+
+def filtering_scatterplot(df, relevant_cols=None):
+    """
+    Generate a scatter plot comparing Condition A vs Condition B protein abundances.
+    This helps visualize whether filtering reduces spread around the diagonal.
+    """
+    if df is None or df.empty:
+        return None
+
+    if relevant_cols is None:
+        relevant_cols = [
+            col
+            for col in df.columns
+            if col.startswith("ConditionA_Sample") or col.startswith("ConditionB_Sample")
+        ]
+
+    cond_a_cols = [col for col in relevant_cols if col.startswith("ConditionA_Sample")]
+    cond_b_cols = [col for col in relevant_cols if col.startswith("ConditionB_Sample")]
+
+    if not cond_a_cols or not cond_b_cols:
+        return None
+
+    values = df[cond_a_cols + cond_b_cols].replace([np.inf, -np.inf], np.nan)
+    cond_a_mean = values[cond_a_cols].mean(axis=1)
+    cond_b_mean = values[cond_b_cols].mean(axis=1)
+
+    plot_df = pd.DataFrame({"Condition A": cond_a_mean, "Condition B": cond_b_mean}).dropna()
+    if plot_df.empty:
+        return None
+
+    x_min = float(min(plot_df["Condition A"].min(), plot_df["Condition B"].min()))
+    x_max = float(max(plot_df["Condition A"].max(), plot_df["Condition B"].max()))
+    if x_min == x_max:
+        x_max = x_min + 1.0
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.scatterplot(
+        data=plot_df,
+        x="Condition A",
+        y="Condition B",
+        alpha=0.65,
+        s=45,
+        ax=ax,
+        color="#2563eb",
+    )
+    ax.plot([x_min, x_max], [x_min, x_max], linestyle="--", color="#6b7280", linewidth=1.2)
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(x_min, x_max)
+    ax.set_xlabel("Condition A mean intensity")
+    ax.set_ylabel("Condition B mean intensity")
+    ax.set_title("Condition A vs Condition B")
+    ax.grid(True, alpha=0.25)
+
+    return fig_to_base64(fig)
