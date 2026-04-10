@@ -821,10 +821,7 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             success = False
             feedback = "Unknown statistical test."
 
-        if len(p_values) == len(df):
-            df[P_VALUE_COL] = pd.Series(p_values, index=df.index)
-        else:
-            df[P_VALUE_COL] = np.nan
+        df[P_VALUE_COL] = p_values
     
     except Exception:
         success = False
