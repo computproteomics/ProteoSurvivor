@@ -34,6 +34,7 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
+P_VALUE_COL = "p_value"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -312,8 +313,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         }
     else:
         df = dataset.copy()
-        num_pro = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
+        num_pro = int(dataset[PROTEIN_ID].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
     
@@ -553,13 +554,11 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset["Protein ID"].nunique())
-        num_pep = int(dataset["Combined Total Peptides"].sum())
-
-    p_val_col = "p_value"
+        num_prot = int(dataset[PROTEIN_ID].nunique())
+        num_pep = int(dataset[TOT_PEP].sum())
 
     # Handle missing p-value column
-    if p_val_col not in df.columns:
+    if P_VALUE_COL not in df.columns:
         return {
             "success": success,
             "num_prot": num_prot,
@@ -570,36 +569,36 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "dataset": df
         }
 
-    pvals = df[p_val_col].values
+    pvals = df[P_VALUE_COL].values
 
     try:
         if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
             score = 10
             feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
-            df["p_adjusted"] = qvals
+            df[P_VALUE_COL] = qvals
             success = True
             score = 15
             feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True  
             score = 6
             feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
             score = 9
             feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
@@ -613,12 +612,12 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         score = 0
         feedback = "💥 Correction failed. The proteome resists statistical control."
 
-    if success and "p_adjusted" in df.columns:
+    if success and P_VALUE_COL in df.columns:
         imgs.extend(
             mtc_histograms(
                 df,
-                value_col="p_adjusted",
-                species_col="Organism"
+                value_col=P_VALUE_COL,
+                species_col=ORGANISM
             )
         )
 
