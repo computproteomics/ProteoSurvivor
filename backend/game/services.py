@@ -398,7 +398,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             "success": success,
             "num_prot": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame()
@@ -425,11 +425,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     pvals = df[p_val_col].values
 
     try:
-        if method == "none":
-            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
-            success = True
-            feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
-        elif method == "bh":
+        if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
             df["p_adjusted"] = adjusted[1]
             success = True
