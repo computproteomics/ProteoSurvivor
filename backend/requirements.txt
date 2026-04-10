@@ -8,3 +8,5 @@ matplotlib
 seaborn
 faker
 psycopg2-binary
+statsmodels
+qvalue

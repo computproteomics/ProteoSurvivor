@@ -9,8 +9,41 @@ from .models import StationRun
 import pandas
 import numpy as np
 from .serializers import DataFrameSessionSerializer
-from .helper_functions import tr_boxplot, sp_scatterplot, histogram_compare
+from .helper_functions import tr_boxplot, sp_scatterplot, histogram_compare, mtc_histograms
+from statsmodels.stats.multitest import multipletests 
+from qvalue import qvalue
 
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import BayesianRidge, LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+
+# Variables for column names
+PROTEIN = "Protein"
+PROTEIN_ID = "Protein ID"
+ENTRY = "Entry Name"
+GENE = "Gene"
+PROTEIN_LENGTH = "Protein Length"
+ORGANISM = "Organism"
+EXISTENCE = "Protein Existence"
+DESCRIPTION = "Description"
+PROBABILITY = "Protein Probability"
+TOP_PEP_PROB = "Top Peptide Probability"
+TOT_PEP = "Total Peptides"
+SPEC_COUNT = "Spectral Count"
+UNIQUE_SPEC_COUNT = "Unique Spectral Count"
+TOT_SPEC_COUNT = "Total Spectral Count"
+# NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
+# NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
+# NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_01 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_01 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_02 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_02 Intensity"
+# NO_USE_INTENSITY_COND_B_REP_03 = "LFQ_Orbitrap_DDA_Condition_B_Sample_Beta_03 Intensity"
+N_REP = 3
+COND_A = [f"ConditionA_Sample{i:02d}" for i in range(1, N_REP + 1)]
+COND_B = [f"ConditionB_Sample{i:02d}" for i in range(1, N_REP + 1)]
+INDIS_PROTEINS = "Indistinguishable Proteins"
 
 STATION_SIMULATORS = {}
 
@@ -91,6 +124,7 @@ def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
+    # TODO: Add check to see if sample prep was done previously
     return {
         "success": True,
         "feedback": "Mass spectrometry intro completed.",
@@ -100,7 +134,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
 
 def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
-
+    # TODO: Add check to see if sample prep + MS was done previously
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
     # set match_between_runs to upper case
@@ -261,17 +295,28 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
 def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     method = params.get("transform_method", "none")
+    success = False
+    imgs = []
+    score = 0
+    
+    # Handle missing dataset
     if dataset is None:
-        df = pd.DataFrame()
+        return {
+            "success": success,
+            "num_prot": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame()
+        }
     else:
         df = dataset.copy()
-    num_pro = int(df["Protein ID"].nunique())
-    num_pep = int(df["Combined Total Peptides"].sum())
-    relevant_cols = [col for col in df.columns if col.startswith("LFQ")]
-    imgs = []
-    success = False
-    feedback = None
+        num_prot = int(dataset["Protein ID"].nunique())
+        num_pep = int(dataset["Combined Total Peptides"].sum())
 
+    relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
+    
     try:
         img_before = tr_boxplot(
             df, relevant_cols, title="Intensities Before Transformation"
@@ -308,7 +353,7 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
 
     return {
         "success": success,
-        "num_pro": num_pro,
+        "num_pro": num_prot,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
@@ -458,52 +503,127 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
 
 
 def _simulate_imputer(dataset: dict, params: dict) -> dict:
-    method = params.get("imputation_method", "none")
+    """""
+    Simulate imputation of missing values in proteomics data based on selected method.
+    - "none"        : No imputation, missing values remain as is.
+    - "knn"         : k-nearest neighbors imputation with k = 5.
+    - "regression"  : Regression-based imputation.
+    - "randomforest": Random forest imputation.
+    - "bayesian"    : Bayesian imputation.
+    - "minprob"     : Impute with random values drawn from a distribution of low 
+                      intensities.
+    - "median"      : Impute with the median of each protein across samples.
+    - "mean"        : Impute with the mean of each protein across samples.
+    """""
 
-    missing = random.uniform(0.05, 0.3)
-
-    if method == "none":
-        recovered = 0
-    else:
-        recovered = missing * random.uniform(0.6, 0.95)
-
-    return {
-        "summary": f"{method} imputation applied.",
-        "missing_fraction": round(missing, 2),
-        "recovered_fraction": round(recovered, 2),
-    }
-
-
-def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
-    method = params.get("correction_method", "none")
+    method = str(params.get("imputation_method", "none")).lower()
     if dataset is None:
         df = pd.DataFrame()
     else:
         df = dataset.copy()
-    
+    relevant_cols = [c for c in df.columns if c.endswith("MaxLFQ Intensity")]
+
+    imgs: list[str] = []
     success = False
     feedback = None
+    
+    # Sanity check
+    if not relevant_cols:
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": "No intensity columns found for imputation.",
+            "img": imgs,
+            "score": 0,
+            "dataset": df,
+        }
 
-    if method == "none":
-        df["p_adjusted"] = df["p_value"] # No adjustment, just copy p-values
-        success = True
-        feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
+    # Numberic matrix for imputation work
+    x = (
+        df[relevant_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .copy()
+    )
 
-    elif method == "bh":
+    # Function to impute missing values based on method
+    def impute_matrix(x: pandas.DataFrame, method: str) -> pandas.DataFrame:
+
+        if method == "none":
+            return x
+        
+        if method == "mean":
+            imputer = SimpleImputer(strategy="mean")
+        elif method == "median":
+            imputer = SimpleImputer(strategy="median")
+        elif method == "knn":
+            imputer = KNNImputer(n_neighbors=5)
+        elif method == "regression":
+            imputer = IterativeImputer(
+                estimator = LinearRegression(),
+                random_state = 42,
+                max_iter = 15
+            )
+        elif method == "randomforest":
+            imputer = IterativeImputer(
+                estimator=RandomForestRegressor(
+                    n_estimators=200,
+                    random_state=42,
+                    n_jobs=-1
+                ),
+                random_state=42,
+                max_iter=10
+            )
+        elif method == "bayesian":
+            imputer = IterativeImputer(
+                estimator = BayesianRidge(),
+                sample_posterior = True,
+                random_state = 42,
+                max_iter = 15
+            )
+        elif method == "minprob":
+            out = x.copy()
+            rng = np.random.default_rng(42)
+            for col in out.columns:
+                miss = out[col].isna()
+                if not miss.any():
+                    continue
+                obs = out[col].dropna()
+                if obs.empty:
+                    continue
+                mu = float(obs.mean())
+                sigma = float(obs.std())
+                out.loc[miss, col] = rng.normal(mu - 1.8 * sigma, 0.3 * sigma, size=miss.sum())
+            return out
+        else:
+            raise ValueError(f"Unknown imputation method: {method}")
+
+        arr = imputer.fit_transform(x)
+        return pandas.DataFrame(arr, index=x.index, columns=x.columns)
+
+    feedback_by_method = {
+        "none": "No imputation applied. Missing values remain as is.",
+        "mean": "Mean imputation applied across samples.",
+        "median": "Median imputation applied across samples.",
+        "knn": "kNN imputation applied with k = 5.",
+        "regression": "Regression-based imputation applied.",
+        "randomforest": "Random forest-based iterative imputation applied.",
+        "bayesian": "Bayesian ridge-based iterative imputation applied.",
+        "minprob": "MinProb imputation applied using low-intensity random draws.",
+    }
+
+    try:
+        x_new = impute_matrix(x, method)
+        df_new = df.copy()
+        df_new[relevant_cols] = x_new
         success = True
-        feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
-    elif method == "bt":
-        success = True
-        feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
-    elif method == "storey":
-        success = True
-        feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
-    elif method == "bonferroni":
-        success = True
-        feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
-    elif method == "holm":
-        success = True
-        feedback = "Holm-Bonferroni correction applied. Controls the FWER with more power than Bonferroni."
+        feedback = feedback_by_method.get(method, f"Imputation method '{method}' applied.")
+    except Exception as e:
+        df_new = df.copy()
+        success = False
+        feedback = f"Error applying imputation: {str(e)}"
+
 
     return {
         "success": success,
@@ -512,9 +632,100 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         "feedback": feedback,
         "img": imgs,
         "score": 0,
-        "dataset": df
-    } 
+        "dataset": df_new
+    }
 
+
+def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
+    method = params.get("correction_method", "none")
+    success = False
+    imgs = []
+    score = 0
+    
+    # Handle missing dataset
+    if dataset is None:
+        return {
+            "success": success,
+            "num_prot": None,
+            "num_pep": None,
+            "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "img": imgs,
+            "score": score,
+            "dataset": pd.DataFrame()
+        }
+    else:
+        df = dataset.copy()
+        num_prot = int(dataset["Protein ID"].nunique())
+        num_pep = int(dataset["Combined Total Peptides"].sum())
+
+    p_val_col = "p_value"
+
+    # Handle missing p-value column
+    if p_val_col not in df.columns:
+        return {
+            "success": success,
+            "num_prot": num_prot,
+            "num_pep": num_pep,
+            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "img": imgs,
+            "score": score,
+            "dataset": df
+        }
+
+    pvals = df[p_val_col].values
+
+    try:
+        if method == "none":
+            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
+            success = True
+            feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
+        elif method == "bh":
+            adjusted = multipletests(pvals, method="fdr_bh")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+        elif method == "bt":
+            adjusted = multipletests(pvals, method="fdr_by")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+        elif method == "storey":
+            qvals = qvalue(pvals)
+            df["p_adjusted"] = qvals
+            success = True
+            feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+        elif method == "bonferroni":
+            adjusted = multipletests(pvals, method="bonferroni")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+        elif method == "holm":
+            adjusted = multipletests(pvals, method="holm")
+            df["p_adjusted"] = adjusted[1]
+            success = True
+            feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
+    except Exception as e:
+        success = False
+        feedback = f"Error applying multiple testing correction: {str(e)}"
+
+    if success and "p_adjusted" in df.columns:
+        imgs.extend(
+            mtc_histograms(
+                df,
+                value_col="p_adjusted",
+                species_col="Organism"
+            )
+        )
+
+    return {
+        "success": success,
+        "num_prot": num_prot,
+        "num_pep": num_pep,
+        "feedback": feedback,
+        "img": imgs,
+        "score": 0,
+        "dataset": df
+    }
 
 def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
