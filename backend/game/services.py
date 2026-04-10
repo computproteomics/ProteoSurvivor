@@ -911,24 +911,6 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
 
     p_cutoff = 0.05
     fc_cutoff = 2.0
-    cutter_not_visited = True
-    player_id = params.get("__player_id")
-    if player_id is not None:
-        last_cutter_run = (
-            StationRun.objects.filter(player_id=player_id, station_id="the_cutter")
-            .order_by("-id")
-            .first()
-        )
-        cutter_not_visited = last_cutter_run is None
-        if last_cutter_run and isinstance(last_cutter_run.params, dict):
-            try:
-                p_cutoff = float(last_cutter_run.params.get("pvalue_cutoff", p_cutoff))
-            except (TypeError, ValueError):
-                p_cutoff = 0.05
-            try:
-                fc_cutoff = float(last_cutter_run.params.get("fold_change_cutoff", fc_cutoff))
-            except (TypeError, ValueError):
-                fc_cutoff = 2.0
     
     try:
         expr = df[COND_A + COND_B].apply(pd.to_numeric, errors="coerce")
@@ -1033,8 +1015,6 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
             )
             if volcano_img is not None:
                 imgs.append(volcano_img)
-            if cutter_not_visited:
-                feedback = f"{feedback} | OBS default values chosen as cutter is not yet visited"
     
     except Exception:
         success = False
