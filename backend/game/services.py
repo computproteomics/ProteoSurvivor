@@ -15,6 +15,7 @@ from .helper_functions import (
     sp_scatterplot,
     mtc_histograms,
     _create_histogram,
+    plot_significant_proteins
 )
 from statsmodels.stats.multitest import multipletests
 from qvalue import qvalue
@@ -52,6 +53,8 @@ COND_A = [f"ConditionA_Sample{i:02d}" for i in range(1, N_REP + 1)]
 COND_B = [f"ConditionB_Sample{i:02d}" for i in range(1, N_REP + 1)]
 INDIS_PROTEINS = "Indistinguishable Proteins"
 
+PVALUE = "p_value"
+FC = "fold_change"
 STATION_SIMULATORS = {}
 
 
@@ -346,8 +349,8 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             success = True
             feedback = "Your data has been gently persuaded into natural log space."
             score = 10
-        
-        else: 
+
+        else:
             success = False
             feedback = "Unknown transformation method. The proteome looks confused."
 
@@ -410,7 +413,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     - "regression"  : Regression-based imputation.
     - "randomforest": Random forest imputation.
     - "bayesian"    : Bayesian imputation.
-    - "minprob"     : Impute with random values drawn from a distribution of low 
+    - "minprob"     : Impute with random values drawn from a distribution of low
                       intensities.
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
@@ -421,9 +424,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
         df = pd.DataFrame()
     else:
         df = dataset.copy()
-    relevant_cols = [c for c in df.columns if c.endswith("MaxLFQ Intensity")]
 
-    imgs: list[str] = []
     success = False
     feedback = None
 
@@ -593,7 +594,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
             df[P_VALUE_COL] = adjusted[1]
-            success = True  
+            success = True
             score = 6
             feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
@@ -606,7 +607,7 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
             success = False
             score = 0
             feedback = "⚠️ Unknown correction method. Statistical defenses not deployed."
-    
+
     except Exception:
         success = False
         score = 0
@@ -628,20 +629,50 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     }
 
 
-def _simulate_the_cutter(dataset: dict, params: dict) -> dict:
+def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
+    dataset = dataset.copy() if dataset is not None else pd.DataFrame()
+    imgs = []
+    if FC not in dataset.columns:
+        return {
+            "summary": "Dataset missing required columns for cutter station.",
+            "success": False,
+            "score": 0,
+            "cutoffs": {"log2FC": fc, "FDR": pval},
+            "dataset": dataset,
+            "feedback": f"The dataset must contain {FC} columns for the cutter station to function properly.",
+            "img": imgs,
+            "true_positives": 0,
+            "false_positives": 0,
+            "final_hits": 0,
+        }
+    significant = dataset.loc[dataset[FC].abs() >= fc]
+    if PVALUE in dataset.columns:
+        significant = significant.loc[significant[PVALUE] <= pval]
+    true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
+    true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
+    false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
+    false_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} <= 0")
+    false_human = significant.query(f"{ORGANISM} == 'Human'")
 
-    candidates = random.randint(50, 300)
-
-    strictness = fc * (1 / pval)
-    final_hits = int(candidates / (1 + strictness * 0.1))
+    true_positives = len(true_yeast) + len(true_ecoli)
+    false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
+    score = true_positives * (1 - false_positives / len(significant)) if len(significant) > 0 else 0
+    final_hits = len(significant)
+    imgs.append(plot_significant_proteins(significant))
 
     return {
         "summary": "Final candidate selection complete.",
-        "initial_candidates": candidates,
+        "true_positives": true_positives,
+        "false_positives": false_positives,
         "final_hits": final_hits,
+        "success": true_positives > 0,
+        "score": score,
         "cutoffs": {"log2FC": fc, "FDR": pval},
+        "dataset": significant,
+        "feedback": f"You identified {final_hits} significant candidates with the given cutoffs. Among them, {true_positives} are true positives (correctly identified yeast or E. coli proteins) and {false_positives} are false positives (incorrectly identified human proteins or misclassified yeast/E. coli). Your score reflects the balance between maximizing true positives and minimizing false positives.",
+        "img": imgs,
     }
 
 
