@@ -1,9 +1,10 @@
 import io
 import base64
-import matplotlib
-import seaborn as sns
+import pandas as pd
+import math
 import matplotlib
 matplotlib.use("Agg")
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -98,6 +99,7 @@ def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
 
     return imgs
 
+
 def histogram_compare(before_df, after_df, cols, title_before="Before", title_after="After", bins=50):
     # Flatten numeric values and drop NaN/inf
     before = before_df[cols].to_numpy(dtype=float).ravel()
@@ -136,6 +138,7 @@ def histogram_compare(before_df, after_df, cols, title_before="Before", title_af
 
     return images
 
+
 def plot_significant_proteins(df):
     """Generate a bar plot showing the number of significant proteins by organism."""
     positive_counts = df[df[FC] > 0].groupby(ORGANISM).size()
@@ -155,5 +158,119 @@ def plot_significant_proteins(df):
     ax.set_ylabel("Protein Count")
     ax.tick_params(axis="x", rotation=30)
     ax.legend()
+
+    return fig_to_base64(fig)
+
+
+def imputer_before_after_stripgrid(
+    before_df: pd.DataFrame,
+    after_df: pd.DataFrame,
+    cond_a_cols: list[str],
+    cond_b_cols: list[str],
+    title: str = "Before vs After Imputation by Sample",
+    max_points_per_stage: int = 1200,
+    random_state: int = 42,
+):
+    """Create a 2x3 stripplot grid comparing values before vs after imputation."""
+    sample_cols = cond_a_cols + cond_b_cols
+    if len(sample_cols) != 6:
+        raise ValueError("Expected exactly 6 sample columns (3 for condition A and 3 for condition B).")
+
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10), sharey=True)
+    axes = axes.flatten()
+
+    palette = {"Before": "#0B3C8A", "After": "#FF1493"}
+
+    for idx, sample_col in enumerate(sample_cols):
+        ax = axes[idx]
+
+        before_vals = pd.to_numeric(before_df[sample_col], errors="coerce").dropna()
+        after_vals = pd.to_numeric(after_df[sample_col], errors="coerce").dropna()
+
+        if len(before_vals) > max_points_per_stage:
+            before_vals = before_vals.sample(n=max_points_per_stage, random_state=random_state)
+        if len(after_vals) > max_points_per_stage:
+            after_vals = after_vals.sample(n=max_points_per_stage, random_state=random_state)
+
+        plot_df = pd.DataFrame(
+            {
+                "stage": ["Before"] * len(before_vals) + ["After"] * len(after_vals),
+                "value": pd.concat([before_vals, after_vals], ignore_index=True),
+            }
+        )
+
+        sns.stripplot(
+            data=plot_df,
+            x="stage",
+            y="value",
+            hue="stage",
+            order=["Before", "After"],
+            hue_order=["Before", "After"],
+            palette=palette,
+            jitter=0.25,
+            dodge=False,
+            size=2,
+            alpha=0.7,
+            ax=ax,
+        )
+        if ax.get_legend() is not None:
+            ax.get_legend().remove()
+
+        condition_label = "Condition A" if idx < 3 else "Condition B"
+        ax.set_title(f"{condition_label} - {sample_col}")
+        ax.set_xlabel("")
+        ax.set_ylabel("Intensity" if idx % 3 == 0 else "")
+
+    fig.suptitle(title, fontsize=14)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    return fig_to_base64(fig)
+
+
+def plot_scores(true_positives, false_positives):
+    """Generate a scatter plot of all the player's results."""
+    from .models import FinalStationResult
+
+    def _score_x_axis(tp, fp):
+        if tp <= 0:
+            return None
+        ratio = fp / tp
+        ratio = max(ratio, 1e-12)
+        return -math.log10(ratio)
+
+    results = FinalStationResult.objects.all().values_list("true_positives", "false_positives")
+
+    x_values = []
+    y_values = []
+    for tp, fp in results:
+        x_val = _score_x_axis(tp, fp)
+        if x_val is None:
+            continue
+        x_values.append(x_val)
+        y_values.append(tp)
+
+    current_x = _score_x_axis(true_positives, false_positives)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if x_values:
+        sns.scatterplot(x=x_values, y=y_values, ax=ax, color="#94a3b8", s=55, edgecolor="none", label="Others' results")
+
+    if current_x is not None:
+        sns.scatterplot(
+            x=[current_x],
+            y=[true_positives],
+            ax=ax,
+            color="#ef4444",
+            s=170,
+            edgecolor="black",
+            linewidth=0.8,
+            label="Your result",
+        )
+
+    ax.set_title("Final Station Scores")
+    ax.set_xlabel("-log10(False Positive Rate)")
+    ax.set_ylabel("True Positives")
+    ax.grid(alpha=0.25)
+    if ax.get_legend_handles_labels()[0]:
+        ax.legend()
 
     return fig_to_base64(fig)
