@@ -173,13 +173,8 @@
         "id": "transform_method",
         "label": "Transform Method",
         "type": "select",
-        "options": [
-          "none",
-          "ln",
-          "log2"
-        ],
+        "options": ["ln", "log2"],
         "optionLabels": {
-          "none": "No log transformation",
           "ln": "Natural logarithm (ln)",
           "log2": "Log2"
         },
@@ -261,7 +256,6 @@
         "label": "Multiple Testing Correction",
         "type": "select",
         "options": [
-          "none",
           "bh",
           "bt",
           "storey",
@@ -269,7 +263,6 @@
           "holm"
         ],
         "optionLabels": {
-          "none": "No correction",
           "bh": "Benjamini-Hochberg",
           "bt": "Benjamini-Tekutieli",
           "storey": "Storey's q-value",

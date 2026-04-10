@@ -40,6 +40,7 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
+P_VALUE_COL = "p_value"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -301,19 +302,19 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
     score = 0
 
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform transformation. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset[PROTEIN].nunique())
+        num_pro = int(dataset[PROTEIN_ID].nunique())
         num_pep = int(dataset[TOT_PEP].sum())
 
     relevant_cols = [col for col in df.columns if col.endswith("MaxLFQ Intensity")]
@@ -324,18 +325,15 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
         )
         imgs.append(img_before)
 
-        if method == "none":
-            success = True
-            feedback = "No transformation applied. Data remains unchanged."
-
-        elif method == "log2":
+        if method == "log2":
             df[relevant_cols] = np.log2(df[relevant_cols])
             img_after = tr_boxplot(
                 df, relevant_cols, title="Intensities After Transformation (Log2)"
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Log2 applied. The wild intensities have been domesticated."
+            score = 10
 
         elif method == "ln":
             df[relevant_cols] = np.log(df[relevant_cols])
@@ -346,19 +344,24 @@ def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
             )
             imgs.append(img_after)
             success = True
-            feedback = "Natural log transformation applied. Variance stabilized for downstream analysis."
+            feedback = "Your data has been gently persuaded into natural log space."
+            score = 10
+        
+        else: 
+            success = False
+            feedback = "Unknown transformation method. The proteome looks confused."
 
-    except Exception as e:
+    except Exception:
         success = False
-        feedback = f"Error applying transformation: {str(e)}"
+        feedback = "⚠️🧪 Transformation failed. The proteome destabilizes — something in your data cannot survive the logarithm. Did you prepare it properly?"
 
     return {
         "success": success,
-        "num_pro": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
+        "score": score,
         "dataset": df,
     }
 
@@ -539,82 +542,89 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
     score = 0
 
     # Handle missing dataset
-    if dataset is None:
+    if dataset is None or dataset.empty:
         return {
             "success": success,
-            "num_prot": None,
+            "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
         }
     else:
         df = dataset.copy()
-        num_prot = int(dataset[PROTEIN].nunique())
+        num_pro = int(dataset[PROTEIN_ID].nunique())
         num_pep = int(dataset[TOT_PEP].sum())
 
-    p_val_col = "p_value"
-
     # Handle missing p-value column
-    if p_val_col not in df.columns:
+    if P_VALUE_COL not in df.columns:
         return {
             "success": success,
-            "num_prot": num_prot,
+            "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": f"Column '{p_val_col}' not found in dataset. Cannot perform multiple testing correction. Have you forgotten a previous step?",
+            "feedback": "⚠️ No p-values found. The experiment loses its grip on significance.",
             "img": imgs,
             "score": score,
             "dataset": df,
         }
 
-    pvals = df[p_val_col].values
+    pvals = df[P_VALUE_COL].values
 
     try:
-        if method == "none":
-            df["p_adjusted"] = df["p_value"]  # No adjustment, just copy p-values
-            success = True
-            feedback = "No multiple testing correction applied. Raw p-values are used for significance assessment."
-        elif method == "bh":
+        if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Benjamini-Hochberg correction applied. Controls the false discovery rate (FDR) under independence assumptions."
+            score = 10
+            feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
             adjusted = multipletests(pvals, method="fdr_by")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Benjamini-Tekutieli correction applied. Controls the FDR under arbitrary dependence assumptions."
+            score = 12
+            feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             qvals = qvalue(pvals)
-            df["p_adjusted"] = qvals
+            df[P_VALUE_COL] = qvals
             success = True
-            feedback = "Storey's q-value method applied. Estimates the proportion of true null hypotheses to improve power."
+            score = 15
+            feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
-            df["p_adjusted"] = adjusted[1]
-            success = True
-            feedback = "Bonferroni correction applied. Controls the family-wise error rate (FWER) but can be overly conservative."
+            df[P_VALUE_COL] = adjusted[1]
+            success = True  
+            score = 6
+            feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
             adjusted = multipletests(pvals, method="holm")
-            df["p_adjusted"] = adjusted[1]
+            df[P_VALUE_COL] = adjusted[1]
             success = True
-            feedback = "Holm-Bonferroni correction applied. Controls the family-wise error rate (FWER) with more power than Bonferroni."
-    except Exception as e:
+            score = 9
+            feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
+        else:
+            success = False
+            score = 0
+            feedback = "⚠️ Unknown correction method. Statistical defenses not deployed."
+    
+    except Exception:
         success = False
-        feedback = f"Error applying multiple testing correction: {str(e)}"
+        score = 0
+        feedback = "💥 Correction failed. The proteome resists statistical control."
 
-    if success and "p_adjusted" in df.columns:
-        imgs.extend(mtc_histograms(df, value_col="p_adjusted", species_col="Organism"))
+    if success and P_VALUE_COL in df.columns:
+        imgs.extend(
+            mtc_histograms(df, value_col=P_VALUE_COL, species_col=ORGANISM)
+        )
 
     return {
         "success": success,
-        "num_prot": num_prot,
+        "num_pro": num_pro,
         "num_pep": num_pep,
         "feedback": feedback,
         "img": imgs,
-        "score": 0,
-        "dataset": df,
+        "score": score,
+        "dataset": df
     }
 
 
