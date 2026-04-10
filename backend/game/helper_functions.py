@@ -1,9 +1,7 @@
 import io
 import base64
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
 
 def fig_to_base64(fig):
     """
@@ -47,44 +45,29 @@ def sp_scatterplot(
     return fig_to_base64(fig)
 
 
+def _create_histogram(values, title, xlabel, ylabel, bins, color, xlim=(0, 1)):
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.histplot(values, bins=bins, ax=ax, color=color, edgecolor="white")
+    ax.set_xlim(xlim)
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    return fig_to_base64(fig)
 
-def adjusted_pvalue_histograms_by_species(df, value_col="p_adjusted", species_col="Organism", bins=30):
-    """Create one adjusted p-value histogram per species and return base64-encoded images."""
-    if df is None or value_col not in df.columns:
-        return []
-
-    numeric_values = pd.to_numeric(df[value_col], errors="coerce")
-    valid_mask = numeric_values.notna() & np.isfinite(numeric_values)
-    if not valid_mask.any():
-        return []
-
-    # If no species column, just return one histogram for all values
+def mtc_histograms(df, value_col="p_adjusted", species_col="Organism"):
+    """ Create one adjusted p-value histogram per species and return base64-encoded images."""
+    
+    # If species column doesn't exist, create single histogram
     if species_col not in df.columns:
-        fig, ax = plt.subplots(figsize=(6, 4))
-        sns.histplot(numeric_values[valid_mask], bins=bins, ax=ax, color="#2563eb", edgecolor="white")
-        ax.set_xlim(0, 1)
-        ax.set_title("Adjusted p-value distribution")
-        ax.set_xlabel("Adjusted p-value")
-        ax.set_ylabel("Protein count")
-        return [fig_to_base64(fig)]
-
-    # If species column exists, create a histogram for each species
-    work_df = df.loc[valid_mask, [species_col]].copy()
-    work_df[value_col] = numeric_values[valid_mask]
-
-    images = []
-    grouped = work_df.assign(**{species_col: work_df[species_col].fillna("Unknown")}).groupby(species_col)
+        return _create_histogram(df[value_col], "Adjusted p-value distribution", "Adjusted p-value", "Protein count", 30, "#2563eb")
+    
+    # Create histogram for each species
+    imgs = []
+    grouped = df.assign(**{species_col: df[species_col].fillna("Unknown")}).groupby(species_col)
     for species, species_df in grouped:
         species_values = species_df[value_col]
-        if species_values.empty:
-            continue
+        if not species_values.empty:
+            title = f"Adjusted p-value distribution - {species}"
+            imgs.append(_create_histogram(species_values, title, "Adjusted p-value", "Protein count", 30, "#16a34a"))
 
-        fig, ax = plt.subplots(figsize=(6, 4))
-        sns.histplot(species_values, bins=bins, ax=ax, color="#16a34a", edgecolor="white")
-        ax.set_xlim(0, 1)
-        ax.set_title(f"Adjusted p-value distribution - {species}")
-        ax.set_xlabel("Adjusted p-value")
-        ax.set_ylabel("Protein count")
-        images.append(fig_to_base64(fig))
-
-    return images
+    return imgs
