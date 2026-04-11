@@ -497,7 +497,7 @@ def _simulate_filtering(
         missing_num = sample_values.isna().sum(axis=1)
 
         # Filter proteins: keep only those with missing number <= threshold
-        df_filtered = df[zmissing_num <= missing_thresh].copy()
+        df_filtered = df[missing_num <= missing_thresh].copy()
 
         # filter for mimimum number of peptides
         df_filtered = df_filtered[df_filtered[TOT_PEP] >= min_pep_num]
