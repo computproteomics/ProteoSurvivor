@@ -984,7 +984,7 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
