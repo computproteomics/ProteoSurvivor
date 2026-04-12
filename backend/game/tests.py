@@ -6,8 +6,11 @@ prerequisite-station guard.
 
 from unittest.mock import patch
 from django.test import TestCase
+import itertools
+import json
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from game.services import (
     _simulate_filtering,
@@ -33,6 +36,7 @@ from game.services import (
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
+_MAX_CONFIG_CASES = 10
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +78,35 @@ def _make_dataset_with_stats() -> pd.DataFrame:
     return df
 
 
+def _make_large_dataset_with_stats(n_rows: int = 200) -> pd.DataFrame:
+    """Larger synthetic dataset for robust multiple-testing correction coverage."""
+    organisms = ["Yeast", "E. coli", "Human"]
+    rows = {
+        PROTEIN: [f"P{i:05d}" for i in range(1, n_rows + 1)],
+        PROTEIN_ID: [f"P{i:05d}" for i in range(1, n_rows + 1)],
+        "Entry Name": [f"ENTRY_{i:05d}" for i in range(1, n_rows + 1)],
+        "Gene": [f"GENE_{i:05d}" for i in range(1, n_rows + 1)],
+        "Protein Length": [250 + (i % 500) for i in range(n_rows)],
+        ORGANISM: [organisms[i % len(organisms)] for i in range(n_rows)],
+        "Protein Existence": ["Evidence at protein level"] * n_rows,
+        "Description": ["Synthetic protein"] * n_rows,
+        "Protein Probability": np.linspace(0.90, 0.999, n_rows),
+        "Top Peptide Probability": np.linspace(0.85, 0.995, n_rows),
+        TOT_PEP: [2 + (i % 6) for i in range(n_rows)],
+        "Spectral Count": [10 + (i % 50) for i in range(n_rows)],
+        "Unique Spectral Count": [5 + (i % 25) for i in range(n_rows)],
+        "Total Spectral Count": [15 + (i % 60) for i in range(n_rows)],
+        "Indistinguishable Proteins": [""] * n_rows,
+        FC: np.linspace(-3.0, 3.0, n_rows),
+        PVALUE: np.linspace(0.001, 0.999, n_rows),
+    }
+    for j, col in enumerate(COND_A, start=1):
+        rows[col] = np.linspace(8.0 + j, 80.0 + j, n_rows)
+    for j, col in enumerate(COND_B, start=1):
+        rows[col] = np.linspace(9.0 + j, 82.0 + j, n_rows)
+    return pd.DataFrame(rows)
+
+
 def _make_param_table() -> pd.DataFrame:
     """ParameterTable.csv mock whose single row matches the default spectral-search params."""
     return pd.DataFrame(
@@ -89,6 +122,60 @@ def _make_param_table() -> pd.DataFrame:
             "ParameterSet": ["ParameterSet_001"],
         }
     )
+
+
+def _load_station_options() -> dict:
+    """Load station parameter options from frontend/stations.json."""
+    stations_path = (
+        Path(__file__).resolve().parents[2] / "frontend" / "src" / "assets" / "stations.json"
+    )
+    with stations_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _build_bounded_combinations(option_map: dict[str, list], cap: int = _MAX_CONFIG_CASES) -> list[dict]:
+    """Return up to `cap` deterministic parameter combinations from an option map."""
+    keys = list(option_map.keys())
+    values = [option_map[key] for key in keys]
+    combos = []
+    for parts in itertools.product(*values):
+        combos.append(dict(zip(keys, parts)))
+        if len(combos) >= cap:
+            break
+    return combos
+
+
+def _to_backend_param_type(param_name: str, value):
+    """Convert frontend-config option strings to backend expected input types."""
+    if param_name in {
+        "precursor_mass_tolerance",
+        "missed_cleavages",
+        "min_peptide_length",
+        "max_peptide_length",
+        "remove_missing_proteins",
+        "min_peptides_per_protein",
+    }:
+        return int(value)
+    return value
+
+
+def _build_param_table_from_combinations(combos: list[dict]) -> pd.DataFrame:
+    """Build a ParameterTable-like DataFrame matching provided spectral-search combos."""
+    rows = []
+    for idx, combo in enumerate(combos, start=1):
+        row = {
+            "tool": combo["tool"],
+            "match_between_runs": str(combo["match_between_runs"]).upper(),
+            "precursor_mass_tolerance": int(combo["precursor_mass_tolerance"]),
+            "fragment_mass_tolerance": str(combo["fragment_mass_tolerance"]),
+            "enzyme": combo["enzyme"],
+            "missed_cleavages": int(combo["missed_cleavages"]),
+            "min_peptide_length": int(combo["min_peptide_length"]),
+            "max_peptide_length": int(combo["max_peptide_length"]),
+            "ParameterSet": f"ParameterSet_{idx:03d}",
+        }
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -501,6 +588,163 @@ class TestVeitStation(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Parameter-configuration coverage tests
+# ---------------------------------------------------------------------------
+
+
+class TestStationParameterConfigurations(TestCase):
+    """
+    Cover every station parameter configuration from frontend stations.json.
+    If total combinations exceed 10, run only the first 10 deterministic combos.
+    """
+
+    def setUp(self):
+        self.station_options = _load_station_options()
+
+    @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
+    @patch("game.services.os.path.exists", return_value=True)
+    def test_spectral_search_parameter_configurations(self, _mock_exists, _mock_hist):
+        params_cfg = self.station_options["spectral_search"]["parameters"]
+        option_map = {p["id"]: p["options"] for p in params_cfg}
+        combos = _build_bounded_combinations(option_map)
+        param_table = _build_param_table_from_combinations(combos)
+
+        def _read_csv_side_effect(path, *args, **kwargs):
+            if "ParameterTable" in str(path):
+                return param_table
+            return _make_dataset()
+
+        with patch("game.services.pd.read_csv", side_effect=_read_csv_side_effect):
+            for combo in combos:
+                with self.subTest(combo=combo):
+                    backend_params = {
+                        key: _to_backend_param_type(key, value)
+                        for key, value in combo.items()
+                    }
+                    result = _simulate_spectral_search(
+                        None,
+                        backend_params,
+                        {"sample_prep", "mass_spec"},
+                    )
+                    self.assertTrue(result["success"])
+                    self.assertIsInstance(result["dataset"], pd.DataFrame)
+
+    @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
+    def test_transform_parameter_configurations(self, _mock_bp):
+        options = self.station_options["transform"]["parameters"][0]["options"]
+        for method in options:
+            with self.subTest(transform_method=method):
+                result = _simulate_transform(
+                    _make_dataset(), {"transform_method": method}, {"spectral_search"}
+                )
+                self.assertTrue(result["success"])
+
+    @patch("game.services.filtering_piechart", return_value=_DUMMY_IMG)
+    @patch("game.services.filtering_scatterplot", return_value=_DUMMY_IMG)
+    def test_filtering_parameter_configurations(self, _mock_sc, _mock_pie):
+        params_cfg = self.station_options["filtering"]["parameters"]
+        option_map = {p["id"]: p["options"] for p in params_cfg}
+        combos = _build_bounded_combinations(option_map)
+
+        for combo in combos:
+            with self.subTest(combo=combo):
+                backend_params = {
+                    key: _to_backend_param_type(key, value)
+                    for key, value in combo.items()
+                }
+                input_df = _make_dataset()
+                result = _simulate_filtering(
+                    input_df,
+                    backend_params,
+                    {"spectral_search"},
+                )
+                self.assertTrue(result["success"])
+                self.assertIn("dataset", result)
+                self.assertIsInstance(result["dataset"], pd.DataFrame)
+                self.assertLessEqual(len(result["dataset"]), len(input_df))
+
+    @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
+    def test_normalize_parameter_configurations(self, _mock_hc):
+        options = self.station_options["normalize"]["parameters"][0]["options"]
+        for method in options:
+            with self.subTest(normalization=method):
+                result = _simulate_normalize(
+                    _make_dataset(), {"normalization": method}, {"spectral_search"}
+                )
+                self.assertTrue(result["success"])
+
+    @patch("game.services.imputer_before_after_stripgrid", return_value=_DUMMY_IMG)
+    def test_imputer_parameter_configurations(self, _mock_plot):
+        options = self.station_options["imputer"]["parameters"][0]["options"]
+        for method in options:
+            with self.subTest(imputation_method=method):
+                dataset = _make_dataset()
+                dataset.loc[0, COND_A[0]] = np.nan
+                result = _simulate_imputer(
+                    dataset,
+                    {"imputation_method": method},
+                    {"spectral_search"},
+                )
+                self.assertTrue(result["success"])
+
+    @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
+    def test_multiple_testing_parameter_configurations(self, _mock_hist):
+        options = self.station_options["multiple_testing_corrector"]["parameters"][0]["options"]
+        large_df = _make_large_dataset_with_stats()
+        for method in options:
+            with self.subTest(correction_method=method):
+                result = _simulate_multiple_testing_corrector(
+                    large_df.copy(),
+                    {"correction_method": method},
+                    {"spectral_search"},
+                )
+                self.assertTrue(result["success"])
+                self.assertIn(PVALUE, result["dataset"].columns)
+                corrected = result["dataset"][PVALUE].dropna()
+                self.assertTrue((corrected >= 0).all())
+                self.assertTrue((corrected <= 1).all())
+
+    @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
+    def test_the_cutter_parameter_configurations(self, _mock_sig):
+        # Slider parameters are continuous; test representative grid with cap 10.
+        fold_changes = list(range(0, 8))
+        pvals = [0.0, 0.01, 0.05, 0.5, 1.0]
+        combos = []
+        for fc_cut, p_cut in itertools.product(fold_changes, pvals):
+            combos.append({"fold_change_cutoff": fc_cut, "pvalue_cutoff": p_cut})
+            if len(combos) >= _MAX_CONFIG_CASES:
+                break
+
+        for combo in combos:
+            with self.subTest(combo=combo):
+                result = _simulate_the_cutter(
+                    _make_dataset_with_stats(),
+                    combo,
+                    {"spectral_search"},
+                )
+                self.assertIn("dataset", result)
+                self.assertIsInstance(result["dataset"], pd.DataFrame)
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_statistical_analysis_parameter_configurations(self, _mock_vp):
+        options = self.station_options["statistical_analysis"]["parameters"][0]["options"]
+        expected_success = {
+            "welch": True,
+            "limma": True,
+            "mannwhitneyu": True,
+            "permutation": True,
+        }
+        for test_name in options:
+            with self.subTest(statistical_test=test_name):
+                result = _simulate_statistical_analysis(
+                    _make_dataset(),
+                    {"statistical_test": test_name},
+                    {"spectral_search"},
+                )
+                self.assertEqual(result["success"], expected_success[test_name])
+
+
+# ---------------------------------------------------------------------------
 # Full end-to-end workflow integration test
 # ---------------------------------------------------------------------------
 
@@ -580,14 +824,12 @@ class TestFullWorkflow(TestCase):
         visited.add("transform")
 
         # --- 5. filtering ---
-        # NOTE: currently fails with NameError ('zmissing_num' typo) and falls
-        # back to the unfiltered dataset; dataset continuity is verified below.
         r = _simulate_filtering(
             dataset,
             {"remove_missing_proteins": 6, "min_peptides_per_protein": 1},
             visited,
         )
-        # Dataset must survive even when filtering has the known bug
+        self.assertTrue(r["success"], "filtering failed")
         self.assertIsNotNone(r["dataset"])
         self.assertFalse(r["dataset"].empty)
         dataset = r["dataset"]
