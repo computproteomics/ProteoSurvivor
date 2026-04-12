@@ -9,5 +9,5 @@ seaborn
 faker
 psycopg2-binary
 statsmodels
-qvalue
+py-qvalue
 scikit-learn
