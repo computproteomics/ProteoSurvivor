@@ -148,7 +148,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 def _simulate_sample_prep(dataset: dict, params: dict, visited_stations: set) -> dict:
     return {
         "success": True,
-        "feedback": "Sample preparation intro completed.",
+        "feedback": "✅ Sample preparation complete. Strangely, your peptides made it through intact despite improbable handling, questionable luck, and the general hostility of the universe.",
         "score": 0,
         "dataset": dataset,
     }
@@ -159,13 +159,13 @@ def _simulate_mass_spec(dataset: dict, params: dict, visited_stations: set) -> d
     if "sample_prep" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need to complete the sample preparation station before running the mass spectrometry station.",
+            "feedback": "⚠️ Nice try. The mass spec refuses to run on unprepared samples and pure optimism. Do sample prep first.",
             "score": 0,
             "dataset": dataset,
         }
     return {
         "success": True,
-        "feedback": "Mass spectrometry intro completed.",
+        "feedback": "✅ Mass spectrometry complete. Somehow the peptides survived the ionization gauntlet and emerged as usable spectra.",
         "score": 0,
         "dataset": dataset,
     }
@@ -178,7 +178,7 @@ def _simulate_spectral_search(
     if "sample_prep" and "mass_spec" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need to complete the Mass spectrometer station first.",
+            "feedback": "⚠️ Spectral search is locked. The mass spectrometer must run first, or you are searching for peptides in pure imagination.",
             "score": 0,
             "dataset": dataset,
         }
@@ -243,7 +243,7 @@ def _simulate_spectral_search(
     if not os.path.exists(f"data/{data_file_name}"):
         return {
             "success": False,
-            "feedback": "Unfortunately, we do not have a data search result for this set of parameters.",
+            "feedback": "⚠️ No search result exists for this parameter combo. You have discovered a forbidden FragPipe timeline.",
             "score": 0,
             "dataset": dataset,
         }

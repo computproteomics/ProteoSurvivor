@@ -88,5 +88,28 @@ REST_FRAMEWORK = {
 
 STATIONS_CONFIG_PATH = BASE_DIR.parent / "frontend" / "src" / "assets" / "stations.json"
 
-with open(STATIONS_CONFIG_PATH) as f:
-    STATIONS_CONFIG = json.load(f)
+# Resolve stations configuration from env or known project/container locations.
+_stations_path_candidates = []
+_stations_env_path = os.environ.get("STATIONS_CONFIG_PATH")
+if _stations_env_path:
+    _stations_path_candidates.append(Path(_stations_env_path))
+
+_stations_path_candidates.extend(
+    [
+        STATIONS_CONFIG_PATH,
+        BASE_DIR / "frontend" / "src" / "assets" / "stations.json",
+        BASE_DIR / "data" / "stations.json",
+        Path("/frontend/src/assets/stations.json"),
+    ]
+)
+
+for _candidate in _stations_path_candidates:
+    if _candidate.exists():
+        with open(_candidate) as f:
+            STATIONS_CONFIG = json.load(f)
+        break
+else:
+    raise FileNotFoundError(
+        "Could not locate stations.json. Checked: "
+        + ", ".join(str(path) for path in _stations_path_candidates)
+    )
