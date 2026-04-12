@@ -271,7 +271,7 @@
           "bonferroni": "Bonferroni",
           "holm": "Holm-Bonferroni"
         },
-        "defaultValue": "none"
+        "defaultValue": "bh"
       }
     ]
   },

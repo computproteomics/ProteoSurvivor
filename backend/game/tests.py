@@ -127,13 +127,19 @@ def _make_param_table() -> pd.DataFrame:
 def _load_station_options() -> dict:
     """Load station parameter options from frontend/stations.json."""
     stations_path = (
-        Path(__file__).resolve().parents[2] / "frontend" / "src" / "assets" / "stations.json"
+        Path(__file__).resolve().parents[2]
+        / "frontend"
+        / "src"
+        / "assets"
+        / "stations.json"
     )
     with stations_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def _build_bounded_combinations(option_map: dict[str, list], cap: int = _MAX_CONFIG_CASES) -> list[dict]:
+def _build_bounded_combinations(
+    option_map: dict[str, list], cap: int = _MAX_CONFIG_CASES
+) -> list[dict]:
     """Return up to `cap` deterministic parameter combinations from an option map."""
     keys = list(option_map.keys())
     values = [option_map[key] for key in keys]
@@ -265,7 +271,9 @@ class TestSpectralSearchStation(TestCase):
 
 class TestTransformStation(TestCase):
     def test_fails_without_spectral_search(self):
-        result = _simulate_transform(_make_dataset(), {"transform_method": "log2"}, set())
+        result = _simulate_transform(
+            _make_dataset(), {"transform_method": "log2"}, set()
+        )
         self.assertFalse(result["success"])
 
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
@@ -283,7 +291,9 @@ class TestTransformStation(TestCase):
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
     def test_natural_log_transformation(self, _mock_bp):
         df = _make_dataset()
-        result = _simulate_transform(df, {"transform_method": "ln"}, {"spectral_search"})
+        result = _simulate_transform(
+            df, {"transform_method": "ln"}, {"spectral_search"}
+        )
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 10)
         self.assertAlmostEqual(
@@ -309,9 +319,7 @@ class TestFilteringStation(TestCase):
         self.assertFalse(result["success"])
 
     def test_fails_on_empty_dataset(self):
-        result = _simulate_filtering(
-            pd.DataFrame(), {}, {"spectral_search"}
-        )
+        result = _simulate_filtering(pd.DataFrame(), {}, {"spectral_search"})
         self.assertFalse(result["success"])
 
     @patch("game.services.filtering_piechart", return_value=_DUMMY_IMG)
@@ -336,7 +344,9 @@ class TestFilteringStation(TestCase):
 
 class TestNormalizeStation(TestCase):
     def test_fails_without_spectral_search(self):
-        result = _simulate_normalize(_make_dataset(), {"normalization": "median"}, set())
+        result = _simulate_normalize(
+            _make_dataset(), {"normalization": "median"}, set()
+        )
         self.assertFalse(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
@@ -355,9 +365,7 @@ class TestNormalizeStation(TestCase):
         self.assertTrue(result["success"])
         # After median normalization each column should be centered near zero
         col = COND_A[0]
-        self.assertAlmostEqual(
-            result["dataset"][col].median(), 0.0, places=5
-        )
+        self.assertAlmostEqual(result["dataset"][col].median(), 0.0, places=5)
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_zscore_normalization(self, _mock_hc):
@@ -477,9 +485,7 @@ class TestTheCutterStation(TestCase):
         self.assertFalse(result["success"])
 
     def test_fails_without_fc_column(self):
-        result = _simulate_the_cutter(
-            _make_dataset(), {}, {"spectral_search"}
-        )
+        result = _simulate_the_cutter(_make_dataset(), {}, {"spectral_search"})
         self.assertFalse(result["success"])
 
     @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
@@ -572,7 +578,9 @@ class TestVeitStation(TestCase):
             result = _simulate_veit(df, {})
 
         self.assertTrue(result["success"])
-        self.assertEqual(result["true_positives"], 3)   # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
+        self.assertEqual(
+            result["true_positives"], 3
+        )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
         self.assertEqual(result["false_positives"], 1)  # P0004 Human
         self.assertGreater(result["score"], 0)
 
@@ -689,7 +697,9 @@ class TestStationParameterConfigurations(TestCase):
 
     @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
     def test_multiple_testing_parameter_configurations(self, _mock_hist):
-        options = self.station_options["multiple_testing_corrector"]["parameters"][0]["options"]
+        options = self.station_options["multiple_testing_corrector"]["parameters"][0][
+            "options"
+        ]
         large_df = _make_large_dataset_with_stats()
         for method in options:
             with self.subTest(correction_method=method):
@@ -727,7 +737,9 @@ class TestStationParameterConfigurations(TestCase):
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_statistical_analysis_parameter_configurations(self, _mock_vp):
-        options = self.station_options["statistical_analysis"]["parameters"][0]["options"]
+        options = self.station_options["statistical_analysis"]["parameters"][0][
+            "options"
+        ]
         expected_success = {
             "welch": True,
             "limma": True,

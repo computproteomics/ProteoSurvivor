@@ -23,7 +23,7 @@ from .helper_functions import (
     filtering_piechart,
 )
 from statsmodels.stats.multitest import multipletests
-from qvalue import qvalue
+from py_qvalue import qvalue as _py_qvalue
 
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
@@ -847,7 +847,7 @@ def _simulate_multiple_testing_corrector(
             "dataset": dataset,
         }
 
-    method = params.get("correction_method", "none")
+    method = params.get("correction_method", "bh")
     success = False
     imgs = []
     score = 0
@@ -882,6 +882,8 @@ def _simulate_multiple_testing_corrector(
 
     pvals = df[PVALUE].values
 
+    print("running multiple testing correction with method:", method)
+
     try:
         if method == "bh":
             adjusted = multipletests(pvals, method="fdr_bh")
@@ -896,7 +898,7 @@ def _simulate_multiple_testing_corrector(
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
-            qvals = qvalue(pvals)
+            qvals = _py_qvalue(pvals)["qvalues"]
             df[PVALUE] = qvals
             success = True
             score = 15
