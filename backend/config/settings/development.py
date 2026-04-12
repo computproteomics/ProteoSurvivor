@@ -1,12 +1,13 @@
 """
 Development settings — SQLite (default) or PostgreSQL via env vars, debug toolbar, relaxed CORS.
 """
+
 from .base import *  # noqa: F401,F403
 import os
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
 _db_engine = os.environ.get("DB_ENGINE", "django.db.backends.sqlite3")
 
@@ -31,4 +32,9 @@ else:
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
