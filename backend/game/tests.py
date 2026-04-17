@@ -921,7 +921,7 @@ class TestRunStationAnonymousUser(TestCase):
         seen_visited = {}
 
         def _runner(_dataset, _params, visited_stations):
-            seen_visited["value"] = visited_stations
+            seen_visited["value"] = set(visited_stations)
             return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
 
         with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
