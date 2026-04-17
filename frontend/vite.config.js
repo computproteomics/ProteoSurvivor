@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    allowedHosts: ['computproteomics.bmb.sdu.dk'],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
