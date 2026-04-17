@@ -931,3 +931,16 @@ class TestRunStationAnonymousUser(TestCase):
         self.assertEqual(seen_visited["value"], {"sample_prep"})
         self.assertEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
         self.assertEqual(StationRun.objects.count(), 0)
+
+    def test_run_station_does_not_duplicate_session_visited_station(self):
+        request = self._build_request()
+        request.session["visited_stations"] = ["sample_prep"]
+
+        def _runner(_dataset, _params, _visited_stations):
+            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
+            result = run_station(request, station_id="sample_prep", params={})
+
+        self.assertTrue(result["success"])
+        self.assertEqual(request.session["visited_stations"], ["sample_prep"])
