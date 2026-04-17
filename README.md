@@ -15,20 +15,20 @@ Built with **React + Vite** (frontend) and **Django + Django REST Framework** (b
 ### Option A — Docker (recommended)
 
 The repository ships with a single multi-stage `Dockerfile` that builds the
-React bundle and serves it via **nginx** on port **8080**, proxying API and admin
+React bundle and serves it via **Vite** on port **3000**, proxying API and admin
 requests to the Django backend running on port 8000 inside the same container.
 
 ```bash
 cp backend/.env.example backend/.env   # set SECRET_KEY at minimum
 docker build -t proteosurvivor .
-docker run --env-file backend/.env -p 8080:8080 proteosurvivor
+docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 ```
 
 | Service  | URL                        |
 |----------|----------------------------|
-| App      | http://localhost:8080       |
-| API      | http://localhost:8080/api   |
-| Admin    | http://localhost:8080/admin |
+| App      | http://localhost:3000       |
+| API      | http://localhost:3000/api   |
+| Admin    | http://localhost:3000/admin |
 
 ---
 
