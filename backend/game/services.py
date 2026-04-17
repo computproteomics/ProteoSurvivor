@@ -109,11 +109,12 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    visited_station_list = request.session.get("visited_stations", [])
     if request.user.is_authenticated:
         user_runs = request.user.station_runs.all()
         visited_stations = set(run.station_id for run in user_runs)
+        visited_station_list = []
     else:
+        visited_station_list = request.session.get("visited_stations", [])
         visited_stations = set(visited_station_list)
 
     result = runner(dataset, params, visited_stations)

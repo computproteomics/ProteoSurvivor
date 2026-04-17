@@ -907,7 +907,7 @@ class TestRunStationAnonymousUser(TestCase):
         self.factory = RequestFactory()
 
     def _build_request(self):
-        request = self.factory.post("/api/stations/sample_prep/run/", data={})
+        request = self.factory.post("/api/stations/test_station/run/", data={})
         middleware = SessionMiddleware(lambda _request: None)
         middleware.process_request(request)
         request.session.save()
