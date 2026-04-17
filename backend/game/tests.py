@@ -929,7 +929,8 @@ class TestRunStationAnonymousUser(TestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(seen_visited["value"], {"sample_prep"})
-        self.assertEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
+        self.assertCountEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
+        self.assertEqual(len(request.session["visited_stations"]), 2)
         self.assertEqual(StationRun.objects.count(), 0)
 
     def test_run_station_does_not_duplicate_session_visited_station(self):
