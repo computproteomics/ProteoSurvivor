@@ -43,7 +43,7 @@ RUN printf '[supervisord]\n\
     stderr_logfile_maxbytes=0\n\
     \n\
     [program:vite]\n\
-    command=npm run dev:frontend -- --host 0.0.0.0 --port 3000\n\
+    command=npm run dev:frontend -- --host 0.0.0.0 --port 8080\n\
     directory=/app/frontend\n\
     autostart=true\n\
     autorestart=true\n\
@@ -52,6 +52,6 @@ RUN printf '[supervisord]\n\
     stderr_logfile=/dev/stderr\n\
     stderr_logfile_maxbytes=0\n' > /etc/supervisor/conf.d/app.conf
 
-EXPOSE 3000 8000
+EXPOSE 8080 8000
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]

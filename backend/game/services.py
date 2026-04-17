@@ -352,7 +352,7 @@ def _simulate_transform(
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ Transform station is offline until spectral search has produced actual data. Right now you are trying to normalize a rumor.",
             "score": 0,
             "dataset": dataset,
         }
@@ -368,7 +368,7 @@ def _simulate_transform(
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform transform nothing into something.",
+            "feedback": "⚠️ No dataset detected. The transform engine spun bravely but found only void.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
@@ -389,7 +389,7 @@ def _simulate_transform(
                 "success": False,
                 "num_pro": num_pro,
                 "num_pep": num_pep,
-                "feedback": "We need some data, not black holes!",
+                "feedback": "⚠️ Not enough usable intensity data. Even chaos needs numbers before we can tame it.",
                 "img": imgs,
                 "score": 0,
                 "dataset": df,
@@ -408,7 +408,7 @@ def _simulate_transform(
             )
             imgs.append(img_after)
             success = True
-            feedback = "Log2 transformation applied."
+            feedback = "✅ Log2 transformation applied. Against all odds, the intensity chaos has been compressed into something statistically survivable."
             score = 10
 
         elif method == "ln":
@@ -420,16 +420,16 @@ def _simulate_transform(
             )
             imgs.append(img_after)
             success = True
-            feedback = "Natural log transformation applied."
+            feedback = "✅ Natural log transformation applied. The data is now less explosive and slightly more civilized."
             score = 10
 
         else:
             success = False
-            feedback = f"Unknown transformation method '{method}'."
+            feedback = f"⚠️ Unknown transformation method {method}. The station refuses experimental wizardry without a known spell."
 
     except Exception as e:
         success = False
-        feedback = f"Error applying transformation: {str(e)}"
+        feedback = f"⚠️ Transformation failed mid-flight: {str(e)}. The proteome remains unconvinced."
 
     return {
         "success": success,
@@ -449,7 +449,7 @@ def _simulate_filtering(
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ Filtering station is locked until spectral search has produced real protein data. Right now you are filtering pure optimism.",
             "score": 0,
             "dataset": dataset,
         }
@@ -467,7 +467,7 @@ def _simulate_filtering(
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "feedback": "⚠️ No dataset detected. You reached for proteins and grabbed only the void.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
@@ -484,7 +484,7 @@ def _simulate_filtering(
             "success": False,
             "num_pro": num_pro_before,
             "num_pep": num_pep,
-            "feedback": "⚠️ No intensity columns found for filtering.",
+            "feedback": "⚠️ No usable intensity columns found. The filter has nothing measurable to judge.",
             "img": imgs,
             "score": 0,
             "dataset": df,
@@ -507,7 +507,7 @@ def _simulate_filtering(
 
         success = True
 
-        feedback = f"✅ Filtering complete. Removed {removed_count} proteins. They were not deemed worthy to survive the harsh conditions of this station."
+        feedback = f"✅ Filtering complete. Removed {removed_count} proteins. Against all odds, the survivors now look statistically less cursed."
 
         # Generate visualizations
         pie_img = filtering_piechart(num_pro_before, num_pro_after)
@@ -522,7 +522,7 @@ def _simulate_filtering(
         success = False
         df_filtered = df
         num_pro_after = num_pro_before
-        feedback = f"⚠️ Filtering failed: {str(e)}"
+        feedback = f"⚠️ Filtering failed mid-procedure: {str(e)}. The dataset escaped containment."
 
     return {
         "success": success,
@@ -542,7 +542,7 @@ def _simulate_normalize(
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ Normalization is unavailable until spectral search has produced data worth rescuing. At the moment you are standardizing empty ambition.",
             "score": 0,
             "dataset": dataset,
         }
@@ -567,7 +567,7 @@ def _simulate_normalize(
             "success": False,
             "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": "Dataset is empty. No normalization applied.",
+            "feedback": "⚠️ Dataset is empty. The normalization engine looked into the abyss and received no intensities in return.",
             "img": imgs,
             "score": 0,
             "dataset": df,
@@ -578,7 +578,7 @@ def _simulate_normalize(
             "success": False,
             "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": "No columns ending with ' Intensity' were found.",
+            "feedback": "⚠️ No usable intensity columns found. Normalization requires numbers, not interpretive protein lore.",
             "img": imgs,
             "score": 0,
             "dataset": df,
@@ -589,20 +589,18 @@ def _simulate_normalize(
     try:
         if method == "none":
             success = True
-            feedback = "No normalization applied. Data remains unchanged."
+            feedback = "✅ No normalization applied. Against convention, the raw values remain untouched."
 
         elif method == "median":
             df[relevant_cols] = df[relevant_cols].subtract(df[relevant_cols].median())
             success = True
-            feedback = (
-                "Median normalization applied. Intensities centered by column median."
-            )
+            feedback = "✅ Median normalization applied. The samples have been dragged toward a shared middle ground."
 
         elif method == "total_intensity":
             col_sums = df[relevant_cols].sum().replace(0, np.nan)
             df[relevant_cols] = df[relevant_cols].divide(col_sums, axis=1)
             success = True
-            feedback = "Total intensity normalization applied. Intensities scaled by column totals."
+            feedback = "✅ Total intensity normalization applied. Each sample has been rescaled so abundance stays proportionate."
 
         elif method == "quantile":
             rank_means = (
@@ -614,32 +612,28 @@ def _simulate_normalize(
             ranks = df[relevant_cols].rank(method="min").stack().astype(int)
             df[relevant_cols] = ranks.map(rank_means).unstack()
             success = True
-            feedback = (
-                "Quantile normalization applied. Distributions aligned across samples."
-            )
+            feedback = "✅ Quantile normalization applied. The distributions have been forced into suspiciously elegant agreement."
 
         elif method == "reference_sample":
             reference = df[relevant_cols].median()
             df[relevant_cols] = df[relevant_cols].subtract(reference)
             success = True
-            feedback = "Reference sample normalization applied. Intensities centered to reference median."
+            feedback = "✅ Reference sample normalization applied. The data now bows politely to a common baseline."
 
         elif method == "zscore":
             std = df[relevant_cols].std().replace(0, np.nan)
             df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
             success = True
-            feedback = (
-                "Z-score normalization applied. Intensities standardized per column."
-            )
+            feedback = "✅ Z-score normalization applied. The intensities have been standardized into statistically respectable behavior."
 
         elif method == "vsn":
             df[relevant_cols] = np.log2(df[relevant_cols].clip(lower=0) + 1.0)
             success = True
-            feedback = "VSN-like normalization applied using log2(1 + intensity)."
+            feedback = "✅ VSN-like normalization applied. The dynamic range has been calmed before it could do anything theatrical."
 
         else:
             success = False
-            feedback = f"Unknown normalization method '{method}'. No changes applied."
+            feedback = f"⚠️ Unknown normalization method {method}. The station declines to perform undocumented rituals."
 
         if success:
             imgs.extend(
@@ -655,7 +649,7 @@ def _simulate_normalize(
 
     except Exception as e:
         success = False
-        feedback = f"Error applying normalization: {str(e)}"
+        feedback = f"⚠️ Normalization failed: {str(e)}. The samples resisted alignment."
 
     return {
         "success": success,
@@ -684,7 +678,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ Imputation cannot begin until spectral search has produced something missing in the first place. Right now you are repairing imaginary gaps.",
             "score": 0,
             "dataset": dataset,
         }
@@ -697,7 +691,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
             "success": False,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "No dataset available. Cannot perform imputation. Have you forgotten to do spectral search?",
+            "feedback": "⚠️ No dataset detected. The imputer searched for missing values and found only existential emptiness.",
             "img": [],
             "score": 0,
             "dataset": pd.DataFrame(),
@@ -717,7 +711,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
             "success": False,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "No intensity columns found for imputation.",
+            "feedback": "⚠️ No usable intensity columns found. Even the most determined imputer refuses to invent measurements from pure metadata.",
             "img": imgs,
             "score": 0,
             "dataset": df,
@@ -785,14 +779,14 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
         return pd.DataFrame(arr, index=x.index, columns=x.columns)
 
     feedback_by_method = {
-        "none": "👻 No imputation applied. Some data remain missing 👻",
-        "mean": "🔴🟢🔵 Missing values are now equal to the sample mean ⚪️",
-        "median": "🔴🟢🔵 Missing values are now equal to the sample median 🟢",
-        "knn": "📊 Missing values are now replaced using k-Nearest Neighbors 🕵️",
-        "regression": "📈 Regression-based imputation applied 📈",
-        "randomforest": "🌲🌳🌴 Random forest-based iterative imputation applied 🌲🌳🌴",
-        "bayesian": "🔬 Bayesian ridge-based iterative imputation applied 🔬",
-        "minprob": "🎲 MinProb imputation applied using low-intensity random draws 🎲",
+        "none": "✅ No imputation applied. The missing values remain exactly where the universe misplaced them.",
+        "mean": "✅ Mean imputation applied. The gaps have been patched with averages and a moderate amount of statistical optimism.",
+        "median": "✅ Median imputation applied. The missing values have been replaced with something sturdier than hope.",
+        "knn": "✅ KNN imputation applied. Nearby values were consulted and, against all odds, gave advice.",
+        "regression": "✅ Regression imputation applied. The missing values have been reconstructed from patterns the data swears were always there.",
+        "randomforest": "✅ Random forest imputation applied. A small committee of trees has guessed the missing values with suspicious confidence.",
+        "bayesian": "✅ Bayesian imputation applied. Probability has been invoked, uncertainty acknowledged, and the gaps reluctantly filled.",
+        "minprob": "✅ MinProb imputation applied. Low-intensity values were summoned from the statistical underworld to occupy the blanks.",
     }
     imgs = []
     try:
@@ -822,7 +816,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
     except Exception as e:
         df_new = df.copy()
         success = False
-        feedback = f"Error applying imputation: {str(e)}"
+        feedback = f"⚠️ Imputation failed: {str(e)}. The missing values remain missing and perhaps a little smug about it."
 
     return {
         "success": success,
@@ -946,7 +940,7 @@ def _simulate_the_cutter(
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ The cutter remains sheathed until spectral search and downstream analysis have produced something worth slicing. Right now you are applying thresholds to wishful thinking.",
             "score": 0,
             "dataset": dataset,
         }
@@ -962,7 +956,7 @@ def _simulate_the_cutter(
             "score": 0,
             "cutoffs": {"log2FC": fc, "FDR": pval},
             "dataset": dataset,
-            "feedback": f"The dataset must contain {FC} columns for the cutter station to function properly.",
+            "feedback": "⚠️ No fold-change column found. The cutter cannot separate signal from noise without something sharp to work with.",
             "img": imgs,
             "true_positives": 0,
             "false_positives": 0,
@@ -979,7 +973,7 @@ def _simulate_the_cutter(
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
-        "feedback": f"You identified {len(significant)} significant candidates with the given cutoffs.",
+        "feedback": f"✅ Candidate selection complete. You identified {len(significant)} proteins worthy of surviving the cutoffs, while the rest were quietly returned to statistical oblivion.",
         "img": imgs,
     }
 
@@ -989,7 +983,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
     if dataset is None or dataset.empty:
         return {
             "success": False,
-            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "feedback": "⚠️ No final candidate set detected. Veit arrived ready to judge the outcome and found only the ceremonial remains of a pipeline.",
             "score": 0,
             "dataset": pd.DataFrame(),
             "true_positives": 0,
@@ -1014,7 +1008,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
 
     return {
         "success": True,
-        "feedback": "You made it to Veit. The pipeline held together, the result is interpretable, and the lab can move forward with confidence.",
+        "feedback": "✅ You made it to Veit. Against all reasonable expectation, the pipeline held together, the result is interpretable, and the lab may proceed with confidence and only minimal existential damage.",
         "score": score,
         "true_positives": true_positives,
         "false_positives": false_positives,
@@ -1030,7 +1024,7 @@ def _simulate_statistical_analysis(
     if "spectral_search" not in visited_stations:
         return {
             "success": False,
-            "feedback": "You need data before you can perform this step!",
+            "feedback": "⚠️ Statistical analysis is unavailable until spectral search has produced data worth interrogating. At the moment you are testing hypotheses against fog.",
             "score": 0,
             "dataset": dataset,
         }
@@ -1046,7 +1040,7 @@ def _simulate_statistical_analysis(
             "success": success,
             "num_pro": None,
             "num_pep": None,
-            "feedback": "☣️🧪 You reach for your dataset… but there's nothing. Bold strategy - fighting Proteome Collapse Syndrome without any data.",
+            "feedback": "⚠️ No dataset detected. The statistical machinery assembled itself magnificently and then had nothing to analyze.",
             "img": imgs,
             "score": score,
             "dataset": pd.DataFrame(),
@@ -1063,7 +1057,7 @@ def _simulate_statistical_analysis(
             "success": False,
             "num_pro": num_pro,
             "num_pep": num_pep,
-            "feedback": "⚠️ Required columns are missing. The statistical test cannot be performed.",
+            "feedback": "⚠️ Required columns are missing. The test cannot proceed without actual measurements to argue over.",
             "img": imgs,
             "score": score,
             "dataset": df,
@@ -1093,7 +1087,7 @@ def _simulate_statistical_analysis(
                     _, p = ttest_ind(a, b, equal_var=False, nan_policy="omit")
                 p_values[idx] = p
             success = True
-            feedback = "Welch's t-test applied."
+            feedback = "✅ Welch's t-test applied. Unequal variances were acknowledged and the proteins were judged accordingly."
 
         elif test == "limma":
             raise NotImplementedError("Limma not implemented")
@@ -1117,7 +1111,7 @@ def _simulate_statistical_analysis(
                     )
                     p_values[idx] = p
             success = True
-            feedback = "Mann-Whitney U test applied."
+            feedback = "✅ Mann-Whitney U test applied. The samples were compared without assuming the universe had behaved normally."
 
         elif test == "permutation":
             N_PERMUTATIONS = 1000
@@ -1145,10 +1139,10 @@ def _simulate_statistical_analysis(
                 p_values[idx] = p
 
             success = True
-            feedback = f"Permutation test applied ({N_PERMUTATIONS} permutations)."
+            feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} permutations). Chance was consulted repeatedly until it gave a usable answer."
         else:
             success = False
-            feedback = "Unknown statistical test."
+            feedback = "⚠️ Unknown statistical test. The station declines to perform inferential improv theatre."
 
         df[PVALUE] = p_values
 
@@ -1164,7 +1158,7 @@ def _simulate_statistical_analysis(
 
     except Exception:
         success = False
-        feedback = "Error applying statistical test. The proteome descends into chaos."
+        feedback = "⚠️ Statistical analysis failed. The proteome objected to formal questioning and descended into chaos."
 
     return {
         "success": success,
