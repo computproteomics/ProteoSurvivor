@@ -109,36 +109,47 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    user_runs = request.user.station_runs.all()
-    visited_stations = set(run.station_id for run in user_runs)
+    if request.user.is_authenticated:
+        user_runs = request.user.station_runs.all()
+        visited_stations = set(run.station_id for run in user_runs)
+    else:
+        visited_stations = set(request.session.get("visited_stations", []))
+
     result = runner(dataset, params, visited_stations)
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
-        run = StationRun(
-            player=request.user,
-            station_id=station_id,
-            params=params,
-            score=result.get(
-                "score", 0
-            ),  # Score can be calculated based on results if needed
-        )
-
-        run.save()
-        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-        if settings.STATIONS_CONFIG[station_id].get("final", False):
-            final_result = FinalStationResult(
-                station_run=run,
-                true_positives=result.get("true_positives", 0),
-                false_positives=result.get("false_positives", 0),
+        if request.user.is_authenticated:
+            run = StationRun(
+                player=request.user,
+                station_id=station_id,
+                params=params,
+                score=result.get(
+                    "score", 0
+                ),  # Score can be calculated based on results if needed
             )
-            final_result.save()
-            print(f"Saved FinalStationResult for StationRun ID {run.id}")
+
+            run.save()
+            print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+            if settings.STATIONS_CONFIG[station_id].get("final", False):
+                final_result = FinalStationResult(
+                    station_run=run,
+                    true_positives=result.get("true_positives", 0),
+                    false_positives=result.get("false_positives", 0),
+                )
+                final_result.save()
+                print(f"Saved FinalStationResult for StationRun ID {run.id}")
+        else:
+            visited_stations.add(station_id)
+            request.session["visited_stations"] = sorted(visited_stations)
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
-    print(f"Updated session dataset for user {request.user.username}")
+    if request.user.is_authenticated:
+        print(f"Updated session dataset for user {request.user.username}")
+    else:
+        print("Updated session dataset for anonymous user")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
     response_payload = {key: value for key, value in result.items() if key != "dataset"}

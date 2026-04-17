@@ -5,7 +5,10 @@ prerequisite-station guard.
 """
 
 from unittest.mock import patch
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import TestCase
+from django.test.client import RequestFactory
 import itertools
 import json
 import numpy as np
@@ -24,6 +27,7 @@ from game.services import (
     _simulate_the_cutter,
     _simulate_transform,
     _simulate_veit,
+    run_station,
     COND_A,
     COND_B,
     FC,
@@ -33,6 +37,7 @@ from game.services import (
     PVALUE,
     TOT_PEP,
 )
+from game.models import StationRun
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -895,3 +900,34 @@ class TestFullWorkflow(TestCase):
         self.assertIn("false_positives", r)
         total = r["true_positives"] + r["false_positives"]
         self.assertEqual(total, len(dataset), "TP + FP should equal total candidates")
+
+
+class TestRunStationAnonymousUser(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _build_request(self):
+        request = self.factory.post("/api/stations/sample_prep/run/", data={})
+        middleware = SessionMiddleware(lambda _request: None)
+        middleware.process_request(request)
+        request.session.save()
+        request.user = AnonymousUser()
+        return request
+
+    def test_run_station_tracks_visited_stations_in_session(self):
+        request = self._build_request()
+        request.session["visited_stations"] = ["sample_prep"]
+
+        seen_visited = {}
+
+        def _runner(_dataset, _params, visited_stations):
+            seen_visited["value"] = visited_stations
+            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
+            result = run_station(request, station_id="mass_spec", params={})
+
+        self.assertTrue(result["success"])
+        self.assertEqual(seen_visited["value"], {"sample_prep"})
+        self.assertEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
+        self.assertEqual(StationRun.objects.count(), 0)
