@@ -109,11 +109,12 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
+    visited_station_list = request.session.get("visited_stations", [])
     if request.user.is_authenticated:
         user_runs = request.user.station_runs.all()
         visited_stations = set(run.station_id for run in user_runs)
     else:
-        visited_stations = set(request.session.get("visited_stations", []))
+        visited_stations = set(visited_station_list)
 
     result = runner(dataset, params, visited_stations)
 
@@ -140,8 +141,9 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
                 final_result.save()
                 print(f"Saved FinalStationResult for StationRun ID {run.id}")
         else:
-            visited_stations.add(station_id)
-            request.session["visited_stations"] = sorted(visited_stations)
+            if station_id not in visited_station_list:
+                visited_station_list.append(station_id)
+            request.session["visited_stations"] = visited_station_list
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
