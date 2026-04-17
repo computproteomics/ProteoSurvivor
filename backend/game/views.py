@@ -34,7 +34,7 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
     """
 
     def enforce_csrf(self, request):
-        return  # intentionally skipped for API endpoints
+        return None  # intentionally skipped for API endpoints
 
 
 def _build_unique_user_id(base_name: str) -> str:
