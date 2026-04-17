@@ -1,6 +1,7 @@
 """
 Production settings — PostgreSQL, strict CORS, no debug.
 """
+
 from .base import *  # noqa: F401,F403
 import os
 
@@ -20,6 +21,7 @@ DATABASES = {
 }
 
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
