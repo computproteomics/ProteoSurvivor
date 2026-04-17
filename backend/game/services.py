@@ -3,6 +3,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
+from pathlib import Path
 from typing import Any, cast
 import pandas as pd
 from .models import StationRun, FinalStationResult
@@ -34,6 +35,10 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
 
 from django.conf import settings
+
+# Absolute path to the backend data directory, resolved relative to this file
+# so it works regardless of the process working directory (development or Docker).
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 # Variables for column names
 PROTEIN = "Protein"
@@ -209,7 +214,7 @@ def _simulate_spectral_search(
     max_pep_len = int(params.get("max_peptide_length", 35))
 
     # reading parameter file
-    file_map = pd.read_csv("data/ParameterTable.csv")  # Mapping table
+    file_map = pd.read_csv(DATA_DIR / "ParameterTable.csv")  # Mapping table
     # Make key of all columns but ParameterSet
     file_map["key"] = (
         file_map["tool"]
@@ -254,7 +259,7 @@ def _simulate_spectral_search(
     data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
 
     # check whether datafile exists
-    if not os.path.exists(f"data/{data_file_name}"):
+    if not (DATA_DIR / data_file_name).exists():
         return {
             "success": False,
             "feedback": "⚠️ No search result exists for this parameter combo. You have discovered a forbidden FragPipe timeline.",
@@ -263,7 +268,7 @@ def _simulate_spectral_search(
         }
 
     # Load the corresponding data file and extract results
-    dataset = pd.read_csv(f"data/{data_file_name}", sep="\t")
+    dataset = pd.read_csv(DATA_DIR / data_file_name, sep="\t")
 
     # Making plots
     imgs = []
