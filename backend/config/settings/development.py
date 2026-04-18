@@ -7,7 +7,7 @@ import os
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "computproteomics.bmb.sdu.dk"]
 
 _db_engine = os.environ.get("DB_ENGINE", "django.db.backends.sqlite3")
 
@@ -35,4 +35,6 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://computproteomics.bmb.sdu.dk",
+    "http://computproteomics.bmb.sdu.dk",
 ]
