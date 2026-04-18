@@ -8,7 +8,7 @@ function readCookie(name) {
 
 // Shared HTTP client for the frontend.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.BASE_URL + 'api'),
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
