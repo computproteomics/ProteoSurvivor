@@ -14,9 +14,12 @@ Built with **React + Vite** (frontend) and **Django + Django REST Framework** (b
 
 ### Option A — Docker (recommended)
 
-The repository ships with a single multi-stage `Dockerfile` that builds the
-React bundle and serves it via **Vite** on port **3000**, proxying API and admin
-requests to the Django backend running on port 8000 inside the same container.
+The repository ships with a single `Dockerfile` that builds the React bundle and
+serves it via **Vite** on port **3000**, proxying API and admin requests to the
+Django backend running on port **8000** inside the same container.
+
+The app is deployed at `/ProteoSurviver/` by default (matching
+`https://computproteomics.bmb.sdu.dk/ProteoSurviver/`).
 
 ```bash
 cp backend/.env.example backend/.env   # set SECRET_KEY at minimum
@@ -24,26 +27,7 @@ docker build -t proteosurvivor .
 docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 ```
 
-| Service  | URL                        |
-|----------|----------------------------|
-| App      | http://localhost:3000       |
-| API      | http://localhost:3000/api   |
-| Admin    | http://localhost:3000/admin |
-
-#### Deploying behind a reverse proxy at a sub-path
-
-If nginx (or any reverse proxy) serves the app under a sub-path such as
-`/ProteoSurviver/`, pass the path as a build argument so Vite bakes the correct
-base URL into the static bundle:
-
-```bash
-docker build --build-arg VITE_BASE_PATH=/ProteoSurviver/ -t proteosurvivor .
-docker run --env-file backend/.env -p 3000:3000 proteosurvivor
-```
-
-Your nginx `location` block should proxy all requests under that path to the
-container, keeping the full path intact (do **not** add a trailing `/` to
-`proxy_pass` — that would strip the sub-path prefix):
+The nginx `location` block that proxies to the container:
 
 ```nginx
 location /ProteoSurviver/ {

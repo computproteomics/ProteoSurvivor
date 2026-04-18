@@ -3,10 +3,7 @@ FROM python:3.11-slim
 # Production-ready container: build the React bundle (dist/), serve it via
 # vite preview on port 3000 (proxies /api → Django), run Django on port 8000.
 #
-# When deploying behind a reverse proxy at a sub-path (e.g. /ProteoSurviver/),
-# pass the path at build time:
-#   docker build --build-arg VITE_BASE_PATH=/ProteoSurviver/ -t proteosurvivor .
-ARG VITE_BASE_PATH=/
+ARG VITE_BASE_PATH=/ProteoSurviver/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor curl gnupg ca-certificates libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
