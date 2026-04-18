@@ -47,7 +47,7 @@ RUN printf '[supervisord]\n\
     stderr_logfile_maxbytes=0\n\
     \n\
     [program:vite]\n\
-    command=npm run preview -- --host 0.0.0.0 --port 3000\n\
+    command=npm run preview -- --host 0.0.0.0 --port 3000 --base ${VITE_BASE_PATH}\n\
     directory=/app/frontend\n\
     environment=VITE_BASE_PATH="${VITE_BASE_PATH}"\n\
     autostart=true\n\
