@@ -30,6 +30,29 @@ docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 | API      | http://localhost:3000/api   |
 | Admin    | http://localhost:3000/admin |
 
+#### Deploying behind a reverse proxy at a sub-path
+
+If nginx (or any reverse proxy) serves the app under a sub-path such as
+`/ProteoSurviver/`, pass the path as a build argument so Vite bakes the correct
+base URL into the static bundle:
+
+```bash
+docker build --build-arg VITE_BASE_PATH=/ProteoSurviver/ -t proteosurvivor .
+docker run --env-file backend/.env -p 3000:3000 proteosurvivor
+```
+
+Your nginx `location` block should proxy all requests under that path to the
+container, keeping the full path intact (do **not** add a trailing `/` to
+`proxy_pass` — that would strip the sub-path prefix):
+
+```nginx
+location /ProteoSurviver/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
 ---
 
 ### Option B — Manual

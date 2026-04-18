@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 # Production-ready container: build the React bundle (dist/), serve it via
 # vite preview on port 3000 (proxies /api → Django), run Django on port 8000.
+#
+# When deploying behind a reverse proxy at a sub-path (e.g. /ProteoSurviver/),
+# pass the path at build time:
+#   docker build --build-arg VITE_BASE_PATH=/ProteoSurviver/ -t proteosurvivor .
+ARG VITE_BASE_PATH=/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor curl gnupg ca-certificates libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
@@ -22,7 +27,7 @@ COPY backend/ /app/backend/
 COPY frontend/package.json frontend/package-lock.json /app/frontend/
 RUN cd /app/frontend && npm ci
 COPY frontend/ /app/frontend/
-RUN cd /app/frontend && npm run build
+RUN cd /app/frontend && VITE_BASE_PATH=${VITE_BASE_PATH} npm run build
 
 # Provide frontend station config to backend at runtime.
 COPY frontend/src/assets/stations.json /app/backend/data/stations.json
