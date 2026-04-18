@@ -55,7 +55,8 @@ RUN printf '[supervisord]\n\
     stdout_logfile=/dev/stdout\n\
     stdout_logfile_maxbytes=0\n\
     stderr_logfile=/dev/stderr\n\
-    stderr_logfile_maxbytes=0\n' > /etc/supervisor/conf.d/app.conf
+    stderr_logfile_maxbytes=0\n' > /etc/supervisor/conf.d/app.conf \
+    && sed -i "s|\${VITE_BASE_PATH}|${VITE_BASE_PATH}|g" /etc/supervisor/conf.d/app.conf
 
 EXPOSE 3000 8000
 
