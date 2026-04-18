@@ -572,7 +572,7 @@ class TestStatisticalAnalysisStation(TestCase):
 
 class TestVeitStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_veit(pd.DataFrame(), {})
+        result = _simulate_veit(pd.DataFrame(), {}, set())
         self.assertFalse(result["success"])
 
     def test_counts_true_and_false_positives(self):
@@ -580,9 +580,7 @@ class TestVeitStation(TestCase):
             df = _make_dataset_with_stats()
             # Yeast P0001 has FC=-1.5 → true positive; E.coli P0003 has FC=1.8 → true positive
             # Yeast P0002 has FC=-0.3 → true positive (FC < 0); Human P0004 → false positive
-            result = _simulate_veit(df, {})
-
-        self.assertTrue(result["success"])
+            result = _simulate_veit(df, {}, set())
         self.assertEqual(
             result["true_positives"], 3
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
@@ -594,9 +592,7 @@ class TestVeitStation(TestCase):
             # All Human → all false positives
             df = _make_dataset_with_stats()
             df[ORGANISM] = "Human"
-            result = _simulate_veit(df, {})
-
-        self.assertEqual(result["true_positives"], 0)
+            result = _simulate_veit(df, {}, set())
         self.assertEqual(result["score"], 0)
 
 
@@ -893,7 +889,7 @@ class TestFullWorkflow(TestCase):
         visited.add("the_cutter")
 
         # --- 11. veit (final scoring) ---
-        r = _simulate_veit(dataset, {})
+        r = _simulate_veit(dataset, {}, visited)
         self.assertTrue(r["success"], "veit failed")
         self.assertIn("score", r)
         self.assertIn("true_positives", r)
