@@ -49,6 +49,7 @@ RUN printf '[supervisord]\n\
     [program:vite]\n\
     command=npm run preview -- --host 0.0.0.0 --port 3000\n\
     directory=/app/frontend\n\
+    environment=VITE_BASE_PATH="${VITE_BASE_PATH}"\n\
     autostart=true\n\
     autorestart=true\n\
     stdout_logfile=/dev/stdout\n\
