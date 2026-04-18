@@ -5,7 +5,10 @@ prerequisite-station guard.
 """
 
 from unittest.mock import patch
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import TestCase
+from django.test.client import RequestFactory
 import itertools
 import json
 import numpy as np
@@ -24,6 +27,7 @@ from game.services import (
     _simulate_the_cutter,
     _simulate_transform,
     _simulate_veit,
+    run_station,
     COND_A,
     COND_B,
     FC,
@@ -33,6 +37,7 @@ from game.services import (
     PVALUE,
     TOT_PEP,
 )
+from game.models import StationRun
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -567,7 +572,7 @@ class TestStatisticalAnalysisStation(TestCase):
 
 class TestVeitStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_veit(pd.DataFrame(), {})
+        result = _simulate_veit(pd.DataFrame(), {}, set())
         self.assertFalse(result["success"])
 
     def test_counts_true_and_false_positives(self):
@@ -575,9 +580,7 @@ class TestVeitStation(TestCase):
             df = _make_dataset_with_stats()
             # Yeast P0001 has FC=-1.5 → true positive; E.coli P0003 has FC=1.8 → true positive
             # Yeast P0002 has FC=-0.3 → true positive (FC < 0); Human P0004 → false positive
-            result = _simulate_veit(df, {})
-
-        self.assertTrue(result["success"])
+            result = _simulate_veit(df, {}, set())
         self.assertEqual(
             result["true_positives"], 3
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
@@ -589,9 +592,7 @@ class TestVeitStation(TestCase):
             # All Human → all false positives
             df = _make_dataset_with_stats()
             df[ORGANISM] = "Human"
-            result = _simulate_veit(df, {})
-
-        self.assertEqual(result["true_positives"], 0)
+            result = _simulate_veit(df, {}, set())
         self.assertEqual(result["score"], 0)
 
 
@@ -888,10 +889,54 @@ class TestFullWorkflow(TestCase):
         visited.add("the_cutter")
 
         # --- 11. veit (final scoring) ---
-        r = _simulate_veit(dataset, {})
+        r = _simulate_veit(dataset, {}, visited)
         self.assertTrue(r["success"], "veit failed")
         self.assertIn("score", r)
         self.assertIn("true_positives", r)
         self.assertIn("false_positives", r)
         total = r["true_positives"] + r["false_positives"]
         self.assertEqual(total, len(dataset), "TP + FP should equal total candidates")
+
+
+class TestRunStationAnonymousUser(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _build_request(self):
+        request = self.factory.post("/api/stations/test_station/run/", data={})
+        middleware = SessionMiddleware(lambda _request: None)
+        middleware.process_request(request)
+        request.session.save()
+        request.user = AnonymousUser()
+        return request
+
+    def test_run_station_tracks_visited_stations_in_session(self):
+        request = self._build_request()
+        request.session["visited_stations"] = ["sample_prep"]
+
+        seen_visited = {}
+
+        def _runner(_dataset, _params, visited_stations):
+            seen_visited["value"] = set(visited_stations)
+            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
+            result = run_station(request, station_id="mass_spec", params={})
+
+        self.assertTrue(result["success"])
+        self.assertEqual(seen_visited["value"], {"sample_prep"})
+        self.assertCountEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
+        self.assertEqual(StationRun.objects.count(), 0)
+
+    def test_run_station_does_not_duplicate_session_visited_station(self):
+        request = self._build_request()
+        request.session["visited_stations"] = ["sample_prep"]
+
+        def _runner(_dataset, _params, _visited_stations):
+            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
+            result = run_station(request, station_id="sample_prep", params={})
+
+        self.assertTrue(result["success"])
+        self.assertEqual(request.session["visited_stations"], ["sample_prep"])

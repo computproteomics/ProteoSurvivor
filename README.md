@@ -14,31 +14,42 @@ Built with **React + Vite** (frontend) and **Django + Django REST Framework** (b
 
 ### Option A — Docker (recommended)
 
-The repository ships with a single multi-stage `Dockerfile` that builds the
-React bundle and serves it via **nginx** on port **8080**, proxying API and admin
-requests to the Django backend running on port 8000 inside the same container.
+The repository ships with a single `Dockerfile` that builds the React bundle and
+serves it via **Vite** on port **3000**, proxying API and admin requests to the
+Django backend running on port **8000** inside the same container.
+
+The app is deployed at `/ProteoSurviver/` by default (matching
+`https://computproteomics.bmb.sdu.dk/ProteoSurviver/`).
 
 ```bash
 cp backend/.env.example backend/.env   # set SECRET_KEY at minimum
 docker build -t proteosurvivor .
-docker run --env-file backend/.env -p 8080:8080 proteosurvivor
+docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 ```
 
-| Service  | URL                        |
-|----------|----------------------------|
-| App      | http://localhost:8080       |
-| API      | http://localhost:8080/api   |
-| Admin    | http://localhost:8080/admin |
+The nginx `location` block that proxies to the container:
+
+```nginx
+location /ProteoSurviver/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
 
 ---
 
 ### Option B — Manual
 
 #### Run Both
+`npm run dev` starts both the Vite dev server and the Django backend. On first
+run it creates a Python virtual environment (`backend/venv/`) automatically, so
+no manual `pip install` is needed.
+
 ##### First time
 ```bash
 cd frontend
-npm install concurrently --save-dev
+npm install
 npm run dev
 ```
 

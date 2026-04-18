@@ -1,6 +1,7 @@
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from typing import cast
@@ -16,6 +17,24 @@ from .serializers import (
 from .leaderboard import get_leaderboard_information
 from .helper_functions import plot_scores
 from .services import run_station
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """Session authentication that skips CSRF enforcement.
+
+    DRF's default SessionAuthentication enforces CSRF for every authenticated
+    session.  When the CSRF cookie is absent (e.g. the browser was restarted
+    and only the longer-lived session cookie survived), any POST to a station
+    endpoint returns 403 before the view logic can run.
+
+    The station endpoints are already protected by CORS in production and by
+    the game session (users must have called /api/start first).  Skipping the
+    additional CSRF layer here removes the false-403 while keeping session-
+    based user identification intact.
+    """
+
+    def enforce_csrf(self, request):
+        return None  # intentionally skipped for API endpoints
 
 
 def _build_unique_user_id(base_name: str) -> str:
@@ -62,6 +81,8 @@ class NewPlayerView(APIView):
 
 
 @api_view(["POST"])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([AllowAny])
 def enter_station_view(request, station_id):
     if station_id not in settings.STATIONS_CONFIG:
         return Response(
@@ -80,6 +101,8 @@ def enter_station_view(request, station_id):
 
 
 @api_view(["POST"])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([AllowAny])
 def run_station_view(request, station_id):
     if station_id not in settings.STATIONS_CONFIG:
         return Response(

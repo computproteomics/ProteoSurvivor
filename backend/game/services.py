@@ -3,6 +3,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
+from pathlib import Path
 from typing import Any, cast
 import pandas as pd
 from .models import StationRun, FinalStationResult
@@ -34,6 +35,10 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
 
 from django.conf import settings
+
+# Absolute path to the backend data directory, resolved relative to this file
+# so it works regardless of the process working directory (development or Docker).
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 # Variables for column names
 PROTEIN = "Protein"
@@ -109,36 +114,49 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    user_runs = request.user.station_runs.all()
-    visited_stations = set(run.station_id for run in user_runs)
+    if request.user.is_authenticated:
+        user_runs = request.user.station_runs.all()
+        visited_stations = set(run.station_id for run in user_runs)
+    else:
+        visited_station_list = request.session.get("visited_stations", [])
+        visited_stations = set(visited_station_list)
+
     result = runner(dataset, params, visited_stations)
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
-        run = StationRun(
-            player=request.user,
-            station_id=station_id,
-            params=params,
-            score=result.get(
-                "score", 0
-            ),  # Score can be calculated based on results if needed
-        )
-
-        run.save()
-        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-        if settings.STATIONS_CONFIG[station_id].get("final", False):
-            final_result = FinalStationResult(
-                station_run=run,
-                true_positives=result.get("true_positives", 0),
-                false_positives=result.get("false_positives", 0),
+        if request.user.is_authenticated:
+            run = StationRun(
+                player=request.user,
+                station_id=station_id,
+                params=params,
+                score=result.get(
+                    "score", 0
+                ),  # Score can be calculated based on results if needed
             )
-            final_result.save()
-            print(f"Saved FinalStationResult for StationRun ID {run.id}")
+
+            run.save()
+            print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+            if settings.STATIONS_CONFIG[station_id].get("final", False):
+                final_result = FinalStationResult(
+                    station_run=run,
+                    true_positives=result.get("true_positives", 0),
+                    false_positives=result.get("false_positives", 0),
+                )
+                final_result.save()
+                print(f"Saved FinalStationResult for StationRun ID {run.id}")
+        else:
+            if station_id not in visited_station_list:
+                visited_station_list.append(station_id)
+            request.session["visited_stations"] = visited_station_list
 
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
-    print(f"Updated session dataset for user {request.user.username}")
+    if request.user.is_authenticated:
+        print(f"Updated session dataset for user {request.user.username}")
+    else:
+        print("Updated session dataset for anonymous user")
 
     # Keep large internal data structures (e.g., DataFrames) in session only.
     response_payload = {key: value for key, value in result.items() if key != "dataset"}
@@ -195,7 +213,7 @@ def _simulate_spectral_search(
     max_pep_len = int(params.get("max_peptide_length", 35))
 
     # reading parameter file
-    file_map = pd.read_csv("data/ParameterTable.csv")  # Mapping table
+    file_map = pd.read_csv(DATA_DIR / "ParameterTable.csv")  # Mapping table
     # Make key of all columns but ParameterSet
     file_map["key"] = (
         file_map["tool"]
@@ -240,7 +258,7 @@ def _simulate_spectral_search(
     data_file_name = matching_rows.iloc[0]["ParameterSet"] + ".tsv"
 
     # check whether datafile exists
-    if not os.path.exists(f"data/{data_file_name}"):
+    if not (DATA_DIR / data_file_name).exists():
         return {
             "success": False,
             "feedback": "⚠️ No search result exists for this parameter combo. You have discovered a forbidden FragPipe timeline.",
@@ -249,7 +267,7 @@ def _simulate_spectral_search(
         }
 
     # Load the corresponding data file and extract results
-    dataset = pd.read_csv(f"data/{data_file_name}", sep="\t")
+    dataset = pd.read_csv(DATA_DIR / data_file_name, sep="\t")
 
     # Making plots
     imgs = []
