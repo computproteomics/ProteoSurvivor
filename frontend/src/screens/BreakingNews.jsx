@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './BreakingNews.module.css';
+import useGameStore from '../store/gameSlice';
 import aiCompany from '../assets/shitty_logo.png'
 import advertisement1 from '../assets/Protein_separation_ad.png';
 import advertisement2 from '../assets/Grow_hela.png';
@@ -10,16 +10,16 @@ import advertisement5 from '../assets/proteomics_ad.png';
 import advertisement6 from '../assets/spectrometry_ad.png';
 
 
-function Header({  }) {
+function Header({ }) {
   const company_logo = aiCompany;
-  const time = "2003-09-11";
-  return(
+  const time = "2026-03-14";
+  return (
     <div className={styles.header}>
       <div className={styles.rightHeader}>
         <img className={styles.logo} src={aiCompany} alt="add company logo" />
       </div>
       <div className={styles.leftHeader}>
-        <h3> 
+        <h3>
           {time}
         </h3>
       </div>
@@ -29,7 +29,7 @@ function Header({  }) {
 
 function Title({ text }) {
 
-  return(
+  return (
     <div className={styles.title}>
       <h1 className={styles.tabloidChaosTitle} >
         {text}
@@ -38,32 +38,37 @@ function Title({ text }) {
   )
 }
 
-function Aside( {className, adPic, adText, adTitle }) {
-  return(
+function Aside({ className, ads }) {
+  return (
     <div className={className}>
-      <img className={styles.adImage} src={adPic} alt="Add"></img>
-      <h3 className={styles.adTitle}>{adTitle}</h3>
-      <p className={styles.adText}>{adText}</p>
-
+      {ads.map(({ adPic, adTitle, adText }, index) => (
+        <div key={index} className={styles.sideAdBox}>
+          <img className={styles.sideAdBoxImage} src={adPic} alt="Ad" />
+          <div className={styles.sideAdContent}>
+            <h3 className={styles.sideAdTitle}>{adTitle}</h3>
+            <p className={styles.sideAdText}>{adText}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 
 function AdBox({ adPic, adTitle, adText }) {
-  return(
+  return (
     <div className={styles.adBox}>
       <img className={styles.adBoxImage} src={adPic} alt="Add an Ad" />
       <div className={styles.adBoxBox}>
-        <h3 className={styles.adBoxTitle}> {adTitle} </h3> 
+        <h3 className={styles.adBoxTitle}> {adTitle} </h3>
         <p className={styles.adBoxText}> {adText} </p>
       </div>
     </div>
-  ); 
+  );
 }
 
 function TextBox({ text }) {
-  return(
+  return (
     <div className={styles.textBox}>
       <p className={styles.textBoxText}>
         {text}
@@ -75,40 +80,47 @@ function TextBox({ text }) {
 function NextButton() {
   const navigate = useNavigate();
 
-  return(
+  return (
     <button onClick={() => navigate("/world")}>
-      Go To world
+      So let's go save the world!
     </button>
   );
 }
 
 function Page() {  // all the text and main adds on the page
-  const text1 = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.m"
-  const text2 = "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like)."
-  const text3 = " Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32."
-  const text4 = "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc."
-  const adPic1 = advertisement1 
-  const adTitle1 = "THE ULTIMATE PROTEIN SEPARATOR THAT PUTS SCIENTISTS OUT OF WORK"
-  const adText1 = ""
-  const adPic2 = advertisement2
-  const adTitle2 = "Title placeholder2"
-  const adText2 = "Minor placeholder"
-  const adPic3 = advertisement3
-  const adTitle3 = "Title placeholder3"
-  const adText3 = "Minor placeholder"
+  const userName = useGameStore((s) => s.userName);
+  const playerName = userName || '[PLAYER NAME]';
+
+  const text1 = `
+Hospitals across multiple continents are reporting cases of a rapidly progressing neurological and metabolic disorder. Patients initially present with fatigue and mild fever… but within 48 hours, symptoms escalate to severe cellular degradation.
+
+Doctors are calling it Proteome Collapse Syndrome (PCS).
+
+Standard genetic sequencing has failed to identify the cause. Early reports suggest abnormal protein expression and misfolding at unprecedented levels.
+
+`;
+  const text2 = `
+
+The World Health Organization is urging all proteomics laboratories to assist in identifying the molecular mechanisms behind this outbreak.
+
+Time is critical.
+
+Dr. ${playerName}, you have been granted emergency access to a high-priority dataset recovered from infected patients.
+
+Your mission:
+Identify the proteins and pathways driving this disease… and help develop a cure before it spreads beyond control.
+`;
   const adPic4 = advertisement4
-  const adTitle4 = "Title placeholder4"
-  const adText4 = "Minor placeholder"
-  
-  return(
+  const adTitle4 = "Escape room for the advanced protein scientists!"
+  const adText4 = "Being a protein scientist also needs its fun parts. BUY this amazing escape room game and relax! Solve puzzles and escape the lab before time runs out!";
+
+  return (
     <div className={styles.page}>
       <TextBox text={text1} ></TextBox>
-      <AdBox adPic={adPic1} adTitle={adTitle1} adText={adText1} ></AdBox>
       <TextBox text={text2} ></TextBox>
-      <AdBox adPic={adPic2} adTitle={adTitle2} adText={adText2} ></AdBox>
-      <TextBox text={text3} ></TextBox>
-      <AdBox adPic={adPic3} adTitle={adTitle3} adText={adText3} ></AdBox>
-      <TextBox text={text4} ></TextBox>
+      <div className={styles.center} style={{ marginBottom: '20px' }}>
+        <NextButton></NextButton>
+      </div>
       <AdBox adPic={adPic4} adTitle={adTitle4} adText={adText4} ></AdBox>
     </div>
   )
@@ -116,8 +128,8 @@ function Page() {  // all the text and main adds on the page
 
 
 function Canvas() {    // the title box plus the Page
-  const titleText = "THIS IS A TITLE"
-  return(
+  const titleText = "📺 GLOBAL EMERGENCY BROADCAST 📺"
+  return (
     <div className={styles.canvas}>
       <Title text={titleText}></Title>
       <Page ></Page>
@@ -128,20 +140,33 @@ function Canvas() {    // the title box plus the Page
 
 export default function News() {
   const adPic1 = advertisement5
-  const adTitle1 = "RESEARCHERS DON'T WANT YOU TO KNOW"
-  const adText1 = "THe best proteomics software in the world. Who needs school, when you can, with the click of a button, perform the most advanced research in the world."
+  const adTitle1 = "RESEARCHER DON'T WANT YOU TO KNOW"
+  const adText1 = "Who needs school, when you can, with the click of a button, perform the most advanced research in the world."
   const adPic2 = advertisement6
-  const adTitle2 = "PLACEHOLDER 2"
-  const adText2 = "This is placeholder for ad text 2"
+  const adTitle2 = "GET IT NOW OR MISS THE OPPORTUNITY!!!"
+  const adText2 = "The super instrument of this century! So sensitive that it makes you cry tears of joy each time"
+  const adPic3 = advertisement2
+  const adTitle3 = 'GROW GROW GROWWW'
+  const adText3 = 'A day cannot go by without thinking of buying this super product! -Dr. smith'
+  const adPic4 = advertisement1
+  const adTitle4 = 'Separates faster than ever!'
+  const adText4 = 'The ultimate protein separator that puts scientists out of work.';
 
+  const leftSideAds = [
+    { adPic: adPic1, adTitle: adTitle1, adText: adText1 },
+    { adPic: adPic3, adTitle: adTitle3, adText: adText3 },
+  ];
+  const rightSideAds = [
+    { adPic: adPic2, adTitle: adTitle2, adText: adText2 },
+    { adPic: adPic4, adTitle: adTitle4, adText: adText4 },
+  ];
 
-  return(
+  return (
     <div className={styles.layout}>
       <Header ></Header>
-      <Aside className={`${styles.aside} ${styles.leftAside}`} adPic={adPic1} adText={adText1} adTitle={adTitle1}></Aside>
+      <Aside className={`${styles.aside} ${styles.leftAside}`} ads={leftSideAds}></Aside>
       <Canvas ></Canvas>
-      <Aside className={`${styles.aside} ${styles.rightAside}`} adPic={adPic2} adText={adText2} adTitle={adTitle2}></Aside>
-      <NextButton></NextButton>
+      <Aside className={`${styles.aside} ${styles.rightAside}`} ads={rightSideAds}></Aside>
     </div>
   );
 }
