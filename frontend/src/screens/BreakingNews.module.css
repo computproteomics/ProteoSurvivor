@@ -1,22 +1,23 @@
 .adBox {
-  width: 90%;
-  margin-left: 5%;
-  margin-right: 5%;
+  width: 100%;
+  margin-left: 0%;
+  margin-right: 0%;
   height: 300px;
 
   background: #0b2a5a;
-  color: white;
+  color: rgb(255, 255, 255);
 
   display: flex;
   border-radius: 12px;
   overflow: hidden;
 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .adBoxImage {
   left: 0px;
 }
+
 .adBoxBox {
   display: flex;
   flex-direction: column;
@@ -24,12 +25,14 @@
   width: 60%;
 
 }
+
 .adBoxTitle {
   margin: 12px;
   font-size: 18px;
   font-weight: bold;
   text-align: center;
 }
+
 .adBoxText {
   height: 75%;
   padding: 16px;
@@ -41,75 +44,111 @@
   height: 95%;
   object-fit: contain;
 }
+
 .adText {
   width: 75%;
   padding: 16px;
   text-align: center;
 }
+
 .adTitle {
   margin: 12px;
-  font-size: 18px;
+  font-size: 1px;
   font-weight: bold;
   text-align: center;
 }
 
 .aside {
-  position: fixed;
-  top: 10%;
-  bottom: 10%;
-  width: 380px;
-
-  background: #0b2a5a;
+  width: 100%;
+  max-width: none;
   color: white;
 
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 
   border-radius: 12px;
   overflow: hidden;
 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  margin-top: 4rem;
+}
+
+.sideAdBox {
+  width: 100%;
+  background: #133c7c;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.sideAdBoxImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sideAdContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.sideAdTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sideAdText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .leftAside {
-  left: 16px;
-  justify-content: center;
-  display: flex;
+  grid-column: 1;
 }
 
 .rightAside {
-  right: 16px;
-  justify-content: center;
-  display: flex;
+  grid-column: 3;
 }
 
-
 .canvas {
-  min-height: 100vh;
-  width: 50%;
+  grid-column: 2;
+  width: 100%;
   margin-top: 150px;
-  margin-left: auto;
-  margin-right: auto;
   margin-bottom: 150px;
-  justify-content: center;
-  background: pink;
 }
 
 .layout {
-  position: relative;
   display: grid;
+  grid-template-columns: 1fr 3fr 1fr;
+  /* left ads | main | right ads */
+  gap: 2rem;
+  align-items: start;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
   background: white;
-} 
+}
 
 .logo {
   height: 60px;
   max-width: 100%;
   object-fit: contain;
 }
+
 .header {
-  position:fixed;
-  top: 0px;
-  width:100%;
+  grid-column: 1 / -1;
+  position: fixed;
+  top: 0;
+  width: 100%;
   background: green;
   display: flex;
   justify-content: center;
@@ -122,6 +161,7 @@
   display: flex;
   justify-content: center;
 }
+
 .rightHeader {
   right: 0px;
   width: 50%;
@@ -137,14 +177,14 @@
 
 
 .textBox {
-  display:flex;
-  width:100%;
-} 
+  display: flex;
+  width: 100%;
+}
 
 .tabloidChaosTitle {
   font-family: "Comic Sans MS", cursive;
 
-  font-size: 34px;
+  font-size: 25px;
   font-weight: 900;
 
   color: white;
@@ -156,8 +196,8 @@
   text-align: center;
 
   text-shadow:
-  2px 2px black,
-  -2px -2px black;
+    2px 2px black,
+    -2px -2px black;
 
   padding: 16px;
 
