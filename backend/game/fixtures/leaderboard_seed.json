@@ -3,8 +3,8 @@
     "model": "auth.user",
     "pk": 1001,
     "fields": {
-      "username": "matthias_mann",
-      "first_name": "Matthias Mann",
+      "username": "zara_ionblast",
+      "first_name": "Zara Ionblast",
       "password": "!"
     }
   },
@@ -12,8 +12,8 @@
     "model": "auth.user",
     "pk": 1002,
     "fields": {
-      "username": "jurgen_cox",
-      "first_name": "Jurgen Cox",
+      "username": "orion_peptide",
+      "first_name": "Orion Peptide",
       "password": "!"
     }
   },
@@ -21,8 +21,8 @@
     "model": "auth.user",
     "pk": 1003,
     "fields": {
-      "username": "john_yates",
-      "first_name": "John Yates",
+      "username": "luna_spectra",
+      "first_name": "Luna Spectra",
       "password": "!"
     }
   },
@@ -30,8 +30,8 @@
     "model": "auth.user",
     "pk": 1004,
     "fields": {
-      "username": "lennart_martens",
-      "first_name": "Lennart Martens",
+      "username": "dax_fragforge",
+      "first_name": "Dax Fragforge",
       "password": "!"
     }
   },
@@ -39,8 +39,8 @@
     "model": "auth.user",
     "pk": 1005,
     "fields": {
-      "username": "ruedi_aebersold",
-      "first_name": "Ruedi Aebersold",
+      "username": "nova_trypsin",
+      "first_name": "Nova Trypsin",
       "password": "!"
     }
   },
@@ -48,8 +48,8 @@
     "model": "auth.user",
     "pk": 1006,
     "fields": {
-      "username": "olga_vitek",
-      "first_name": "Olga Vitek",
+      "username": "kira_massworth",
+      "first_name": "Kira Massworth",
       "password": "!"
     }
   },
@@ -57,8 +57,8 @@
     "model": "auth.user",
     "pk": 1007,
     "fields": {
-      "username": "steven_carr",
-      "first_name": "Steven Carr",
+      "username": "rex_isoform",
+      "first_name": "Rex Isoform",
       "password": "!"
     }
   },
@@ -66,8 +66,8 @@
     "model": "auth.user",
     "pk": 1008,
     "fields": {
-      "username": "robert_moritz",
-      "first_name": "Robert Moritz",
+      "username": "sage_elution",
+      "first_name": "Sage Elution",
       "password": "!"
     }
   },
@@ -75,8 +75,8 @@
     "model": "auth.user",
     "pk": 1009,
     "fields": {
-      "username": "ben_collins",
-      "first_name": "Ben Collins",
+      "username": "vex_proteon",
+      "first_name": "Vex Proteon",
       "password": "!"
     }
   },
@@ -84,8 +84,8 @@
     "model": "auth.user",
     "pk": 1010,
     "fields": {
-      "username": "alexey_nesvizhskii",
-      "first_name": "Alexey Nesvizhskii",
+      "username": "ayla_glycan",
+      "first_name": "Ayla Glycan",
       "password": "!"
     }
   },
@@ -93,8 +93,8 @@
     "model": "auth.user",
     "pk": 1011,
     "fields": {
-      "username": "lukas_kall",
-      "first_name": "Lukas Kall",
+      "username": "finn_pepticore",
+      "first_name": "Finn Pepticore",
       "password": "!"
     }
   },
@@ -102,8 +102,8 @@
     "model": "auth.user",
     "pk": 1012,
     "fields": {
-      "username": "yasset_perez_riverol",
-      "first_name": "Yasset Perez-Riverol",
+      "username": "mira_spectron",
+      "first_name": "Mira Spectron",
       "password": "!"
     }
   },
@@ -111,8 +111,8 @@
     "model": "auth.user",
     "pk": 1013,
     "fields": {
-      "username": "henning_hermjakob",
-      "first_name": "Henning Hermjakob",
+      "username": "jak_foldsworth",
+      "first_name": "Jak Foldsworth",
       "password": "!"
     }
   },
@@ -120,8 +120,8 @@
     "model": "auth.user",
     "pk": 1014,
     "fields": {
-      "username": "hannes_roest",
-      "first_name": "Hannes Roest",
+      "username": "skye_peptase",
+      "first_name": "Skye Peptase",
       "password": "!"
     }
   },
@@ -129,8 +129,8 @@
     "model": "auth.user",
     "pk": 1015,
     "fields": {
-      "username": "brian_searle",
-      "first_name": "Brian Searle",
+      "username": "blaze_isocore",
+      "first_name": "Blaze Isocore",
       "password": "!"
     }
   },
@@ -138,80 +138,8 @@
     "model": "auth.user",
     "pk": 1016,
     "fields": {
-      "username": "alexandre_levy",
-      "first_name": "Alexandre Levy",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1017,
-    "fields": {
-      "username": "xiaochen_bo",
-      "first_name": "Xiaochen Bo",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1018,
-    "fields": {
-      "username": "juan_antonio_vizcaino",
-      "first_name": "Juan Antonio Vizcaino",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1019,
-    "fields": {
-      "username": "nikolai_slavov",
-      "first_name": "Nikolai Slavov",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1020,
-    "fields": {
-      "username": "nils_beerenwinkel",
-      "first_name": "Nils Beerenwinkel",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1021,
-    "fields": {
-      "username": "oliver_rinner",
-      "first_name": "Oliver Rinner",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1022,
-    "fields": {
-      "username": "samuel_payne",
-      "first_name": "Samuel Payne",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1023,
-    "fields": {
-      "username": "kathryn_lilley",
-      "first_name": "Kathryn Lilley",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1024,
-    "fields": {
-      "username": "aaron_coon",
-      "first_name": "Aaron Coon",
+      "username": "cleo_massfield",
+      "first_name": "Cleo Massfield",
       "password": "!"
     }
   },
@@ -223,7 +151,7 @@
       "player": 1001,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 98.7,
+      "score": 95.2,
       "created_at": "2026-04-09T08:00:00Z"
     }
   },
@@ -234,8 +162,8 @@
       "player": 1002,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 97.9,
-      "created_at": "2026-04-09T08:03:00Z"
+      "score": 88.7,
+      "created_at": "2026-04-09T08:04:00Z"
     }
   },
   {
@@ -245,8 +173,8 @@
       "player": 1003,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 97.1,
-      "created_at": "2026-04-09T08:06:00Z"
+      "score": 81.4,
+      "created_at": "2026-04-09T08:08:00Z"
     }
   },
   {
@@ -256,8 +184,8 @@
       "player": 1004,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 96.4,
-      "created_at": "2026-04-09T08:09:00Z"
+      "score": 74.0,
+      "created_at": "2026-04-09T08:12:00Z"
     }
   },
   {
@@ -267,8 +195,8 @@
       "player": 1005,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 95.6,
-      "created_at": "2026-04-09T08:12:00Z"
+      "score": 66.9,
+      "created_at": "2026-04-09T08:16:00Z"
     }
   },
   {
@@ -278,8 +206,8 @@
       "player": 1006,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 94.8,
-      "created_at": "2026-04-09T08:15:00Z"
+      "score": 59.5,
+      "created_at": "2026-04-09T08:20:00Z"
     }
   },
   {
@@ -289,8 +217,8 @@
       "player": 1007,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 94.0,
-      "created_at": "2026-04-09T08:18:00Z"
+      "score": 52.3,
+      "created_at": "2026-04-09T08:24:00Z"
     }
   },
   {
@@ -300,8 +228,8 @@
       "player": 1008,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 93.3,
-      "created_at": "2026-04-09T08:21:00Z"
+      "score": 45.1,
+      "created_at": "2026-04-09T08:28:00Z"
     }
   },
   {
@@ -311,8 +239,8 @@
       "player": 1009,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 92.6,
-      "created_at": "2026-04-09T08:24:00Z"
+      "score": 38.0,
+      "created_at": "2026-04-09T08:32:00Z"
     }
   },
   {
@@ -322,162 +250,8 @@
       "player": 1010,
       "station_id": "veit",
       "params": {"submission": "fixture"},
-      "score": 91.8,
-      "created_at": "2026-04-09T08:27:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2011,
-    "fields": {
-      "player": 1011,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 91.0,
-      "created_at": "2026-04-09T08:30:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2012,
-    "fields": {
-      "player": 1012,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 90.2,
-      "created_at": "2026-04-09T08:33:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2013,
-    "fields": {
-      "player": 1013,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 89.5,
+      "score": 31.2,
       "created_at": "2026-04-09T08:36:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2014,
-    "fields": {
-      "player": 1014,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 88.9,
-      "created_at": "2026-04-09T08:39:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2015,
-    "fields": {
-      "player": 1015,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 88.1,
-      "created_at": "2026-04-09T08:42:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2016,
-    "fields": {
-      "player": 1016,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 87.4,
-      "created_at": "2026-04-09T08:45:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2017,
-    "fields": {
-      "player": 1017,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 86.8,
-      "created_at": "2026-04-09T08:48:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2018,
-    "fields": {
-      "player": 1018,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 86.0,
-      "created_at": "2026-04-09T08:51:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2019,
-    "fields": {
-      "player": 1019,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 85.3,
-      "created_at": "2026-04-09T08:54:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2020,
-    "fields": {
-      "player": 1020,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 84.7,
-      "created_at": "2026-04-09T08:57:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2021,
-    "fields": {
-      "player": 1021,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 84.0,
-      "created_at": "2026-04-09T09:00:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2022,
-    "fields": {
-      "player": 1022,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 83.2,
-      "created_at": "2026-04-09T09:03:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2023,
-    "fields": {
-      "player": 1023,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 82.5,
-      "created_at": "2026-04-09T09:06:00Z"
-    }
-  },
-  {
-    "model": "game.stationrun",
-    "pk": 2024,
-    "fields": {
-      "player": 1024,
-      "station_id": "veit",
-      "params": {"submission": "fixture"},
-      "score": 81.8,
-      "created_at": "2026-04-09T09:09:00Z"
     }
   },
 
@@ -486,8 +260,8 @@
     "pk": 3001,
     "fields": {
       "station_run": 2001,
-      "true_positives": 1994,
-      "false_positives": 23
+      "true_positives": 1820,
+      "false_positives": 18
     }
   },
   {
@@ -495,8 +269,8 @@
     "pk": 3002,
     "fields": {
       "station_run": 2002,
-      "true_positives": 1978,
-      "false_positives": 28
+      "true_positives": 1540,
+      "false_positives": 35
     }
   },
   {
@@ -504,8 +278,8 @@
     "pk": 3003,
     "fields": {
       "station_run": 2003,
-      "true_positives": 1961,
-      "false_positives": 31
+      "true_positives": 1280,
+      "false_positives": 58
     }
   },
   {
@@ -513,8 +287,8 @@
     "pk": 3004,
     "fields": {
       "station_run": 2004,
-      "true_positives": 1948,
-      "false_positives": 36
+      "true_positives": 1040,
+      "false_positives": 82
     }
   },
   {
@@ -522,8 +296,8 @@
     "pk": 3005,
     "fields": {
       "station_run": 2005,
-      "true_positives": 1934,
-      "false_positives": 39
+      "true_positives": 830,
+      "false_positives": 110
     }
   },
   {
@@ -531,8 +305,8 @@
     "pk": 3006,
     "fields": {
       "station_run": 2006,
-      "true_positives": 1921,
-      "false_positives": 41
+      "true_positives": 650,
+      "false_positives": 143
     }
   },
   {
@@ -540,8 +314,8 @@
     "pk": 3007,
     "fields": {
       "station_run": 2007,
-      "true_positives": 1908,
-      "false_positives": 45
+      "true_positives": 510,
+      "false_positives": 178
     }
   },
   {
@@ -549,8 +323,8 @@
     "pk": 3008,
     "fields": {
       "station_run": 2008,
-      "true_positives": 1896,
-      "false_positives": 48
+      "true_positives": 420,
+      "false_positives": 215
     }
   },
   {
@@ -558,8 +332,8 @@
     "pk": 3009,
     "fields": {
       "station_run": 2009,
-      "true_positives": 1882,
-      "false_positives": 52
+      "true_positives": 360,
+      "false_positives": 255
     }
   },
   {
@@ -567,134 +341,8 @@
     "pk": 3010,
     "fields": {
       "station_run": 2010,
-      "true_positives": 1868,
-      "false_positives": 55
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3011,
-    "fields": {
-      "station_run": 2011,
-      "true_positives": 1854,
-      "false_positives": 58
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3012,
-    "fields": {
-      "station_run": 2012,
-      "true_positives": 1840,
-      "false_positives": 61
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3013,
-    "fields": {
-      "station_run": 2013,
-      "true_positives": 1827,
-      "false_positives": 64
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3014,
-    "fields": {
-      "station_run": 2014,
-      "true_positives": 1816,
-      "false_positives": 67
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3015,
-    "fields": {
-      "station_run": 2015,
-      "true_positives": 1803,
-      "false_positives": 69
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3016,
-    "fields": {
-      "station_run": 2016,
-      "true_positives": 1792,
-      "false_positives": 72
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3017,
-    "fields": {
-      "station_run": 2017,
-      "true_positives": 1778,
-      "false_positives": 75
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3018,
-    "fields": {
-      "station_run": 2018,
-      "true_positives": 1764,
-      "false_positives": 78
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3019,
-    "fields": {
-      "station_run": 2019,
-      "true_positives": 1750,
-      "false_positives": 82
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3020,
-    "fields": {
-      "station_run": 2020,
-      "true_positives": 1738,
-      "false_positives": 85
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3021,
-    "fields": {
-      "station_run": 2021,
-      "true_positives": 1716,
-      "false_positives": 89
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3022,
-    "fields": {
-      "station_run": 2022,
-      "true_positives": 1698,
-      "false_positives": 92
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3023,
-    "fields": {
-      "station_run": 2023,
-      "true_positives": 1677,
-      "false_positives": 95
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3024,
-    "fields": {
-      "station_run": 2024,
-      "true_positives": 1654,
-      "false_positives": 99
+      "true_positives": 305,
+      "false_positives": 298
     }
   },
 
@@ -702,7 +350,7 @@
     "model": "game.stationrun",
     "pk": 2101,
     "fields": {
-      "player": 1019,
+      "player": 1011,
       "station_id": "normalize",
       "params": {"normalization": "median"},
       "score": 63.5,
@@ -713,7 +361,7 @@
     "model": "game.stationrun",
     "pk": 2102,
     "fields": {
-      "player": 1020,
+      "player": 1012,
       "station_id": "imputer",
       "params": {"imputation_method": "knn"},
       "score": 61.7,
@@ -724,7 +372,7 @@
     "model": "game.stationrun",
     "pk": 2103,
     "fields": {
-      "player": 1021,
+      "player": 1013,
       "station_id": "transform",
       "params": {"transform_method": "log2"},
       "score": 59.9,
@@ -735,7 +383,7 @@
     "model": "game.stationrun",
     "pk": 2104,
     "fields": {
-      "player": 1022,
+      "player": 1014,
       "station_id": "filtering",
       "params": {"remove_contaminants": "yes"},
       "score": 58.2,
@@ -746,7 +394,7 @@
     "model": "game.stationrun",
     "pk": 2105,
     "fields": {
-      "player": 1023,
+      "player": 1015,
       "station_id": "multiple_testing_corrector",
       "params": {"correction_method": "fdr_bh"},
       "score": 56.1,
@@ -757,7 +405,7 @@
     "model": "game.stationrun",
     "pk": 2106,
     "fields": {
-      "player": 1024,
+      "player": 1016,
       "station_id": "spectral_search",
       "params": {"tool": "fragpipe"},
       "score": 54.4,
