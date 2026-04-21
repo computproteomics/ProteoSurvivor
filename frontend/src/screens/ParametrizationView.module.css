@@ -1,5 +1,5 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #f4f6f8;
   padding: 2rem;
   display: grid;
@@ -139,4 +139,45 @@
 .secondaryButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 820px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .card {
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.28rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .form {
+    gap: 0.85rem;
+  }
+
+  .input,
+  .textarea {
+    font-size: 0.95rem;
+  }
+
+  .buttonRow {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
 }

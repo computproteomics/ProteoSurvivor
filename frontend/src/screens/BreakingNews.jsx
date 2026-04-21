@@ -4,14 +4,12 @@ import useGameStore from '../store/gameSlice';
 import aiCompany from '../assets/shitty_logo.png'
 import advertisement1 from '../assets/Protein_separation_ad.png';
 import advertisement2 from '../assets/Grow_hela.png';
-import advertisement3 from '../assets/Omnispec.png';
 import advertisement4 from '../assets/EscapeRoom.png';
 import advertisement5 from '../assets/proteomics_ad.png';
 import advertisement6 from '../assets/spectrometry_ad.png';
 
 
-function Header({ }) {
-  const company_logo = aiCompany;
+function Header() {
   const time = "2026-03-14";
   return (
     <div className={styles.header}>
@@ -81,7 +79,7 @@ function NextButton() {
   const navigate = useNavigate();
 
   return (
-    <button onClick={() => navigate("/world")}>
+    <button className={styles.nextButton} onClick={() => navigate("/world")}>
       So let's go save the world!
     </button>
   );

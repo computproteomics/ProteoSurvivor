@@ -1,5 +1,5 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #f4f6f8;
   padding: 2rem;
   display: grid;
@@ -13,6 +13,12 @@
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.mediaWrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .title {
@@ -91,4 +97,40 @@
   max-width: 600px;
   /* 👈 limits how big it gets */
   height: auto;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+@media (max-width: 820px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .card {
+    width: 100%;
+    border-radius: 12px;
+    padding: 1.1rem;
+  }
+
+  .title {
+    margin-bottom: 0.65rem;
+    font-size: 1.35rem;
+  }
+
+  .text,
+  .info,
+  .boxText {
+    font-size: 0.94rem;
+    line-height: 1.5;
+  }
+
+  .buttonRow {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
 }
