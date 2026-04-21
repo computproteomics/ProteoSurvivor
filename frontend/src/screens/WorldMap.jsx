@@ -78,6 +78,23 @@ function findPath(start, target) {
   return null;
 }
 
+function findStationApproachPath(start, station) {
+  const approachTiles = WALK_NEIGHBORS
+    .map(({ dc, dr }) => ({ col: station.col + dc, row: station.row + dr }))
+    .filter((tile) => canMove(tile.col, tile.row));
+
+  let bestPath = null;
+  for (const tile of approachTiles) {
+    const path = findPath(start, tile);
+    if (!path) continue;
+    if (!bestPath || path.length < bestPath.length) {
+      bestPath = path;
+    }
+  }
+
+  return bestPath;
+}
+
 export default function WorldMap() {
   const navigate = useNavigate();
   const completedStations = useGameStore((s) => s.completedStations);
@@ -86,6 +103,7 @@ export default function WorldMap() {
   const canvasRef = useRef(null);
   const clickWalkPathRef = useRef([]);
   const clickWalkTimerRef = useRef(null);
+  const clickWalkArrivalActionRef = useRef(null);
   const [animState, setAnimState] = useState({
     isMoving: false,
     direction: 2, // 0=up, 1=right, 2=down, 3=left
@@ -97,6 +115,7 @@ export default function WorldMap() {
 
   function stopClickWalk() {
     clickWalkPathRef.current = [];
+    clickWalkArrivalActionRef.current = null;
     if (clickWalkTimerRef.current) {
       clearInterval(clickWalkTimerRef.current);
       clickWalkTimerRef.current = null;
@@ -104,10 +123,16 @@ export default function WorldMap() {
     setAnimState((prev) => ({ ...prev, isMoving: false, frameIndex: 0 }));
   }
 
-  function startClickWalk(path) {
+  function startClickWalk(path, onArrival) {
     stopClickWalk();
 
+    clickWalkArrivalActionRef.current = onArrival || null;
+
     if (!path || path.length === 0) {
+      if (clickWalkArrivalActionRef.current) {
+        clickWalkArrivalActionRef.current();
+        clickWalkArrivalActionRef.current = null;
+      }
       return;
     }
 
@@ -138,6 +163,11 @@ export default function WorldMap() {
           setTimeout(() => {
             setAnimState((prevAnim) => ({ ...prevAnim, isMoving: false, frameIndex: 0 }));
           }, CLICK_WALK_STEP_MS / 2);
+
+          if (clickWalkArrivalActionRef.current) {
+            clickWalkArrivalActionRef.current();
+            clickWalkArrivalActionRef.current = null;
+          }
 
           if (clickWalkTimerRef.current) {
             clearInterval(clickWalkTimerRef.current);
@@ -253,7 +283,10 @@ export default function WorldMap() {
 
     const station = getStationAtTile(col, row);
     if (station) {
-      navigate(`/station/${station.id}`);
+      const approachPath = findStationApproachPath(player, station);
+      if (approachPath) {
+        startClickWalk(approachPath, () => navigate(`/station/${station.id}`));
+      }
       return;
     }
 
