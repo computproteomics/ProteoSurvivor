@@ -39,7 +39,7 @@ export default function WorldMap() {
 
   useEffect(() => {
     loadSprites();
-  })
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

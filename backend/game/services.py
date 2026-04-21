@@ -24,7 +24,11 @@ from .helper_functions import (
     filtering_piechart,
 )
 from statsmodels.stats.multitest import multipletests
-from py_qvalue import qvalue as _py_qvalue
+
+try:
+    from py_qvalue import qvalue as _py_qvalue
+except Exception:
+    _py_qvalue = None
 
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.experimental import enable_iterative_imputer  # noqa: F401
@@ -910,11 +914,19 @@ def _simulate_multiple_testing_corrector(
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
-            qvals = _py_qvalue(pvals)["qvalues"]
-            df[PVALUE] = qvals
-            success = True
-            score = 15
-            feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
+            if _py_qvalue is not None:
+                qvals = _py_qvalue(pvals)["qvalues"]
+                df[PVALUE] = qvals
+                success = True
+                score = 15
+                feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
+            else:
+                # Fallback for environments where py-qvalue is unavailable (e.g. Python < 3.10).
+                adjusted = multipletests(pvals, method="fdr_bh")
+                df[PVALUE] = adjusted[1]
+                success = True
+                score = 10
+                feedback = "📊 Storey q-values unavailable in this Python environment; used Benjamini-Hochberg instead."
         elif method == "bonferroni":
             adjusted = multipletests(pvals, method="bonferroni")
             df[PVALUE] = adjusted[1]

@@ -69,7 +69,7 @@ export default function Intro() {
             maxLength={64}
           />
           {userId && <p className={styles.userId}>User ID: {userId}</p>}
-          {startError && <p className={styles.userId}>{startError}</p>}
+          {startError && <p className={styles.errorText}>{startError}</p>}
         </div>
 
         <button

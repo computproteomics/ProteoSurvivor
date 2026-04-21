@@ -42,9 +42,9 @@ location /ProteoSurviver/ {
 ### Option B — Manual
 
 #### Run Both
-`npm run dev` starts both the Vite dev server and the Django backend. On first
-run it creates a Python virtual environment (`backend/venv/`) automatically, so
-no manual `pip install` is needed.
+`npm run dev` starts both the Vite dev server and the Django backend. `npm install`
+in `frontend/` now also bootstraps the Python virtual environment
+(`backend/venv/`) if it does not exist, so no manual `pip install` is needed.
 
 ##### First time
 ```bash

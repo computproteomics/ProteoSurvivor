@@ -1,14 +1,15 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 2rem;
+  padding: 1.25rem;
   font-family: Arial, sans-serif;
 }
 
 .card {
   width: min(640px, 92vw);
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(2px);
   border-radius: 16px;
   padding: 3rem 2rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -56,6 +57,12 @@
   color: #64748b;
 }
 
+.errorText {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #b91c1c;
+}
+
 .startButton {
   padding: 0.85rem 2.5rem;
   border: none;
@@ -74,4 +81,49 @@
 
 .startButton:hover {
   background: rgba(30, 41, 59, 0.65);
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 0.85rem;
+    align-items: start;
+  }
+
+  .card {
+    width: 100%;
+    margin-top: 0.65rem;
+    border-radius: 12px;
+    padding: 1.15rem 0.95rem;
+  }
+
+  .title {
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .description {
+    font-size: 0.93rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+
+  .formRow {
+    margin-bottom: 0.95rem;
+  }
+
+  .label {
+    font-size: 0.86rem;
+  }
+
+  .input {
+    padding: 0.66rem 0.74rem;
+    font-size: 0.95rem;
+  }
+
+  .startButton {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+  }
 }

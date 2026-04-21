@@ -1,8 +1,6 @@
 .adBox {
   width: 100%;
-  margin-left: 0%;
-  margin-right: 0%;
-  height: 300px;
+  min-height: 240px;
 
   background: #0b2a5a;
   color: rgb(255, 255, 255);
@@ -15,15 +13,16 @@
 }
 
 .adBoxImage {
-  left: 0px;
+  width: 40%;
+  min-height: 100%;
+  object-fit: cover;
 }
 
 .adBoxBox {
   display: flex;
   flex-direction: column;
-  right: 0px;
   width: 60%;
-
+  justify-content: center;
 }
 
 .adBoxTitle {
@@ -71,7 +70,7 @@
   overflow: hidden;
 
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  margin-top: 4rem;
+  margin-top: 0;
 }
 
 .sideAdBox {
@@ -122,8 +121,8 @@
 .canvas {
   grid-column: 2;
   width: 100%;
-  margin-top: 150px;
-  margin-bottom: 150px;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .layout {
@@ -135,6 +134,7 @@
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
+  padding: 90px 1rem 2rem;
   background: white;
 }
 
@@ -148,25 +148,29 @@
   grid-column: 1 / -1;
   position: fixed;
   top: 0;
+  left: 0;
   width: 100%;
+  min-height: 72px;
+  padding: 0.5rem 1rem;
   background: green;
   display: flex;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
 .leftHeader {
-  left: 0px;
   width: 50%;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .rightHeader {
-  right: 0px;
   width: 50%;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .center {
@@ -179,6 +183,16 @@
 .textBox {
   display: flex;
   width: 100%;
+}
+
+.nextButton {
+  border: none;
+  border-radius: 999px;
+  background: #0f3a7b;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.8rem 1.4rem;
+  max-width: 100%;
 }
 
 .tabloidChaosTitle {
@@ -222,4 +236,89 @@
   hyphens: auto;
 
   padding: 8px 16px;
+}
+
+@media (max-width: 1150px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding-top: 84px;
+  }
+
+  .leftAside,
+  .rightAside,
+  .canvas {
+    grid-column: 1;
+  }
+
+  .aside {
+    gap: 0.75rem;
+  }
+
+  .tabloidChaosTitle {
+    font-size: 1.35rem;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 700px) {
+  .header {
+    min-height: 62px;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .logo {
+    height: 46px;
+  }
+
+  .leftHeader h3 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .layout {
+    padding: 72px 0.6rem 1rem;
+  }
+
+  .adBox {
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .adBoxImage,
+  .adBoxBox {
+    width: 100%;
+  }
+
+  .adBoxImage {
+    max-height: 180px;
+  }
+
+  .adBoxTitle {
+    font-size: 1rem;
+  }
+
+  .adBoxText,
+  .sideAdText,
+  .textBoxText {
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .textBoxText {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .sideAdContent {
+    padding: 0.8rem;
+  }
+
+  .nextButton {
+    width: 100%;
+  }
+
+  .center {
+    padding: 0 0.25rem;
+  }
 }
