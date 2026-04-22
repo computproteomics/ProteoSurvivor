@@ -868,9 +868,9 @@ function drawStation(context, station, done) {
   context.fillRect(x, y, 6, TILE);
   context.fillRect(x + TILE - 6, y, 6, TILE);
 
-    // Fill station marker inset so wood border remains visible.
+    // Fill station marker to full tile.
   context.fillStyle = station.color;
-    context.fillRect(x + 7, y + 7, TILE - 14, TILE - 14);
+    context.fillRect(x, y, TILE, TILE);
 
   // Draw station-specific icon nearly full-tile.
   const drawIcon = STATION_ICON_DRAWERS[station.id];
