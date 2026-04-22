@@ -154,7 +154,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
-def _simulate_sample_prep(dataset: dict, params: dict, *_unused) -> dict:
+def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
     return {
         "success": True,
         "feedback": "✅ Sample preparation complete. Strangely, your peptides made it through intact despite improbable handling, questionable luck, and the general hostility of the universe.",
@@ -163,7 +163,7 @@ def _simulate_sample_prep(dataset: dict, params: dict, *_unused) -> dict:
     }
 
 
-def _simulate_mass_spec(dataset: dict, params: dict, *_unused) -> dict:
+def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
     return {
         "success": True,
@@ -174,7 +174,7 @@ def _simulate_mass_spec(dataset: dict, params: dict, *_unused) -> dict:
 
 
 def _simulate_spectral_search(
-    dataset: dict, params: dict, *_unused
+    dataset: dict, params: dict
 ) -> dict:
 
     tool = params.get("tool", "fragpipe")
@@ -340,7 +340,7 @@ def _simulate_spectral_search(
 
 
 def _simulate_transform(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("transform_method", "ln")
@@ -429,7 +429,7 @@ def _simulate_transform(
 
 
 def _simulate_filtering(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     missing_thresh = int(params.get("remove_missing_proteins", 0))
@@ -514,7 +514,7 @@ def _simulate_filtering(
 
 
 def _simulate_normalize(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("normalization", "none")
@@ -632,7 +632,7 @@ def _simulate_normalize(
     }
 
 
-def _simulate_imputer(dataset: dict, params: dict, *_unused) -> dict:
+def _simulate_imputer(dataset: dict, params: dict) -> dict:
     """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
@@ -792,7 +792,7 @@ def _simulate_imputer(dataset: dict, params: dict, *_unused) -> dict:
 
 
 def _simulate_multiple_testing_corrector(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("correction_method", "bh")
@@ -896,7 +896,7 @@ def _simulate_multiple_testing_corrector(
 
 
 def _simulate_the_cutter(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     fc = float(params.get("fold_change_cutoff", 1))
@@ -932,7 +932,7 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict, *_unused) -> dict:
+def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
@@ -972,7 +972,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, *_unused) -> dict:
 
 
 def _simulate_statistical_analysis(
-    dataset: pd.DataFrame, params: dict, *_unused
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     test = params.get("statistical_test", "none")

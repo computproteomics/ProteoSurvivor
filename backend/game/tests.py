@@ -239,7 +239,7 @@ class TestEnterStationPrerequisites(TestCase):
 
 class TestSamplePrepStation(TestCase):
     def test_always_succeeds(self):
-        result = _simulate_sample_prep(None, {}, set())
+        result = _simulate_sample_prep(None, {})
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 0)
         self.assertIn("feedback", result)
@@ -252,7 +252,7 @@ class TestSamplePrepStation(TestCase):
 
 class TestMassSpecStation(TestCase):
     def test_success_after_sample_prep(self):
-        result = _simulate_mass_spec(None, {}, {"sample_prep"})
+        result = _simulate_mass_spec(None, {})
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 0)
 
@@ -282,7 +282,6 @@ class TestSpectralSearchStation(TestCase):
                 _simulate_spectral_search(
                     None,
                     {"tool": "unknown_tool"},
-                    {"sample_prep", "mass_spec"},
                 )
 
     @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
@@ -293,9 +292,7 @@ class TestSpectralSearchStation(TestCase):
             return _make_dataset()
 
         with patch("game.services.pd.read_csv", side_effect=_read_csv_side_effect):
-            result = _simulate_spectral_search(
-                None, _DEFAULT_SPECTRAL_PARAMS, {"sample_prep", "mass_spec"}
-            )
+            result = _simulate_spectral_search(None, _DEFAULT_SPECTRAL_PARAMS)
 
         self.assertTrue(result["success"])
         self.assertIn("num_prot", result)
@@ -311,9 +308,7 @@ class TestTransformStation(TestCase):
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
     def test_log2_transformation(self, _mock_bp):
         df = _make_dataset()
-        result = _simulate_transform(
-            df, {"transform_method": "log2"}, {"spectral_search"}
-        )
+        result = _simulate_transform(df, {"transform_method": "log2"})
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 10)
         self.assertAlmostEqual(
@@ -323,9 +318,7 @@ class TestTransformStation(TestCase):
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
     def test_natural_log_transformation(self, _mock_bp):
         df = _make_dataset()
-        result = _simulate_transform(
-            df, {"transform_method": "ln"}, {"spectral_search"}
-        )
+        result = _simulate_transform(df, {"transform_method": "ln"})
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 10)
         self.assertAlmostEqual(
@@ -334,9 +327,7 @@ class TestTransformStation(TestCase):
 
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
     def test_unknown_method_fails(self, _mock_bp):
-        result = _simulate_transform(
-            _make_dataset(), {"transform_method": "sqrt"}, {"spectral_search"}
-        )
+        result = _simulate_transform(_make_dataset(), {"transform_method": "sqrt"})
         self.assertFalse(result["success"])
 
 
@@ -347,7 +338,7 @@ class TestTransformStation(TestCase):
 
 class TestFilteringStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_filtering(pd.DataFrame(), {}, {"spectral_search"})
+        result = _simulate_filtering(pd.DataFrame(), {})
         self.assertFalse(result["success"])
 
     @patch("game.services.filtering_piechart", return_value=_DUMMY_IMG)
@@ -359,7 +350,6 @@ class TestFilteringStation(TestCase):
         result = _simulate_filtering(
             df,
             {"remove_missing_proteins": 6, "min_peptides_per_protein": 1},
-            {"spectral_search"},
         )
         self.assertTrue(result["success"])
         self.assertIn("num_pro", result)
@@ -374,16 +364,14 @@ class TestNormalizeStation(TestCase):
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_no_normalization(self, _mock_hc):
         result = _simulate_normalize(
-            _make_dataset(), {"normalization": "none"}, {"spectral_search"}
+            _make_dataset(), {"normalization": "none"}
         )
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_median_normalization(self, _mock_hc):
         df = _make_dataset()
-        result = _simulate_normalize(
-            df, {"normalization": "median"}, {"spectral_search"}
-        )
+        result = _simulate_normalize(df, {"normalization": "median"})
         self.assertTrue(result["success"])
         # After median normalization each column should be centered near zero
         col = COND_A[0]
@@ -392,15 +380,13 @@ class TestNormalizeStation(TestCase):
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_zscore_normalization(self, _mock_hc):
         result = _simulate_normalize(
-            _make_dataset(), {"normalization": "zscore"}, {"spectral_search"}
+            _make_dataset(), {"normalization": "zscore"}
         )
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_unknown_method_fails(self, _mock_hc):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "magic"}, {"spectral_search"}
-        )
+        result = _simulate_normalize(_make_dataset(), {"normalization": "magic"})
         self.assertFalse(result["success"])
 
 
@@ -411,15 +397,13 @@ class TestNormalizeStation(TestCase):
 
 class TestImputer(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_imputer(pd.DataFrame(), {}, {"spectral_search"})
+        result = _simulate_imputer(pd.DataFrame(), {})
         self.assertFalse(result["success"])
 
     @patch("game.services.imputer_before_after_stripgrid", return_value=_DUMMY_IMG)
     def test_no_imputation(self, _mock_plot):
         df = _make_dataset()
-        result = _simulate_imputer(
-            df, {"imputation_method": "none"}, {"spectral_search"}
-        )
+        result = _simulate_imputer(df, {"imputation_method": "none"})
         self.assertTrue(result["success"])
         # Values must remain unchanged
         pd.testing.assert_frame_equal(
@@ -430,9 +414,7 @@ class TestImputer(TestCase):
     def test_mean_imputation_fills_nans(self, _mock_plot):
         df = _make_dataset()
         df.loc[0, COND_A[0]] = np.nan  # introduce one missing value
-        result = _simulate_imputer(
-            df, {"imputation_method": "mean"}, {"spectral_search"}
-        )
+        result = _simulate_imputer(df, {"imputation_method": "mean"})
         self.assertTrue(result["success"])
         self.assertFalse(result["dataset"][COND_A[0]].isna().any())
 
@@ -440,9 +422,7 @@ class TestImputer(TestCase):
     def test_minprob_imputation(self, _mock_plot):
         df = _make_dataset()
         df.loc[0, COND_B[1]] = np.nan
-        result = _simulate_imputer(
-            df, {"imputation_method": "minprob"}, {"spectral_search"}
-        )
+        result = _simulate_imputer(df, {"imputation_method": "minprob"})
         self.assertTrue(result["success"])
         self.assertFalse(result["dataset"][COND_B[1]].isna().any())
 
@@ -454,17 +434,13 @@ class TestImputer(TestCase):
 
 class TestMultipleTestingCorrectorStation(TestCase):
     def test_fails_without_pvalue_column(self):
-        result = _simulate_multiple_testing_corrector(
-            _make_dataset(), {}, {"spectral_search"}
-        )
+        result = _simulate_multiple_testing_corrector(_make_dataset(), {})
         self.assertFalse(result["success"])
 
     @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
     def test_benjamini_hochberg_correction(self, _mock_hist):
         df = _make_dataset_with_stats()
-        result = _simulate_multiple_testing_corrector(
-            df, {"correction_method": "bh"}, {"spectral_search"}
-        )
+        result = _simulate_multiple_testing_corrector(df, {"correction_method": "bh"})
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 10)
         # Adjusted p-values should remain in [0, 1]
@@ -474,7 +450,7 @@ class TestMultipleTestingCorrectorStation(TestCase):
     def test_bonferroni_correction(self, _mock_hist):
         df = _make_dataset_with_stats()
         result = _simulate_multiple_testing_corrector(
-            df, {"correction_method": "bonferroni"}, {"spectral_search"}
+            df, {"correction_method": "bonferroni"}
         )
         self.assertTrue(result["success"])
         self.assertEqual(result["score"], 6)
@@ -482,9 +458,7 @@ class TestMultipleTestingCorrectorStation(TestCase):
     @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
     def test_unknown_correction_fails(self, _mock_hist):
         df = _make_dataset_with_stats()
-        result = _simulate_multiple_testing_corrector(
-            df, {"correction_method": "magic"}, {"spectral_search"}
-        )
+        result = _simulate_multiple_testing_corrector(df, {"correction_method": "magic"})
         self.assertFalse(result["success"])
 
 
@@ -495,7 +469,7 @@ class TestMultipleTestingCorrectorStation(TestCase):
 
 class TestTheCutterStation(TestCase):
     def test_fails_without_fc_column(self):
-        result = _simulate_the_cutter(_make_dataset(), {}, {"spectral_search"})
+        result = _simulate_the_cutter(_make_dataset(), {})
         self.assertFalse(result["success"])
 
     @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
@@ -505,7 +479,6 @@ class TestTheCutterStation(TestCase):
         result = _simulate_the_cutter(
             df,
             {"fold_change_cutoff": 1.0, "pvalue_cutoff": 0.05},
-            {"spectral_search"},
         )
         self.assertEqual(result["score"], 0)
         # Expect 2 significant proteins: P0001 (FC=-1.5, p=0.01) and P0003 (FC=1.8, p=0.02)
@@ -517,7 +490,6 @@ class TestTheCutterStation(TestCase):
         result = _simulate_the_cutter(
             df,
             {"fold_change_cutoff": 5.0, "pvalue_cutoff": 0.001},
-            {"spectral_search"},
         )
         self.assertEqual(len(result["dataset"]), 0)
 
@@ -529,17 +501,13 @@ class TestTheCutterStation(TestCase):
 
 class TestStatisticalAnalysisStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_statistical_analysis(
-            pd.DataFrame(), {"statistical_test": "welch"}, {"spectral_search"}
-        )
+        result = _simulate_statistical_analysis(pd.DataFrame(), {"statistical_test": "welch"})
         self.assertFalse(result["success"])
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_welch_ttest_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(
-            df, {"statistical_test": "welch"}, {"spectral_search"}
-        )
+        result = _simulate_statistical_analysis(df, {"statistical_test": "welch"})
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
         self.assertIn(FC, result["dataset"].columns)
@@ -550,17 +518,13 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_mannwhitneyu_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(
-            df, {"statistical_test": "mannwhitneyu"}, {"spectral_search"}
-        )
+        result = _simulate_statistical_analysis(df, {"statistical_test": "mannwhitneyu"})
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_unknown_test_fails(self, _mock_vp):
-        result = _simulate_statistical_analysis(
-            _make_dataset(), {"statistical_test": "magic"}, {"spectral_search"}
-        )
+        result = _simulate_statistical_analysis(_make_dataset(), {"statistical_test": "magic"})
         self.assertFalse(result["success"])
 
 
@@ -571,7 +535,7 @@ class TestStatisticalAnalysisStation(TestCase):
 
 class TestVeitStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_veit(pd.DataFrame(), {}, set())
+        result = _simulate_veit(pd.DataFrame(), {})
         self.assertFalse(result["success"])
 
     def test_counts_true_and_false_positives(self):
@@ -579,7 +543,7 @@ class TestVeitStation(TestCase):
             df = _make_dataset_with_stats()
             # Yeast P0001 has FC=-1.5 → true positive; E.coli P0003 has FC=1.8 → true positive
             # Yeast P0002 has FC=-0.3 → true positive (FC < 0); Human P0004 → false positive
-            result = _simulate_veit(df, {}, set())
+            result = _simulate_veit(df, {})
         self.assertEqual(
             result["true_positives"], 3
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
@@ -591,7 +555,7 @@ class TestVeitStation(TestCase):
             # All Human → all false positives
             df = _make_dataset_with_stats()
             df[ORGANISM] = "Human"
-            result = _simulate_veit(df, {}, set())
+            result = _simulate_veit(df, {})
         self.assertEqual(result["score"], 0)
 
 
@@ -631,7 +595,6 @@ class TestStationParameterConfigurations(TestCase):
                     result = _simulate_spectral_search(
                         None,
                         backend_params,
-                        {"sample_prep", "mass_spec"},
                     )
                     self.assertTrue(result["success"])
                     self.assertIsInstance(result["dataset"], pd.DataFrame)
@@ -642,7 +605,7 @@ class TestStationParameterConfigurations(TestCase):
         for method in options:
             with self.subTest(transform_method=method):
                 result = _simulate_transform(
-                    _make_dataset(), {"transform_method": method}, {"spectral_search"}
+                    _make_dataset(), {"transform_method": method}
                 )
                 self.assertTrue(result["success"])
 
@@ -663,7 +626,6 @@ class TestStationParameterConfigurations(TestCase):
                 result = _simulate_filtering(
                     input_df,
                     backend_params,
-                    {"spectral_search"},
                 )
                 self.assertTrue(result["success"])
                 self.assertIn("dataset", result)
@@ -676,7 +638,7 @@ class TestStationParameterConfigurations(TestCase):
         for method in options:
             with self.subTest(normalization=method):
                 result = _simulate_normalize(
-                    _make_dataset(), {"normalization": method}, {"spectral_search"}
+                    _make_dataset(), {"normalization": method}
                 )
                 self.assertTrue(result["success"])
 
@@ -690,7 +652,6 @@ class TestStationParameterConfigurations(TestCase):
                 result = _simulate_imputer(
                     dataset,
                     {"imputation_method": method},
-                    {"spectral_search"},
                 )
                 self.assertTrue(result["success"])
 
@@ -705,7 +666,6 @@ class TestStationParameterConfigurations(TestCase):
                 result = _simulate_multiple_testing_corrector(
                     large_df.copy(),
                     {"correction_method": method},
-                    {"spectral_search"},
                 )
                 self.assertTrue(result["success"])
                 self.assertIn(PVALUE, result["dataset"].columns)
@@ -729,7 +689,6 @@ class TestStationParameterConfigurations(TestCase):
                 result = _simulate_the_cutter(
                     _make_dataset_with_stats(),
                     combo,
-                    {"spectral_search"},
                 )
                 self.assertIn("dataset", result)
                 self.assertIsInstance(result["dataset"], pd.DataFrame)
@@ -750,7 +709,6 @@ class TestStationParameterConfigurations(TestCase):
                 result = _simulate_statistical_analysis(
                     _make_dataset(),
                     {"statistical_test": test_name},
-                    {"spectral_search"},
                 )
                 self.assertEqual(result["success"], expected_success[test_name])
 
@@ -803,89 +761,72 @@ class TestFullWorkflow(TestCase):
         _mock_vol,
         _mock_scores,
     ):
-        visited: set[str] = set()
         dataset = None
 
         # --- 1. sample_prep ---
-        r = _simulate_sample_prep(dataset, {}, visited)
+        r = _simulate_sample_prep(dataset, {})
         self.assertTrue(r["success"], "sample_prep failed")
         dataset = r["dataset"]
-        visited.add("sample_prep")
 
         # --- 2. mass_spec ---
-        r = _simulate_mass_spec(dataset, {}, visited)
+        r = _simulate_mass_spec(dataset, {})
         self.assertTrue(r["success"], "mass_spec failed")
         dataset = r["dataset"]
-        visited.add("mass_spec")
 
         # --- 3. spectral_search ---
-        r = _simulate_spectral_search(dataset, _DEFAULT_SPECTRAL_PARAMS, visited)
+        r = _simulate_spectral_search(dataset, _DEFAULT_SPECTRAL_PARAMS)
         self.assertTrue(r["success"], "spectral_search failed")
         self.assertIsInstance(r["dataset"], pd.DataFrame)
         self.assertFalse(r["dataset"].empty)
         dataset = r["dataset"]
-        visited.add("spectral_search")
 
         # --- 4. transform (log2) ---
-        r = _simulate_transform(dataset, {"transform_method": "log2"}, visited)
+        r = _simulate_transform(dataset, {"transform_method": "log2"})
         self.assertTrue(r["success"], "transform failed")
         dataset = r["dataset"]
-        visited.add("transform")
 
         # --- 5. filtering ---
         r = _simulate_filtering(
             dataset,
             {"remove_missing_proteins": 6, "min_peptides_per_protein": 1},
-            visited,
         )
         self.assertTrue(r["success"], "filtering failed")
         self.assertIsNotNone(r["dataset"])
         self.assertFalse(r["dataset"].empty)
         dataset = r["dataset"]
-        visited.add("filtering")
 
         # --- 6. normalize (median) ---
-        r = _simulate_normalize(dataset, {"normalization": "median"}, visited)
+        r = _simulate_normalize(dataset, {"normalization": "median"})
         self.assertTrue(r["success"], "normalize failed")
         dataset = r["dataset"]
-        visited.add("normalize")
 
         # --- 7. imputer (mean) ---
-        r = _simulate_imputer(dataset, {"imputation_method": "mean"}, visited)
+        r = _simulate_imputer(dataset, {"imputation_method": "mean"})
         self.assertTrue(r["success"], "imputer failed")
         dataset = r["dataset"]
-        visited.add("imputer")
 
         # --- 8. statistical_analysis (welch) ---
-        r = _simulate_statistical_analysis(
-            dataset, {"statistical_test": "welch"}, visited
-        )
+        r = _simulate_statistical_analysis(dataset, {"statistical_test": "welch"})
         self.assertTrue(r["success"], "statistical_analysis failed")
         self.assertIn(PVALUE, r["dataset"].columns)
         self.assertIn(FC, r["dataset"].columns)
         dataset = r["dataset"]
-        visited.add("statistical_analysis")
 
         # --- 9. multiple_testing_corrector (BH) ---
-        r = _simulate_multiple_testing_corrector(
-            dataset, {"correction_method": "bh"}, visited
-        )
+        r = _simulate_multiple_testing_corrector(dataset, {"correction_method": "bh"})
         self.assertTrue(r["success"], "multiple_testing_corrector failed")
         dataset = r["dataset"]
-        visited.add("multiple_testing_corrector")
 
         # --- 10. the_cutter ---
         r = _simulate_the_cutter(
             dataset,
             {"fold_change_cutoff": 0.0, "pvalue_cutoff": 1.0},  # permissive: keep all
-            visited,
         )
         self.assertIsNotNone(r["dataset"])
         dataset = r["dataset"]
-        visited.add("the_cutter")
 
         # --- 11. veit (final scoring) ---
-        r = _simulate_veit(dataset, {}, visited)
+        r = _simulate_veit(dataset, {})
         self.assertTrue(r["success"], "veit failed")
         self.assertIn("score", r)
         self.assertIn("true_positives", r)
