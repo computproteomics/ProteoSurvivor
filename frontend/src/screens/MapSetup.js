@@ -914,13 +914,15 @@ function drawStation(context, station, done) {
   context.fillStyle = COLORS.stationTileBg;
   context.fillRect(x, y, TILE, TILE);
 
-  // Fill station marker inset.
+  // Match station marker size to normal walkable floor tile size.
+  const tileInset = 1.5;
+  const tileSize = TILE - tileInset * 2;
   context.fillStyle = station.color;
-  drawRoundedRect(context, x + 7, y + 7, TILE - 14, TILE - 14, 8);
+  drawRoundedRect(context, x + tileInset, y + tileInset, tileSize, tileSize, 8);
   context.fill();
 
   context.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  drawRoundedRect(context, x + 8.5, y + 8.5, TILE - 17, 7, 5);
+  drawRoundedRect(context, x + tileInset, y + tileInset, tileSize, 10, 7);
   context.fill();
 
   // Draw station-specific icon nearly full-tile.
