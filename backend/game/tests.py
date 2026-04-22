@@ -1,11 +1,12 @@
 """
 Unit tests for game station simulator functions in services.py.
 One test class per station, testing the primary success path and the
-prerequisite-station guard.
+integration behavior.
 """
 
 from unittest.mock import patch
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import TestCase
 from django.test.client import RequestFactory
@@ -38,6 +39,7 @@ from game.services import (
     TOT_PEP,
 )
 from game.models import StationRun
+from game.helper_functions import get_visited_stations
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -189,6 +191,47 @@ def _build_param_table_from_combinations(combos: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+class TestVisitedStationsHelper(TestCase):
+    def test_returns_empty_set_for_anonymous_user(self):
+        visited = get_visited_stations(AnonymousUser())
+        self.assertEqual(visited, set())
+
+    def test_returns_unique_station_ids_for_user(self):
+        user = get_user_model().objects.create_user(username="helper_user")
+        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
+        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
+        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
+
+        visited = get_visited_stations(user)
+        self.assertEqual(visited, {"sample_prep", "mass_spec"})
+
+
+class TestEnterStationPrerequisites(TestCase):
+    def test_returns_feedback_when_required_station_missing(self):
+        user = get_user_model().objects.create_user(username="entry_guard_user")
+        self.client.force_login(user)
+
+        response = self.client.post("/api/stations/mass_spec/enter/", data={})
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["missing_station_id"], "sample_prep")
+        self.assertIn("Do sample prep first", payload["feedback"])
+
+    def test_allows_entry_when_requirement_is_satisfied(self):
+        user = get_user_model().objects.create_user(username="entry_ok_user")
+        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
+        self.client.force_login(user)
+
+        response = self.client.post("/api/stations/mass_spec/enter/", data={})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["station_id"], "mass_spec")
+
+
 # ---------------------------------------------------------------------------
 # Station: sample_prep
 # ---------------------------------------------------------------------------
@@ -208,10 +251,6 @@ class TestSamplePrepStation(TestCase):
 
 
 class TestMassSpecStation(TestCase):
-    def test_fails_without_sample_prep(self):
-        result = _simulate_mass_spec(None, {}, set())
-        self.assertFalse(result["success"])
-
     def test_success_after_sample_prep(self):
         result = _simulate_mass_spec(None, {}, {"sample_prep"})
         self.assertTrue(result["success"])
@@ -236,11 +275,6 @@ _DEFAULT_SPECTRAL_PARAMS = {
 
 
 class TestSpectralSearchStation(TestCase):
-    def test_fails_without_mass_spec_visited(self):
-        # Guard condition: "mass_spec" must be in visited_stations
-        result = _simulate_spectral_search(None, {}, set())
-        self.assertFalse(result["success"])
-
     def test_raises_for_unknown_params(self):
         # No matching row in the parameter table → ValueError
         with patch("game.services.pd.read_csv", return_value=_make_param_table()):
@@ -252,8 +286,7 @@ class TestSpectralSearchStation(TestCase):
                 )
 
     @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
-    @patch("game.services.os.path.exists", return_value=True)
-    def test_success_with_default_params(self, _mock_exists, _mock_hist):
+    def test_success_with_default_params(self, _mock_hist):
         def _read_csv_side_effect(path, *args, **kwargs):
             if "ParameterTable" in str(path):
                 return _make_param_table()
@@ -275,12 +308,6 @@ class TestSpectralSearchStation(TestCase):
 
 
 class TestTransformStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_transform(
-            _make_dataset(), {"transform_method": "log2"}, set()
-        )
-        self.assertFalse(result["success"])
-
     @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
     def test_log2_transformation(self, _mock_bp):
         df = _make_dataset()
@@ -319,10 +346,6 @@ class TestTransformStation(TestCase):
 
 
 class TestFilteringStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_filtering(_make_dataset(), {}, set())
-        self.assertFalse(result["success"])
-
     def test_fails_on_empty_dataset(self):
         result = _simulate_filtering(pd.DataFrame(), {}, {"spectral_search"})
         self.assertFalse(result["success"])
@@ -348,12 +371,6 @@ class TestFilteringStation(TestCase):
 
 
 class TestNormalizeStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "median"}, set()
-        )
-        self.assertFalse(result["success"])
-
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_no_normalization(self, _mock_hc):
         result = _simulate_normalize(
@@ -393,10 +410,6 @@ class TestNormalizeStation(TestCase):
 
 
 class TestImputer(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_imputer(_make_dataset(), {}, set())
-        self.assertFalse(result["success"])
-
     def test_fails_on_empty_dataset(self):
         result = _simulate_imputer(pd.DataFrame(), {}, {"spectral_search"})
         self.assertFalse(result["success"])
@@ -440,10 +453,6 @@ class TestImputer(TestCase):
 
 
 class TestMultipleTestingCorrectorStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_multiple_testing_corrector(_make_dataset(), {}, set())
-        self.assertFalse(result["success"])
-
     def test_fails_without_pvalue_column(self):
         result = _simulate_multiple_testing_corrector(
             _make_dataset(), {}, {"spectral_search"}
@@ -485,10 +494,6 @@ class TestMultipleTestingCorrectorStation(TestCase):
 
 
 class TestTheCutterStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_the_cutter(_make_dataset(), {}, set())
-        self.assertFalse(result["success"])
-
     def test_fails_without_fc_column(self):
         result = _simulate_the_cutter(_make_dataset(), {}, {"spectral_search"})
         self.assertFalse(result["success"])
@@ -523,12 +528,6 @@ class TestTheCutterStation(TestCase):
 
 
 class TestStatisticalAnalysisStation(TestCase):
-    def test_fails_without_spectral_search(self):
-        result = _simulate_statistical_analysis(
-            _make_dataset(), {"statistical_test": "welch"}, set()
-        )
-        self.assertFalse(result["success"])
-
     def test_fails_on_empty_dataset(self):
         result = _simulate_statistical_analysis(
             pd.DataFrame(), {"statistical_test": "welch"}, {"spectral_search"}
@@ -611,8 +610,7 @@ class TestStationParameterConfigurations(TestCase):
         self.station_options = _load_station_options()
 
     @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
-    @patch("game.services.os.path.exists", return_value=True)
-    def test_spectral_search_parameter_configurations(self, _mock_exists, _mock_hist):
+    def test_spectral_search_parameter_configurations(self, _mock_hist):
         params_cfg = self.station_options["spectral_search"]["parameters"]
         option_map = {p["id"]: p["options"] for p in params_cfg}
         combos = _build_bounded_combinations(option_map)
@@ -779,7 +777,6 @@ def _read_csv_for_spectral_search(path, *args, **kwargs):
 @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
 @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
 @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
-@patch("game.services.os.path.exists", return_value=True)
 @patch("game.services.pd.read_csv", side_effect=_read_csv_for_spectral_search)
 class TestFullWorkflow(TestCase):
     """
@@ -795,7 +792,6 @@ class TestFullWorkflow(TestCase):
     def test_full_pipeline(
         self,
         _mock_csv,
-        _mock_exists,
         _mock_create_hist,
         _mock_boxplot,
         _mock_hc,
@@ -910,33 +906,28 @@ class TestRunStationAnonymousUser(TestCase):
         request.user = AnonymousUser()
         return request
 
-    def test_run_station_tracks_visited_stations_in_session(self):
+    def test_run_station_does_not_use_or_write_session_visited_stations(self):
         request = self._build_request()
         request.session["visited_stations"] = ["sample_prep"]
 
-        seen_visited = {}
-
-        def _runner(_dataset, _params, visited_stations):
-            seen_visited["value"] = set(visited_stations)
+        def _runner(_dataset, _params):
             return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
 
         with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
             result = run_station(request, station_id="mass_spec", params={})
 
         self.assertTrue(result["success"])
-        self.assertEqual(seen_visited["value"], {"sample_prep"})
-        self.assertCountEqual(request.session["visited_stations"], ["mass_spec", "sample_prep"])
+        self.assertEqual(request.session["visited_stations"], ["sample_prep"])
         self.assertEqual(StationRun.objects.count(), 0)
 
-    def test_run_station_does_not_duplicate_session_visited_station(self):
+    def test_run_station_success_without_visited_stations_session_key(self):
         request = self._build_request()
-        request.session["visited_stations"] = ["sample_prep"]
 
-        def _runner(_dataset, _params, _visited_stations):
+        def _runner(_dataset, _params):
             return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
 
         with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
             result = run_station(request, station_id="sample_prep", params={})
 
         self.assertTrue(result["success"])
-        self.assertEqual(request.session["visited_stations"], ["sample_prep"])
+        self.assertNotIn("visited_stations", request.session)

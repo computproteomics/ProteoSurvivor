@@ -8,7 +8,6 @@ from typing import Any, cast
 import pandas as pd
 from .models import StationRun, FinalStationResult
 import numpy as np
-import os
 from .serializers import DataFrameSessionSerializer
 from .helper_functions import (
     tr_boxplot,
@@ -118,14 +117,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    if request.user.is_authenticated:
-        user_runs = request.user.station_runs.all()
-        visited_stations = set(run.station_id for run in user_runs)
-    else:
-        visited_station_list = request.session.get("visited_stations", [])
-        visited_stations = set(visited_station_list)
-
-    result = runner(dataset, params, visited_stations)
+    result = runner(dataset, params)
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
@@ -149,11 +141,6 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
                 )
                 final_result.save()
                 print(f"Saved FinalStationResult for StationRun ID {run.id}")
-        else:
-            if station_id not in visited_station_list:
-                visited_station_list.append(station_id)
-            request.session["visited_stations"] = visited_station_list
-
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
@@ -167,7 +154,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
-def _simulate_sample_prep(dataset: dict, params: dict, visited_stations: set) -> dict:
+def _simulate_sample_prep(dataset: dict, params: dict, *_unused) -> dict:
     return {
         "success": True,
         "feedback": "✅ Sample preparation complete. Strangely, your peptides made it through intact despite improbable handling, questionable luck, and the general hostility of the universe.",
@@ -176,15 +163,8 @@ def _simulate_sample_prep(dataset: dict, params: dict, visited_stations: set) ->
     }
 
 
-def _simulate_mass_spec(dataset: dict, params: dict, visited_stations: set) -> dict:
+def _simulate_mass_spec(dataset: dict, params: dict, *_unused) -> dict:
 
-    if "sample_prep" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Nice try. The mass spec refuses to run on unprepared samples and pure optimism. Do sample prep first.",
-            "score": 0,
-            "dataset": dataset,
-        }
     return {
         "success": True,
         "feedback": "✅ Mass spectrometry complete. Somehow the peptides survived the ionization gauntlet and emerged as usable spectra.",
@@ -194,16 +174,8 @@ def _simulate_mass_spec(dataset: dict, params: dict, visited_stations: set) -> d
 
 
 def _simulate_spectral_search(
-    dataset: dict, params: dict, visited_stations: set
+    dataset: dict, params: dict, *_unused
 ) -> dict:
-
-    if "sample_prep" and "mass_spec" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Spectral search is locked. The mass spectrometer must run first, or you are searching for peptides in pure imagination.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
@@ -368,16 +340,8 @@ def _simulate_spectral_search(
 
 
 def _simulate_transform(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Transform station is offline until spectral search has produced actual data. Right now you are trying to normalize a rumor.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     method = params.get("transform_method", "ln")
     success = False
@@ -465,16 +429,8 @@ def _simulate_transform(
 
 
 def _simulate_filtering(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Filtering station is locked until spectral search has produced real protein data. Right now you are filtering pure optimism.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     missing_thresh = int(params.get("remove_missing_proteins", 0))
     min_pep_num = int(params.get("min_peptides_per_protein", 1))
@@ -558,16 +514,8 @@ def _simulate_filtering(
 
 
 def _simulate_normalize(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Normalization is unavailable until spectral search has produced data worth rescuing. At the moment you are standardizing empty ambition.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     method = params.get("normalization", "none")
 
@@ -684,7 +632,7 @@ def _simulate_normalize(
     }
 
 
-def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dict:
+def _simulate_imputer(dataset: dict, params: dict, *_unused) -> dict:
     """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
@@ -697,14 +645,6 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
     - "median"      : Impute with the median of each protein across samples.
     - "mean"        : Impute with the mean of each protein across samples.
     """
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Imputation cannot begin until spectral search has produced something missing in the first place. Right now you are repairing imaginary gaps.",
-            "score": 0,
-            "dataset": dataset,
-        }
-
     method = str(params.get("imputation_method", "none")).lower()
 
     # Check if dataset is None or empty
@@ -852,16 +792,8 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations: set) -> dic
 
 
 def _simulate_multiple_testing_corrector(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "You need data before you can perform this step!",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     method = params.get("correction_method", "bh")
     success = False
@@ -964,16 +896,8 @@ def _simulate_multiple_testing_corrector(
 
 
 def _simulate_the_cutter(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ The cutter remains sheathed until spectral search and downstream analysis have produced something worth slicing. Right now you are applying thresholds to wishful thinking.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
@@ -1008,7 +932,7 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -> dict:
+def _simulate_veit(dataset: pd.DataFrame, params: dict, *_unused) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
@@ -1048,16 +972,8 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
 
 
 def _simulate_statistical_analysis(
-    dataset: pd.DataFrame, params: dict, visited_stations: set
+    dataset: pd.DataFrame, params: dict, *_unused
 ) -> dict:
-
-    if "spectral_search" not in visited_stations:
-        return {
-            "success": False,
-            "feedback": "⚠️ Statistical analysis is unavailable until spectral search has produced data worth interrogating. At the moment you are testing hypotheses against fog.",
-            "score": 0,
-            "dataset": dataset,
-        }
 
     test = params.get("statistical_test", "none")
     success = False

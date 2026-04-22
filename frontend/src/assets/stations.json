@@ -2,17 +2,30 @@
   "sample_prep": {
     "id": "sample_prep",
     "title": "Sample Preparation",
-    "description": "Prepare the infected and control samples for mass spectrometry."
+    "description": "Prepare the infected and control samples for mass spectrometry.",
+    "requires": []
   },
   "mass_spec": {
     "id": "mass_spec",
     "title": "Mass Spectrometer",
-    "description": "Run the samples on the mass spectrometer. Acquisition method: DDA."
+    "description": "Run the samples on the mass spectrometer. Acquisition method: DDA.",
+    "requires": [
+      {
+        "id": "sample_prep",
+        "message": "⚠️ Nice try. The mass spec refuses to run on unprepared samples and pure optimism. Do sample prep first."
+      }
+    ]
   },
   "spectral_search": {
     "id": "spectral_search",
     "title": "Spectral Search Station",
     "description": "Identify peptides by matching spectra against a protein sequence database.",
+    "requires": [
+      {
+        "id": "mass_spec",
+        "message": "⚠️ Spectral search is locked. The mass spectrometer must run first, or you are searching for peptides in pure imagination."
+      }
+    ],
     "parameters": [
       {
         "id": "tool",
@@ -136,6 +149,12 @@
     "id": "filtering",
     "title": "Filtering Station",
     "description": "Filter identifications to remove Low-confidence entries.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Filtering station is locked until spectral search has produced real protein data. Right now you are filtering pure optimism."
+      }
+    ],
     "parameters": [
       {
         "id": "remove_missing_proteins",
@@ -167,6 +186,12 @@
     "id": "transform",
     "title": "Transform Station",
     "description": "Transform intensity values to stabilize variance before comparison.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Transform station is offline until spectral search has produced actual data. Right now you are trying to normalize a rumor."
+      }
+    ],
     "parameters": [
       {
         "id": "transform_method",
@@ -188,6 +213,12 @@
     "id": "normalize",
     "title": "Normalize Station",
     "description": "Correct systematic intensity shifts between samples.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Normalization is unavailable until spectral search has produced data worth rescuing. At the moment you are standardizing empty ambition."
+      }
+    ],
     "parameters": [
       {
         "id": "normalization",
@@ -219,6 +250,12 @@
     "id": "imputer",
     "title": "Imputer Station",
     "description": "Handle missing values introduced by low abundance and stochastic sampling.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Imputation cannot begin until spectral search has produced something missing in the first place. Right now you are repairing imaginary gaps."
+      }
+    ],
     "parameters": [
       {
         "id": "imputation_method",
@@ -252,6 +289,12 @@
     "id": "multiple_testing_corrector",
     "title": "Multiple Testing Corrector",
     "description": "Control false discoveries after running many statistical tests.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "You need data before you can perform this step!"
+      }
+    ],
     "parameters": [
       {
         "id": "correction_method",
@@ -279,6 +322,12 @@
     "id": "the_cutter",
     "title": "The Cutter",
     "description": "Set fold-change and confidence cutoffs to define your final candidate list.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ The cutter remains sheathed until spectral search and downstream analysis have produced something worth slicing. Right now you are applying thresholds to wishful thinking."
+      }
+    ],
     "parameters": [
       {
         "id": "fold_change_cutoff",
@@ -304,6 +353,12 @@
     "id": "statistical_analysis",
     "title": "Statistical Analysis",
     "description": "Compare conditions and identify significantly regulated proteins and pathways.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Statistical analysis is unavailable until spectral search has produced data worth interrogating. At the moment you are testing hypotheses against fog."
+      }
+    ],
     "parameters": [
       {
         "id": "statistical_test",
@@ -329,6 +384,7 @@
     "id": "veit",
     "title": "Veit",
     "final": true,
-    "description": "Hand in your comprehensive report with findings and interpretations."
+    "description": "Hand in your comprehensive report with findings and interpretations.",
+    "requires": []
   }
 }

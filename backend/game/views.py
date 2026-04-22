@@ -15,7 +15,7 @@ from .serializers import (
     RunStationSerializer,
 )
 from .leaderboard import get_leaderboard_information
-from .helper_functions import plot_scores
+from .helper_functions import plot_scores, get_visited_stations
 from .services import run_station
 
 
@@ -90,9 +90,28 @@ def enter_station_view(request, station_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    station_config = settings.STATIONS_CONFIG[station_id]
+    visited_stations = get_visited_stations(request.user)
+    for requirement in station_config.get("requires", []):
+        required_station_id = requirement.get("id")
+        if required_station_id and required_station_id not in visited_stations:
+            return Response(
+                {
+                    "success": False,
+                    "feedback": requirement.get(
+                        "message",
+                        f"Station '{required_station_id}' must be completed first.",
+                    ),
+                    "missing_station_id": required_station_id,
+                    "station_id": station_id,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     request.session["current_station"] = station_id
     return Response(
         {
+            "success": True,
             "message": f"Entered station '{station_id}' successfully.",
             "station_id": station_id,
         },
