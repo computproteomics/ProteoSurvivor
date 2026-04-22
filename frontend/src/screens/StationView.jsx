@@ -93,9 +93,15 @@ export default function StationView() {
     setLoading(true);
     enterStation(stationId, sessionId)
       .then((res) => setStationData(res.data))
-      .catch(() => {
+      .catch((err) => {
+        const feedback =
+          err?.response?.data?.feedback ||
+          err?.response?.data?.detail ||
+          `Could not enter station '${stationId}'.`;
         setStationData({
-          message: "Entered station '" + stationId + "' successfully.",
+          success: false,
+          message: feedback,
+          feedback,
           station_id: stationId,
         });
       })
@@ -141,6 +147,23 @@ export default function StationView() {
 
   function renderIntroVideoStationFlow() {
     if (!introConfig) return null;
+
+    if (stationData?.success === false) {
+      return (
+        <>
+          <h1 className={styles.title}>{content.title}</h1>
+          <div className={styles.box}>
+            <strong>Status:</strong>
+            <p className={styles.boxText}>{stationData.message}</p>
+          </div>
+          <div className={styles.buttonRow}>
+            <button className={styles.primaryButton} onClick={() => navigate('/world')}>
+              Back to map
+            </button>
+          </div>
+        </>
+      );
+    }
 
     if (phase === 'welcome') {
       return (
@@ -263,7 +286,7 @@ export default function StationView() {
               <button
                 className={styles.primaryButton}
                 onClick={goToParams}
-                disabled={loading}
+                disabled={loading || stationData?.success === false}
               >
                 Configure and Run →
               </button>
