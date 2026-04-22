@@ -5,6 +5,9 @@ import useGameStore from '../store/gameSlice';
 import {
   getStationBackgroundImage,
   getStationDescription,
+  getStationExpectations,
+  getStationObjective,
+  getStationStatusMessages,
   getStationTitle,
 } from '../assets/stationConfig';
 import styles from './StationView.module.css';
@@ -43,12 +46,33 @@ export default function StationView() {
   const [stationResult, setStationResult] = useState(null);
   const [submittingStationResult, setSubmittingStationResult] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const statusMessages = getStationStatusMessages(stationId);
 
   const content = {
     title: getStationTitle(stationId),
     description: getStationDescription(stationId),
-    objective: 'Configure and run this station before returning to the map.',
+    objective: getStationObjective(stationId),
+    expectations: getStationExpectations(stationId),
   };
+
+  function renderObjectiveAndExpectations() {
+    return (
+      <>
+        <div className={styles.box}>
+          <strong>Objective:</strong>
+          <p className={styles.boxText}>{content.objective}</p>
+        </div>
+
+        {content.expectations && (
+          <div className={styles.box}>
+            <strong>Expectations:</strong>
+            <p className={styles.boxText}>{content.expectations}</p>
+          </div>
+        )}
+      </>
+    );
+  }
+
   const stationBackground = getStationBackgroundImage(stationId);
   const pageStyle = stationBackground
     ? {
@@ -123,6 +147,7 @@ export default function StationView() {
         <>
           <h1 className={styles.title}>{introConfig.welcomeTitle}</h1>
           <p className={styles.text}>{introConfig.welcomeText}</p>
+          {renderObjectiveAndExpectations()}
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => navigate('/world')}>
@@ -155,6 +180,7 @@ export default function StationView() {
             />
           </div>
           <p className={styles.info}>Watch the video above or skip to the next steps ahead.</p>
+          {renderObjectiveAndExpectations()}
 
           <div className={styles.buttonRow}>
             <button className={styles.secondaryButton} onClick={() => setPhase('welcome')}>
@@ -177,13 +203,16 @@ export default function StationView() {
       <>
         <h1 className={styles.title}>{introConfig.doneTitle}</h1>
         <p className={styles.text}>{introConfig.doneText}</p>
+        {renderObjectiveAndExpectations()}
 
-        {submittingStationResult && <p className={styles.info}>Submitting completion...</p>}
+        {submittingStationResult && <p className={styles.info}>{statusMessages.submitting}</p>}
 
         {stationResult && (
           <div className={styles.box}>
             <strong>Status:</strong>
-            <p className={styles.boxText}>{stationResult.success ? 'Success' : 'Failed'}</p>
+            <p className={styles.boxText}>
+              {stationResult.success ? statusMessages.success : statusMessages.failed}
+            </p>
             <p className={styles.boxText}>{stationResult.feedback}</p>
           </div>
         )}
@@ -215,16 +244,15 @@ export default function StationView() {
           <>
             <h1 className={styles.title}>{content.title}</h1>
             <p className={styles.text}>{content.description}</p>
-
-            <div className={styles.box}>
-              <strong>Objective:</strong>
-              <p className={styles.boxText}>{content.objective}</p>
-            </div>
+            {renderObjectiveAndExpectations()}
 
             {stationData && !loading && (
               <div className={styles.box}>
                 <strong>Status:</strong>
-                <p className={styles.boxText}>{stationData.message}</p>
+                <p className={styles.boxText}>{statusMessages.entered}</p>
+                {stationData.message && stationData.message !== statusMessages.entered && (
+                  <p className={styles.boxText}>{stationData.message}</p>
+                )}
               </div>
             )}
 
