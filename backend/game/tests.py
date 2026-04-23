@@ -36,6 +36,7 @@ from game.services import (
     PROTEIN_ID,
     PVALUE,
     TOT_PEP,
+    _squeeze_var,
 )
 from game.models import StationRun
 
@@ -558,11 +559,86 @@ class TestStatisticalAnalysisStation(TestCase):
         self.assertIn(PVALUE, result["dataset"].columns)
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_limma_produces_pvalues(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "limma"}, {"spectral_search"}
+        )
+        self.assertTrue(result["success"])
+        self.assertIn(PVALUE, result["dataset"].columns)
+        self.assertIn(FC, result["dataset"].columns)
+        pvals = result["dataset"][PVALUE].dropna()
+        self.assertTrue((pvals >= 0).all() and (pvals <= 1).all())
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_limma_includes_proteins_with_missing_values(self, _mock_vp):
+        """Proteins that lose some replicates to NaN but still have ≥1 per group
+        should receive a p-value rather than being silently dropped.
+
+        A larger dataset (30 proteins) is used so the empirical Bayes prior is
+        estimated reliably and the NaN-heavy protein can borrow variance from it.
+        """
+        n = 30
+        rng = np.random.default_rng(42)
+        base_df = _make_large_dataset_with_stats(n_rows=n)
+        # Replace intensity columns with random, non-zero-variance values
+        for col in COND_A:
+            base_df[col] = rng.normal(loc=10.0, scale=1.5, size=n)
+        for col in COND_B:
+            base_df[col] = rng.normal(loc=15.0, scale=1.5, size=n)
+        # Strip protein 0 down to 1 valid replicate per group (df_g = 0)
+        base_df.loc[0, COND_A[1]] = np.nan
+        base_df.loc[0, COND_A[2]] = np.nan
+        base_df.loc[0, COND_B[1]] = np.nan
+        base_df.loc[0, COND_B[2]] = np.nan
+        result = _simulate_statistical_analysis(
+            base_df, {"statistical_test": "limma"}, {"spectral_search"}
+        )
+        self.assertTrue(result["success"])
+        # The NaN-heavy protein must still get a p-value (prior variance covers it)
+        p0 = result["dataset"].loc[0, PVALUE]
+        self.assertTrue(
+            np.isfinite(p0),
+            f"Expected finite p-value for NaN-heavy protein, got {p0}",
+        )
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_unknown_test_fails(self, _mock_vp):
         result = _simulate_statistical_analysis(
             _make_dataset(), {"statistical_test": "magic"}, {"spectral_search"}
         )
         self.assertFalse(result["success"])
+
+
+class TestSqueezeVar(TestCase):
+    """Unit tests for the _squeeze_var empirical Bayes helper."""
+
+    def test_returns_finite_squeezed_variances(self):
+        rng = np.random.default_rng(0)
+        n = 20
+        sample_vars = rng.exponential(scale=2.0, size=n)
+        dfs = np.full(n, 4.0)
+        squeezed, df_prior = _squeeze_var(sample_vars, dfs)
+        self.assertEqual(len(squeezed), n)
+        self.assertTrue(np.all(np.isfinite(squeezed)))
+        self.assertGreaterEqual(df_prior, 0.0)
+
+    def test_nan_proteins_get_prior_variance(self):
+        """Proteins with NaN sample_var (df=0) should receive the prior variance."""
+        sample_vars = np.array([1.0, 2.0, 3.0, np.nan, np.nan])
+        dfs = np.array([4.0, 4.0, 4.0, 0.0, 0.0])
+        squeezed, _ = _squeeze_var(sample_vars, dfs)
+        self.assertTrue(np.isfinite(squeezed[3]))
+        self.assertTrue(np.isfinite(squeezed[4]))
+
+    def test_shrinks_extreme_variances_toward_center(self):
+        """Highly variable per-protein variances should be pulled toward the center."""
+        sample_vars = np.array([0.01, 0.01, 100.0, 100.0])
+        dfs = np.full(4, 4.0)
+        squeezed, _ = _squeeze_var(sample_vars, dfs)
+        # Squeezed low variance should be above raw; squeezed high variance below raw
+        self.assertGreater(squeezed[0], sample_vars[0])
+        self.assertLess(squeezed[2], sample_vars[2])
 
 
 # ---------------------------------------------------------------------------

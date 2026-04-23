@@ -36,6 +36,8 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
+from scipy.special import digamma, polygamma
+from scipy.stats import t as t_dist
 from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
 
 from django.conf import settings
@@ -1047,6 +1049,94 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
     }
 
 
+def _trigamma_inv(y: float) -> float:
+    """Return x such that trigamma(x) == y, using Newton's method."""
+    if not np.isfinite(y) or y <= 0:
+        return np.nan
+    # Starting approximation: trigamma(x) ≈ 1/x for large x
+    x = max(0.5 + 1.0 / y if y > 0.5 else 1.0 / (0.5 * y + 0.5), 1e-10)
+    for _ in range(50):
+        tri = float(polygamma(1, x))
+        pent = float(polygamma(2, x))
+        if pent == 0:
+            break
+        step = (tri - y) / pent
+        x = max(x - step, 1e-10)
+        if abs(step) < 1e-8:
+            break
+    return x
+
+
+def _squeeze_var(
+    sample_vars: np.ndarray, residual_dfs: np.ndarray
+) -> tuple[np.ndarray, float]:
+    """
+    Empirical Bayes variance moderation following Smyth (2004) / limma squeezeVar.
+
+    Fits a scaled inverse chi-squared prior to the per-protein sample variances and
+    returns posterior (squeezed) variances together with the estimated prior degrees
+    of freedom.  Proteins without an estimable variance (df == 0) are assigned the
+    prior variance so they still receive a p-value.
+
+    Parameters
+    ----------
+    sample_vars : ndarray, shape (n,)
+        Per-protein pooled sample variance.  NaN where variance cannot be computed.
+    residual_dfs : ndarray, shape (n,)
+        Per-protein residual degrees of freedom (nA + nB - 2).
+
+    Returns
+    -------
+    squeezed_vars : ndarray, shape (n,)
+        Posterior variance estimate for each protein.
+    df_prior : float
+        Estimated prior degrees of freedom.
+    """
+    valid = np.isfinite(sample_vars) & (sample_vars > 0) & (residual_dfs > 0)
+
+    if valid.sum() < 3:
+        # Too few proteins to estimate the prior reliably.
+        # Use the median observed variance as the prior and treat it as having
+        # infinite prior df (complete pooling) so NaN-variance proteins still get a p-value.
+        finite_pos = np.isfinite(sample_vars) & (sample_vars > 0)
+        prior_var = float(np.median(sample_vars[finite_pos])) if finite_pos.any() else 1.0
+        squeezed = np.where(finite_pos, sample_vars, prior_var)
+        df_prior_fallback = np.inf if finite_pos.any() else 0.0
+        return squeezed, df_prior_fallback
+
+    sv = sample_vars[valid]
+    df = residual_dfs[valid]
+
+    # z_g = log(s²_g) − (ψ(d_g/2) − log(d_g/2))  →  E[z_g] ≈ log(s0²)
+    z = np.log(sv) - (digamma(df / 2) - np.log(df / 2))
+    z_mean = float(np.mean(z))
+    s0_sq = np.exp(z_mean)
+
+    # Var[z_g] ≈ trigamma(d0/2) + mean(trigamma(d_g/2))
+    z_var = float(np.var(z, ddof=1))
+    tg_correction = float(np.mean(polygamma(1, df / 2)))
+    target_tg = z_var - tg_correction
+
+    if target_tg <= 0:
+        # Observed inter-protein spread ≤ expected sampling noise → prior df is
+        # effectively infinite (complete pooling toward the grand mean variance).
+        df_prior = np.inf
+    else:
+        df_prior = max(2.0 * _trigamma_inv(target_tg), 0.0)
+
+    # Posterior: s̃²_g = (d0·s0² + d_g·s²_g) / (d0 + d_g)
+    # Build element-by-element to avoid inf/inf arithmetic when df_prior is infinite.
+    squeezed = np.full(len(sample_vars), s0_sq)
+    valid_mask = np.isfinite(sample_vars) & (residual_dfs > 0)
+    if np.isinf(df_prior):
+        # Complete pooling: every protein gets the grand-mean prior variance
+        pass  # squeezed already set to s0_sq everywhere
+    else:
+        dg = residual_dfs[valid_mask]
+        squeezed[valid_mask] = (df_prior * s0_sq + dg * sample_vars[valid_mask]) / (df_prior + dg)
+    return squeezed, df_prior
+
+
 def _simulate_statistical_analysis(
     dataset: pd.DataFrame, params: dict, visited_stations: set
 ) -> dict:
@@ -1120,7 +1210,47 @@ def _simulate_statistical_analysis(
             feedback = "✅ Welch's t-test applied. Unequal variances were acknowledged and the proteins were judged accordingly."
 
         elif test == "limma":
-            raise NotImplementedError("Limma not implemented")
+            n_proteins = len(expr)
+            sample_vars = np.full(n_proteins, np.nan)
+            residual_dfs = np.zeros(n_proteins)
+            mean_diffs = np.full(n_proteins, np.nan)
+            se_factors = np.full(n_proteins, np.nan)  # sqrt(1/nA + 1/nB)
+
+            for idx in range(n_proteins):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
+                nA, nB = len(a), len(b)
+                if nA < 1 or nB < 1:
+                    continue
+                mean_diffs[idx] = b.mean() - a.mean()
+                se_factors[idx] = np.sqrt(1.0 / nA + 1.0 / nB)
+                if nA >= 2 and nB >= 2:
+                    pooled_var = (
+                        (nA - 1) * a.var(ddof=1) + (nB - 1) * b.var(ddof=1)
+                    ) / (nA + nB - 2)
+                    sample_vars[idx] = pooled_var
+                    residual_dfs[idx] = nA + nB - 2
+
+            squeezed_vars, df_prior = _squeeze_var(sample_vars, residual_dfs)
+
+            for idx in range(n_proteins):
+                if not np.isfinite(mean_diffs[idx]) or not np.isfinite(se_factors[idx]):
+                    continue
+                sv = squeezed_vars[idx]
+                if not np.isfinite(sv) or sv <= 0:
+                    continue
+                se = np.sqrt(sv) * se_factors[idx]
+                if se == 0:
+                    continue
+                t_stat = mean_diffs[idx] / se
+                df_total = df_prior + residual_dfs[idx]
+                if df_total <= 0:
+                    continue
+                p_values[idx] = float(2 * t_dist.sf(abs(t_stat), df=df_total))
+
+            success = True
+            feedback = "✅ Limma moderated t-test applied. Variance estimates were squeezed toward a common prior, giving a fairer hearing to proteins measured with few replicates."
 
         elif test == "mannwhitneyu":
             for idx in range(len(expr)):

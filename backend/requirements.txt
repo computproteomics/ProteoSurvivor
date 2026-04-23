@@ -8,6 +8,7 @@ matplotlib
 seaborn
 faker
 psycopg2-binary
+scipy
 statsmodels
 py-qvalue; python_version >= "3.10"
 scikit-learn
