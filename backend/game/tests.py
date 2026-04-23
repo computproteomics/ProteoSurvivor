@@ -586,7 +586,8 @@ class TestStatisticalAnalysisStation(TestCase):
             base_df[col] = rng.normal(loc=10.0, scale=1.5, size=n)
         for col in COND_B:
             base_df[col] = rng.normal(loc=15.0, scale=1.5, size=n)
-        # Strip protein 0 down to 1 valid replicate per group (df_g = 0)
+        # Strip protein 0 down to 1 valid replicate per group (df_g = 0):
+        # only COND_A[0] / COND_B[0] remain; [1] and [2] are set to NaN.
         base_df.loc[0, COND_A[1]] = np.nan
         base_df.loc[0, COND_A[2]] = np.nan
         base_df.loc[0, COND_B[1]] = np.nan

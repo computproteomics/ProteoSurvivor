@@ -1050,12 +1050,20 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
 
 
 def _trigamma_inv(y: float) -> float:
-    """Return x such that trigamma(x) == y, using Newton's method."""
+    """Return x such that trigamma(x) == y, using Newton's method.
+
+    The starting approximation uses the asymptotic relation trigamma(x) ≈ 1/x,
+    giving x₀ ≈ 1/y for small y and x₀ ≈ 1/(0.5y + 0.5) for y > 0.5.
+    Clipped to 1e-10 to stay in the valid (positive) domain.
+    Convergence is typically reached in fewer than 10 iterations; 50 is a
+    generous safety limit.
+    """
+    _MAX_ITER = 50
     if not np.isfinite(y) or y <= 0:
         return np.nan
     # Starting approximation: trigamma(x) ≈ 1/x for large x
     x = max(0.5 + 1.0 / y if y > 0.5 else 1.0 / (0.5 * y + 0.5), 1e-10)
-    for _ in range(50):
+    for _ in range(_MAX_ITER):
         tri = float(polygamma(1, x))
         pent = float(polygamma(2, x))
         if pent == 0:
