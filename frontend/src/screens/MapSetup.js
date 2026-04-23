@@ -770,6 +770,9 @@ export const MAP = ASCII_LAYOUT.map((rowString) => {
   return [...padded].map((char) => toTileType(char));
 });
 
+const WALK_TILE_INSET = 1.5;
+const WALK_TILE_RADIUS = 7;
+
 export function fitCanvasToViewport(canvas) {
   const parent = canvas.parentElement;
   let maxWidth = window.innerWidth * 0.94;
@@ -866,14 +869,27 @@ function drawTile(context, col, row, tileType) {
 
   context.fillStyle = (row + col) % 2 === 0 ? COLORS.floorA : COLORS.floorB;
 
-  const tileInset = 1.5;
-  const tileSize = TILE - tileInset * 2;
-  drawRoundedRect(context, x + tileInset, y + tileInset, tileSize, tileSize, 7);
+  const tileSize = TILE - WALK_TILE_INSET * 2;
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
   context.fill();
 
   // Add a subtle top highlight to reduce the flat look of floor tiles.
   context.fillStyle = 'rgba(255, 255, 255, 0.08)';
-  drawRoundedRect(context, x + tileInset, y + tileInset, tileSize, 10, 7);
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    10,
+    WALK_TILE_RADIUS
+  );
   context.fill();
 }
 // ===============================
@@ -909,18 +925,41 @@ export function pointerToTile(canvas, clientX, clientY) {
 function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
+  const tileSize = TILE - WALK_TILE_INSET * 2;
 
   // Draw the base tile under the station marker without a dark border ring.
   context.fillStyle = COLORS.stationTileBg;
-  context.fillRect(x, y, TILE, TILE);
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
 
-  // Fill station marker inset.
+  // Fill station marker using the same footprint as walkable tiles.
   context.fillStyle = station.color;
-  drawRoundedRect(context, x + 7, y + 7, TILE - 14, TILE - 14, 8);
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
   context.fill();
 
   context.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  drawRoundedRect(context, x + 8.5, y + 8.5, TILE - 17, 7, 5);
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    10,
+    WALK_TILE_RADIUS
+  );
   context.fill();
 
   // Draw station-specific icon nearly full-tile.
