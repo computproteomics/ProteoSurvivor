@@ -1147,7 +1147,7 @@ def _squeeze_var(
 
 
 def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
-    """Analytic p-value for the rank-product statistic (Breitling et al. 2004).
+    """One-tailed analytic p-value for the rank-product statistic (Breitling et al. 2004).
 
     Under the null hypothesis that all rank assignments are independent and
     uniform on {1, …, n}, the log-rank-product RP_g = -log(∏ r_{g,j} / n)
@@ -1157,27 +1157,25 @@ def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
     ----------
     rp_obs : float
         Observed rank product value (product of fractional ranks across k
-        replicates, already divided by n^k so each factor lives in (0, 1]).
+        replicates, each factor in (0, 1]).
     n : int
         Number of proteins (size of the ranked list).
     k : int
-        Number of replicates (replicate count for the relevant condition pair).
+        Total number of fractional-rank factors combined into the product.
 
     Returns
     -------
     float
-        Two-tailed p-value (minimum of the two one-tailed p-values × 2,
-        capped at 1).
+        One-tailed p-value: P(RP ≤ rp_obs) under the null, i.e. the
+        probability of observing a rank product this small or smaller.
+        Returns NaN when inputs are invalid.
     """
     if not np.isfinite(rp_obs) or rp_obs <= 0 or n < 1 or k < 1:
         return np.nan
-    # Convert the rank product to a Gamma test statistic
+    # -log(rank product) ~ Gamma(k, 1) under the null
     stat = -np.log(rp_obs)
-    # One-tailed: probability of obtaining a statistic ≥ stat under Gamma(k,1)
-    p_up = float(gamma_dist.sf(stat, a=k))
-    # Two-tailed via reflection
-    p = min(2 * p_up, 1.0)
-    return p
+    # P(statistic ≥ observed) = P(rank product ≤ observed)
+    return float(gamma_dist.sf(stat, a=k))
 
 
 def _simulate_statistical_analysis(
@@ -1353,12 +1351,24 @@ def _simulate_statistical_analysis(
             n_proteins = len(expr)
             # Compute within-condition ranks for each replicate column.
             # Proteins missing a value in a replicate are excluded from that
-            # replicate's ranking; they receive the average rank of the
-            # remaining non-missing proteins.  This follows Breitling et al.
-            # (2004) and means a protein observed in at least one replicate
-            # per condition still receives a p-value.
-            ranks_a = expr[COND_A].rank(axis=0, method="average", na_option="keep")
-            ranks_b = expr[COND_B].rank(axis=0, method="average", na_option="keep")
+            # replicate's ranking (na_option="keep").  This follows Breitling
+            # et al. (2004): a protein observed in at least one replicate per
+            # condition still receives a p-value.
+            #
+            # Two rank directions are needed for a two-tailed test:
+            #   UP  direction (upregulated in B):
+            #       ascending rank in A  (rank 1 = lowest in A)
+            #       descending rank in B (rank 1 = highest in B)
+            #   DOWN direction (downregulated in B = upregulated in A):
+            #       descending rank in A (rank 1 = highest in A)
+            #       ascending rank in B  (rank 1 = lowest in B)
+            # A protein consistently low-in-A AND high-in-B gets a small UP
+            # rank product and hence a small UP p-value; the converse holds
+            # for the DOWN direction.
+            ranks_a_asc = expr[COND_A].rank(axis=0, method="average", na_option="keep")
+            ranks_a_desc = expr[COND_A].rank(axis=0, method="average", na_option="keep", ascending=False)
+            ranks_b_asc = expr[COND_B].rank(axis=0, method="average", na_option="keep")
+            ranks_b_desc = expr[COND_B].rank(axis=0, method="average", na_option="keep", ascending=False)
 
             # Number of non-NaN proteins per replicate column (denominator for
             # fractional ranks); computed once outside the per-protein loop.
@@ -1367,25 +1377,33 @@ def _simulate_statistical_analysis(
 
             for idx in range(n_proteins):
                 # Valid (non-NaN) ranks for this protein in each condition
-                row_ra = ranks_a.iloc[idx]
-                row_rb = ranks_b.iloc[idx]
-                valid_a = row_ra[COND_A].dropna()
-                valid_b = row_rb[COND_B].dropna()
+                va_asc  = ranks_a_asc.iloc[idx][COND_A].dropna()
+                va_desc = ranks_a_desc.iloc[idx][COND_A].dropna()
+                vb_asc  = ranks_b_asc.iloc[idx][COND_B].dropna()
+                vb_desc = ranks_b_desc.iloc[idx][COND_B].dropna()
 
-                if len(valid_a) == 0 or len(valid_b) == 0:
+                if len(va_asc) == 0 or len(vb_asc) == 0:
                     # No data in at least one condition – cannot produce a rank product
                     continue
 
-                # Fractional ranks: rank / number of proteins ranked in that replicate
-                frac_a = (valid_a / n_obs_a[valid_a.index]).values
-                frac_b = (valid_b / n_obs_b[valid_b.index]).values
+                # Fractional ranks: rank / number of non-NaN proteins in that replicate
+                frac_a_asc  = (va_asc  / n_obs_a[va_asc.index]).values
+                frac_a_desc = (va_desc / n_obs_a[va_desc.index]).values
+                frac_b_asc  = (vb_asc  / n_obs_b[vb_asc.index]).values
+                frac_b_desc = (vb_desc / n_obs_b[vb_desc.index]).values
 
-                # Rank product = product of all fractional ranks across both conditions
-                all_frac = np.concatenate([frac_a, frac_b])
-                k_total = len(all_frac)
-                rp = float(np.prod(all_frac))
+                # UP rank product: small when protein is high in B and low in A
+                k_total = len(frac_a_asc) + len(frac_b_desc)
+                rp_up = float(np.prod(np.concatenate([frac_a_asc, frac_b_desc])))
 
-                p_values[idx] = _rank_products_pvalue(rp, n_proteins, k_total)
+                # DOWN rank product: small when protein is low in B and high in A
+                rp_dn = float(np.prod(np.concatenate([frac_a_desc, frac_b_asc])))
+
+                p_up = _rank_products_pvalue(rp_up, n_proteins, k_total)
+                p_dn = _rank_products_pvalue(rp_dn, n_proteins, k_total)
+
+                # Two-tailed p-value: Bonferroni combination of both directions
+                p_values[idx] = min(min(p_up, p_dn) * 2, 1.0)
 
             success = True
             feedback = "✅ Rank Products test applied. Proteins were ranked within each replicate and the product of their fractional ranks was used to call significance."
