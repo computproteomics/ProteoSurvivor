@@ -3,7 +3,6 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
-from math import comb as _comb
 from pathlib import Path
 from typing import Any, cast
 import pandas as pd
@@ -1330,50 +1329,43 @@ def _simulate_statistical_analysis(
 
             # Global permutations: the same label shuffle is applied to every protein
             # simultaneously, preserving cross-protein correlation structure.
-            #
-            # Floating-point note: np.nanmean over the full (n_proteins × n_total)
-            # matrix can produce slightly different values depending on column order,
-            # because IEEE-754 addition is not associative and NumPy's pairwise
-            # summation interacts with the column layout. Without a tolerance, many
-            # permutations that represent the same group assignment as the observed
-            # data can fail the >= comparison, giving extreme proteins an artificially
-            # small p-value (e.g. 0.01 instead of the correct ~0.10 minimum for
-            # n=3 per group).
-            #
-            # The rounding error grows with the MAGNITUDE OF THE VALUES, not the
-            # magnitude of the mean-difference statistic (which can be much smaller).
-            # Using a tolerance proportional to the per-protein value scale –
-            # nanmean(|X|) × 64 × machine-epsilon – captures all such artefacts
-            # while remaining orders of magnitude below any genuine difference.
-            value_scale = np.nanmean(np.abs(X), axis=1)
-            tol = value_scale * np.finfo(float).eps * 64
-            exceed_count = np.zeros(len(expr), dtype=int)
-            for _ in range(N_PERMUTATIONS):
+            # Accumulate all permuted statistics in a matrix for pooled null.
+            null_matrix = np.empty((len(expr), N_PERMUTATIONS))
+            for k in range(N_PERMUTATIONS):
                 perm_idx = rng.permutation(n_total)
                 X_perm = X[:, perm_idx]
-                perm_stat = (
+                null_matrix[:, k] = (
                     np.nanmean(X_perm[:, n_a:], axis=1)
                     - np.nanmean(X_perm[:, :n_a], axis=1)
                 )
-                exceed_count += np.abs(perm_stat) + tol >= np.abs(obs_stat)
 
-            # Proteins with no observed data in at least one condition get NaN.
-            # Use the Phipson-Smyth (2010) formula: include the observed statistic
-            # itself in the count so that p is never exactly 0.
-            valid = np.isfinite(obs_stat)
-            p_values = np.where(
-                valid, (exceed_count + 1) / (N_PERMUTATIONS + 1), np.nan
-            )
+            # Variance-stabilisation (Perseus-style): divide each protein's observed
+            # statistic and null statistics by that protein's permutation standard
+            # deviation so that all proteins contribute on the same scale before
+            # pooling across proteins.
+            perm_std = np.nanstd(null_matrix, axis=1, ddof=1)
+            valid = np.isfinite(obs_stat) & (perm_std > 0)
+            obs_z = np.where(valid, obs_stat / perm_std, np.nan)
+            null_z = null_matrix / perm_std[:, np.newaxis]
+
+            # Pool all stabilised null statistics across proteins into one global null
+            # distribution.  Using only valid proteins avoids NaN contamination.
+            pooled_null_sorted = np.sort(np.abs(null_z[valid, :].ravel()))
+            n_pooled = len(pooled_null_sorted)
+
+            # Two-tailed p-value: fraction of pooled null >= |obs_z_i|.
+            # Phipson-Smyth (2010): add 1 to numerator and denominator so p != 0.
+            abs_obs_z = np.abs(np.where(valid, obs_z, 0.0))
+            exceed = n_pooled - np.searchsorted(pooled_null_sorted, abs_obs_z, side="left")
+            p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
 
             success = True
-            n_distinct = _comb(n_total, n_a)
-            min_p = 2.0 / n_distinct  # two-tailed minimum
+            n_valid = int(valid.sum())
             feedback = (
-                f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations). "
-                f"Sample labels were shuffled across all proteins simultaneously to build "
-                f"a shared null distribution. With {n_a} replicates per condition, there "
-                f"are only C({n_total},{n_a}) = {n_distinct} distinct group assignments, "
-                f"so the minimum achievable two-tailed p-value is {min_p:.3f}."
+                f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations, "
+                f"{n_valid} proteins). Variance-stabilised statistics were pooled "
+                f"across all proteins to build a shared null distribution "
+                f"({n_valid * N_PERMUTATIONS:,} null values), following the Perseus approach."
             )
 
         elif test == "rank_products":
