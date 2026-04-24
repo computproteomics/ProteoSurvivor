@@ -38,6 +38,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 from scipy.special import digamma, polygamma
 from scipy.stats import t as t_dist
+from scipy.stats import gamma as gamma_dist
 from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
 
 from django.conf import settings
@@ -1145,6 +1146,40 @@ def _squeeze_var(
     return squeezed, df_prior
 
 
+def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
+    """Analytic p-value for the rank-product statistic (Breitling et al. 2004).
+
+    Under the null hypothesis that all rank assignments are independent and
+    uniform on {1, …, n}, the log-rank-product RP_g = -log(∏ r_{g,j} / n)
+    follows a Gamma(k, 1) distribution as n → ∞.
+
+    Parameters
+    ----------
+    rp_obs : float
+        Observed rank product value (product of fractional ranks across k
+        replicates, already divided by n^k so each factor lives in (0, 1]).
+    n : int
+        Number of proteins (size of the ranked list).
+    k : int
+        Number of replicates (replicate count for the relevant condition pair).
+
+    Returns
+    -------
+    float
+        Two-tailed p-value (minimum of the two one-tailed p-values × 2,
+        capped at 1).
+    """
+    if not np.isfinite(rp_obs) or rp_obs <= 0 or n < 1 or k < 1:
+        return np.nan
+    # Convert the rank product to a Gamma test statistic
+    stat = -np.log(rp_obs)
+    # One-tailed: probability of obtaining a statistic ≥ stat under Gamma(k,1)
+    p_up = float(gamma_dist.sf(stat, a=k))
+    # Two-tailed via reflection
+    p = min(2 * p_up, 1.0)
+    return p
+
+
 def _simulate_statistical_analysis(
     dataset: pd.DataFrame, params: dict, visited_stations: set
 ) -> dict:
@@ -1308,6 +1343,47 @@ def _simulate_statistical_analysis(
 
             success = True
             feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} permutations). Chance was consulted repeatedly until it gave a usable answer."
+
+        elif test == "rank_products":
+            n_proteins = len(expr)
+            # Compute within-condition ranks for each replicate column.
+            # Proteins missing a value in a replicate are excluded from that
+            # replicate's ranking; they receive the average rank of the
+            # remaining non-missing proteins.  This follows Breitling et al.
+            # (2004) and means a protein observed in at least one replicate
+            # per condition still receives a p-value.
+            ranks_a = expr[COND_A].rank(axis=0, method="average", na_option="keep")
+            ranks_b = expr[COND_B].rank(axis=0, method="average", na_option="keep")
+
+            # Number of non-NaN proteins per replicate column (denominator for
+            # fractional ranks); computed once outside the per-protein loop.
+            n_obs_a = expr[COND_A].notna().sum(axis=0)  # Series indexed by COND_A
+            n_obs_b = expr[COND_B].notna().sum(axis=0)  # Series indexed by COND_B
+
+            for idx in range(n_proteins):
+                # Valid (non-NaN) ranks for this protein in each condition
+                row_ra = ranks_a.iloc[idx]
+                row_rb = ranks_b.iloc[idx]
+                valid_a = row_ra[COND_A].dropna()
+                valid_b = row_rb[COND_B].dropna()
+
+                if len(valid_a) == 0 or len(valid_b) == 0:
+                    # No data in at least one condition – cannot produce a rank product
+                    continue
+
+                # Fractional ranks: rank / number of proteins ranked in that replicate
+                frac_a = (valid_a / n_obs_a[valid_a.index]).values
+                frac_b = (valid_b / n_obs_b[valid_b.index]).values
+
+                # Rank product = product of all fractional ranks across both conditions
+                all_frac = np.concatenate([frac_a, frac_b])
+                k_total = len(all_frac)
+                rp = float(np.prod(all_frac))
+
+                p_values[idx] = _rank_products_pvalue(rp, n_proteins, k_total)
+
+            success = True
+            feedback = "✅ Rank Products test applied. Proteins were ranked within each replicate and the product of their fractional ranks was used to call significance."
         else:
             success = False
             feedback = "⚠️ Unknown statistical test. The station declines to perform inferential improv theatre."

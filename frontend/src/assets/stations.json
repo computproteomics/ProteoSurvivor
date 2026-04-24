@@ -313,13 +313,15 @@
           "welch",
           "limma",
           "mannwhitneyu",
-          "permutation"
+          "permutation",
+          "rank_products"
         ],
         "optionLabels": {
           "welch": "Welch t-test",
           "limma": "Limma",
           "mannwhitneyu": "Mann-Whitney U test",
-          "permutation": "Permutation test"
+          "permutation": "Permutation test",
+          "rank_products": "Rank Products"
         },
         "defaultValue": "welch"
       }

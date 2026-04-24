@@ -37,6 +37,7 @@ from game.services import (
     PVALUE,
     TOT_PEP,
     _squeeze_var,
+    _rank_products_pvalue,
 )
 from game.models import StationRun
 
@@ -610,6 +611,38 @@ class TestStatisticalAnalysisStation(TestCase):
         )
         self.assertFalse(result["success"])
 
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_rank_products_produces_pvalues(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "rank_products"}, {"spectral_search"}
+        )
+        self.assertTrue(result["success"])
+        self.assertIn(PVALUE, result["dataset"].columns)
+        self.assertIn(FC, result["dataset"].columns)
+        pvals = result["dataset"][PVALUE].dropna()
+        self.assertTrue((pvals >= 0).all() and (pvals <= 1).all())
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_rank_products_includes_proteins_with_missing_values(self, _mock_vp):
+        """A protein with NaN in some replicates but ≥1 valid value per condition
+        should still receive a p-value from the rank products test."""
+        df = _make_dataset()
+        # Protein 0: keep only replicate 0 in each condition; wipe the rest
+        df.loc[0, COND_A[1]] = np.nan
+        df.loc[0, COND_A[2]] = np.nan
+        df.loc[0, COND_B[1]] = np.nan
+        df.loc[0, COND_B[2]] = np.nan
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "rank_products"}, {"spectral_search"}
+        )
+        self.assertTrue(result["success"])
+        p0 = result["dataset"].loc[0, PVALUE]
+        self.assertTrue(
+            np.isfinite(p0),
+            f"Expected finite p-value for NaN-heavy protein, got {p0}",
+        )
+
 
 class TestSqueezeVar(TestCase):
     """Unit tests for the _squeeze_var empirical Bayes helper."""
@@ -642,8 +675,31 @@ class TestSqueezeVar(TestCase):
         self.assertLess(squeezed[2], sample_vars[2])
 
 
-# ---------------------------------------------------------------------------
-# Station: veit (final scoring station)
+class TestRankProductsPvalue(TestCase):
+    """Unit tests for the _rank_products_pvalue analytic helper."""
+
+    def test_returns_valid_p_value(self):
+        """A typical rank product should yield a p-value in [0, 1]."""
+        p = _rank_products_pvalue(0.01, n=100, k=6)
+        self.assertTrue(0.0 <= p <= 1.0)
+
+    def test_very_small_rp_gives_small_pvalue(self):
+        """A rank product near zero (top-ranked in every replicate) should be highly significant."""
+        p = _rank_products_pvalue(1e-10, n=500, k=6)
+        self.assertLess(p, 0.01)
+
+    def test_rp_near_one_gives_large_pvalue(self):
+        """A rank product near 1 (bottom-ranked in every replicate) should not be significant."""
+        p = _rank_products_pvalue(0.99**6, n=500, k=6)
+        self.assertGreater(p, 0.05)
+
+    def test_invalid_inputs_return_nan(self):
+        """Non-positive or non-finite inputs should return NaN."""
+        self.assertTrue(np.isnan(_rank_products_pvalue(0.0, n=100, k=6)))
+        self.assertTrue(np.isnan(_rank_products_pvalue(-0.5, n=100, k=6)))
+        self.assertTrue(np.isnan(_rank_products_pvalue(np.nan, n=100, k=6)))
+        self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=0, k=6)))
+        self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=100, k=0)))
 # ---------------------------------------------------------------------------
 
 
@@ -823,6 +879,7 @@ class TestStationParameterConfigurations(TestCase):
             "limma": True,
             "mannwhitneyu": True,
             "permutation": True,
+            "rank_products": True,
         }
         for test_name in options:
             with self.subTest(statistical_test=test_name):
