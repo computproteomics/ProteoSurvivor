@@ -3,6 +3,7 @@ Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
 import random
+from math import comb as _comb
 from pathlib import Path
 from typing import Any, cast
 import pandas as pd
@@ -1329,6 +1330,23 @@ def _simulate_statistical_analysis(
 
             # Global permutations: the same label shuffle is applied to every protein
             # simultaneously, preserving cross-protein correlation structure.
+            #
+            # Floating-point note: np.nanmean over the full (n_proteins × n_total)
+            # matrix can produce slightly different values depending on column order,
+            # because IEEE-754 addition is not associative and NumPy's pairwise
+            # summation interacts with the column layout. Without a tolerance, many
+            # permutations that represent the same group assignment as the observed
+            # data can fail the >= comparison, giving extreme proteins an artificially
+            # small p-value (e.g. 0.01 instead of the correct ~0.10 minimum for
+            # n=3 per group).
+            #
+            # The rounding error grows with the MAGNITUDE OF THE VALUES, not the
+            # magnitude of the mean-difference statistic (which can be much smaller).
+            # Using a tolerance proportional to the per-protein value scale –
+            # nanmean(|X|) × 64 × machine-epsilon – captures all such artefacts
+            # while remaining orders of magnitude below any genuine difference.
+            value_scale = np.nanmean(np.abs(X), axis=1)
+            tol = value_scale * np.finfo(float).eps * 64
             exceed_count = np.zeros(len(expr), dtype=int)
             for _ in range(N_PERMUTATIONS):
                 perm_idx = rng.permutation(n_total)
@@ -1337,15 +1355,26 @@ def _simulate_statistical_analysis(
                     np.nanmean(X_perm[:, n_a:], axis=1)
                     - np.nanmean(X_perm[:, :n_a], axis=1)
                 )
-                exceed_count += np.abs(perm_stat) >= np.abs(obs_stat)
+                exceed_count += np.abs(perm_stat) + tol >= np.abs(obs_stat)
 
             # Proteins with no observed data in at least one condition get NaN.
+            # Use the Phipson-Smyth (2010) formula: include the observed statistic
+            # itself in the count so that p is never exactly 0.
             valid = np.isfinite(obs_stat)
-            raw_p = exceed_count / N_PERMUTATIONS
-            p_values = np.where(valid, np.maximum(raw_p, 1.0 / (N_PERMUTATIONS + 1)), np.nan)
+            p_values = np.where(
+                valid, (exceed_count + 1) / (N_PERMUTATIONS + 1), np.nan
+            )
 
             success = True
-            feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations). Sample labels were shuffled across all proteins simultaneously to build a shared null distribution."
+            n_distinct = _comb(n_total, n_a)
+            min_p = 2.0 / n_distinct  # two-tailed minimum
+            feedback = (
+                f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations). "
+                f"Sample labels were shuffled across all proteins simultaneously to build "
+                f"a shared null distribution. With {n_a} replicates per condition, there "
+                f"are only C({n_total},{n_a}) = {n_distinct} distinct group assignments, "
+                f"so the minimum achievable two-tailed p-value is {min_p:.3f}."
+            )
 
         elif test == "rank_products":
             n_proteins = len(expr)
