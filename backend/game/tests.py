@@ -694,16 +694,19 @@ class TestRankProductsPvalue(TestCase):
         self.assertGreater(p, 0.05)
 
     def test_n_affects_pvalue(self):
-        """p-value must depend on n: for the same RP and k, smaller n gives a
-        smaller p-value because μₙ = log(n) − log(n!)/n is smaller for small n,
-        which makes the observed statistic more extreme relative to the null."""
+        """p-value must depend on n: for the same fractional RP and k, smaller n
+        gives a smaller p-value.  The moment-matched Gamma correction accounts for
+        the fact that the discrete uniform distribution on {1,...,n}/n deviates
+        more from the continuous U(0,1) limit when n is small, resulting in a
+        tighter null distribution and hence a more extreme (smaller) p-value for
+        the same observed rank product."""
         rp = 0.01
         p_small_n = _rank_products_pvalue(rp, n=10, k=4)
         p_large_n = _rank_products_pvalue(rp, n=1000, k=4)
         self.assertNotEqual(p_small_n, p_large_n,
                             "p-value must change with n (finite-n correction)")
         self.assertLess(p_small_n, p_large_n,
-                        "smaller n → smaller μₙ → more extreme normalised stat → smaller p")
+                        "smaller n → tighter discrete null → smaller p for same fractional RP")
 
     def test_invalid_inputs_return_nan(self):
         """Non-positive or non-finite inputs should return NaN."""

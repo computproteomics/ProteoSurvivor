@@ -36,7 +36,7 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
-from scipy.special import digamma, polygamma, gammaln as _gammaln
+from scipy.special import digamma, polygamma
 from scipy.stats import t as t_dist
 from scipy.stats import gamma as gamma_dist
 from scipy.stats import ttest_ind, mannwhitneyu
@@ -1147,14 +1147,27 @@ def _squeeze_var(
 
 
 def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
-    """One-tailed analytic p-value for the rank-product statistic (Breitling et al. 2004).
+    """One-tailed analytic p-value for the rank-product statistic.
 
-    Under the null hypothesis that all rank assignments are independent and
-    uniform on {1, …, n}, -log(r/n) for a single replicate has mean
-    μₙ = log(n) − log(n!)/n, which approaches 1 only as n → ∞.  The sum
-    of k such terms therefore follows Gamma(k, scale=μₙ) approximately, not
-    Gamma(k, 1).  Using the correct scale factor removes the systematic bias
-    that the n=∞ approximation introduces for finite (especially small) n.
+    Uses a moment-matched Gamma approximation.  Under the null hypothesis
+    that each rank is drawn independently and uniformly from {1, …, n},
+    the statistic S = −log(r₁/n) − … − log(rₖ/n) has true mean k·μₙ and
+    true variance k·σ²ₙ, where
+
+        μₙ  = mean   of −log(r/n)  for r = 1, …, n
+        σ²ₙ = variance of −log(r/n) for r = 1, …, n
+
+    S is approximated by Gamma(α, β) with
+
+        α = k · μₙ² / σ²ₙ    (shape)
+        β = σ²ₙ / μₙ          (scale)
+
+    which matches both the mean (α·β = k·μₙ) and the variance (α·β² = k·σ²ₙ)
+    of the true null distribution.  As n → ∞, μₙ → 1 and σ²ₙ → 1, so
+    (α, β) → (k, 1), recovering the standard Breitling (2004) approximation.
+    For finite n this two-moment correction is substantially more accurate
+    than either the n = ∞ formula Gamma(k, 1) or the mean-only correction
+    Gamma(k, μₙ).
 
     Parameters
     ----------
@@ -1176,13 +1189,19 @@ def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
     if not np.isfinite(rp_obs) or rp_obs <= 0 or n < 1 or k < 1:
         return np.nan
     stat = -np.log(rp_obs)
-    # Finite-n correction: mean of -log(r/n) for r ~ Uniform{1,...,n} is
-    # μₙ = log(n) − log(n!)/n.  The sum of k independent such terms is
-    # approximately Gamma(k, scale=μₙ).  For n→∞, μₙ→1 and this reduces to
-    # the standard Gamma(k, 1) approximation.
-    mu_n = np.log(n) - _gammaln(n + 1) / n
-    # P(statistic ≥ observed) = P(rank product ≤ observed)
-    return float(gamma_dist.sf(stat, a=k, scale=mu_n))
+    # Compute the first two moments of −log(r/n) over the discrete uniform
+    # distribution on {1, …, n}.
+    r_vals = np.arange(1, n + 1, dtype=float)
+    x = -np.log(r_vals / n)          # values of the transformed rank
+    mu_n = x.mean()                   # = log(n) − log(n!)/n
+    sigma2_n = x.var()                # population variance (ddof=0)
+    if mu_n <= 0 or sigma2_n <= 0:
+        # Degenerate case (n=1): fall back to the standard Gamma(k, 1).
+        return float(gamma_dist.sf(stat, a=k, scale=1.0))
+    # Moment-matched Gamma parameters for the sum of k independent terms.
+    shape = k * mu_n ** 2 / sigma2_n
+    scale = sigma2_n / mu_n
+    return float(gamma_dist.sf(stat, a=shape, scale=scale))
 
 
 def _simulate_statistical_analysis(
