@@ -1375,12 +1375,14 @@ def _simulate_statistical_analysis(
             n_obs_a = expr[COND_A].notna().sum(axis=0)  # Series indexed by COND_A
             n_obs_b = expr[COND_B].notna().sum(axis=0)  # Series indexed by COND_B
 
+            protein_index = expr.index
             for idx in range(n_proteins):
+                row_label = protein_index[idx]
                 # Valid (non-NaN) ranks for this protein in each condition
-                va_asc  = ranks_a_asc.iloc[idx][COND_A].dropna()
-                va_desc = ranks_a_desc.iloc[idx][COND_A].dropna()
-                vb_asc  = ranks_b_asc.iloc[idx][COND_B].dropna()
-                vb_desc = ranks_b_desc.iloc[idx][COND_B].dropna()
+                va_asc  = ranks_a_asc.loc[row_label, COND_A].dropna()
+                va_desc = ranks_a_desc.loc[row_label, COND_A].dropna()
+                vb_asc  = ranks_b_asc.loc[row_label, COND_B].dropna()
+                vb_desc = ranks_b_desc.loc[row_label, COND_B].dropna()
 
                 if len(va_asc) == 0 or len(vb_asc) == 0:
                     # No data in at least one condition – cannot produce a rank product
@@ -1393,14 +1395,15 @@ def _simulate_statistical_analysis(
                 frac_b_desc = (vb_desc / n_obs_b[vb_desc.index]).values
 
                 # UP rank product: small when protein is high in B and low in A
-                k_total = len(frac_a_asc) + len(frac_b_desc)
+                k_up = len(frac_a_asc) + len(frac_b_desc)
                 rp_up = float(np.prod(np.concatenate([frac_a_asc, frac_b_desc])))
 
                 # DOWN rank product: small when protein is low in B and high in A
+                k_dn = len(frac_a_desc) + len(frac_b_asc)
                 rp_dn = float(np.prod(np.concatenate([frac_a_desc, frac_b_asc])))
 
-                p_up = _rank_products_pvalue(rp_up, n_proteins, k_total)
-                p_dn = _rank_products_pvalue(rp_dn, n_proteins, k_total)
+                p_up = _rank_products_pvalue(rp_up, n_proteins, k_up)
+                p_dn = _rank_products_pvalue(rp_dn, n_proteins, k_dn)
 
                 # Two-tailed p-value: Bonferroni combination of both directions
                 p_values[idx] = min(min(p_up, p_dn) * 2, 1.0)
