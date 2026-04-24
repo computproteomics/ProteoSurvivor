@@ -693,6 +693,18 @@ class TestRankProductsPvalue(TestCase):
         p = _rank_products_pvalue(0.99**6, n=500, k=6)
         self.assertGreater(p, 0.05)
 
+    def test_n_affects_pvalue(self):
+        """p-value must depend on n: for the same RP and k, smaller n gives a
+        smaller p-value because μₙ = log(n) − log(n!)/n is smaller for small n,
+        which makes the observed statistic more extreme relative to the null."""
+        rp = 0.01
+        p_small_n = _rank_products_pvalue(rp, n=10, k=4)
+        p_large_n = _rank_products_pvalue(rp, n=1000, k=4)
+        self.assertNotEqual(p_small_n, p_large_n,
+                            "p-value must change with n (finite-n correction)")
+        self.assertLess(p_small_n, p_large_n,
+                        "smaller n → smaller μₙ → more extreme normalised stat → smaller p")
+
     def test_invalid_inputs_return_nan(self):
         """Non-positive or non-finite inputs should return NaN."""
         self.assertTrue(np.isnan(_rank_products_pvalue(0.0, n=100, k=6)))
@@ -700,6 +712,83 @@ class TestRankProductsPvalue(TestCase):
         self.assertTrue(np.isnan(_rank_products_pvalue(np.nan, n=100, k=6)))
         self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=0, k=6)))
         self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=100, k=0)))
+
+
+class TestRankProductsGroundTruth(TestCase):
+    """Ground-truth tests for the rank-products end-to-end path with known data."""
+
+    def _run_rp(self, df):
+        from unittest.mock import patch
+        with patch("game.services.volcano_plot", return_value="img"):
+            return _simulate_statistical_analysis(
+                df, {"statistical_test": "rank_products"}, {"spectral_search"}
+            )
+
+    def _make_clear_df(self):
+        """20-protein dataset where protein 0 is strongly UP and protein 19 is
+        strongly DOWN (completely reversed ordering between A and B).
+        Proteins 9 and 10 are the middle proteins with no consistent direction.
+        """
+        n = 20
+        a_vals = np.arange(1.0, n + 1)          # 1, 2, ..., 20 in A
+        b_vals = np.arange(float(n), 0.0, -1.0)  # 20, 19, ..., 1 in B
+        base = {
+            "Protein": [f"P{i:03d}" for i in range(n)],
+            "Protein ID": [f"P{i:03d}" for i in range(n)],
+            "Entry Name": [f"E{i:03d}" for i in range(n)],
+            "Gene": [f"G{i:03d}" for i in range(n)],
+            "Protein Length": [300] * n,
+            "Organism": ["Yeast"] * n,
+            "Protein Existence": ["Evidence at protein level"] * n,
+            "Description": ["Protein"] * n,
+            "Protein Probability": [0.99] * n,
+            "Top Peptide Probability": [0.98] * n,
+            "Total Peptides": [5] * n,
+            "Spectral Count": [20] * n,
+            "Unique Spectral Count": [10] * n,
+            "Total Spectral Count": [25] * n,
+            "Indistinguishable Proteins": [""] * n,
+        }
+        for col in COND_A:
+            base[col] = a_vals
+        for col in COND_B:
+            base[col] = b_vals
+        return pd.DataFrame(base)
+
+    def test_upregulated_protein_gets_smaller_pvalue_than_null(self):
+        """P0 (lowest in A, highest in B) must be more significant than P9 (middle)."""
+        df = self._make_clear_df()
+        result = self._run_rp(df)
+        self.assertTrue(result["success"])
+        pvals = result["dataset"][PVALUE]
+        p_up = pvals.iloc[0]    # P0: strongly upregulated
+        p_null = pvals.iloc[9]  # P9: middle, no consistent direction
+        self.assertTrue(np.isfinite(p_up))
+        self.assertTrue(np.isfinite(p_null))
+        self.assertLess(p_up, p_null,
+                        f"Upregulated protein p={p_up:.4f} should be < null p={p_null:.4f}")
+
+    def test_downregulated_protein_gets_smaller_pvalue_than_null(self):
+        """P19 (highest in A, lowest in B) must be more significant than P10 (middle)."""
+        df = self._make_clear_df()
+        result = self._run_rp(df)
+        pvals = result["dataset"][PVALUE]
+        p_down = pvals.iloc[19]  # P19: strongly downregulated
+        p_null = pvals.iloc[10]  # P10: middle
+        self.assertTrue(np.isfinite(p_down))
+        self.assertLess(p_down, p_null,
+                        f"Downregulated protein p={p_down:.4f} should be < null p={p_null:.4f}")
+
+    def test_up_and_down_have_similar_pvalues(self):
+        """With a fully reversed dataset the most extreme UP and DOWN proteins
+        should receive equal (or near-equal) p-values by symmetry."""
+        df = self._make_clear_df()
+        result = self._run_rp(df)
+        pvals = result["dataset"][PVALUE]
+        p_up = pvals.iloc[0]
+        p_down = pvals.iloc[19]
+        self.assertAlmostEqual(p_up, p_down, places=10,
+                               msg="Symmetric UP/DOWN should have equal p-values")
 
 
 # ---------------------------------------------------------------------------

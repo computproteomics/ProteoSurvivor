@@ -36,7 +36,7 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
-from scipy.special import digamma, polygamma
+from scipy.special import digamma, polygamma, gammaln as _gammaln
 from scipy.stats import t as t_dist
 from scipy.stats import gamma as gamma_dist
 from scipy.stats import ttest_ind, mannwhitneyu
@@ -1150,8 +1150,11 @@ def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
     """One-tailed analytic p-value for the rank-product statistic (Breitling et al. 2004).
 
     Under the null hypothesis that all rank assignments are independent and
-    uniform on {1, …, n}, the log-rank-product RP_g = -log(∏ r_{g,j} / n)
-    follows a Gamma(k, 1) distribution as n → ∞.
+    uniform on {1, …, n}, -log(r/n) for a single replicate has mean
+    μₙ = log(n) − log(n!)/n, which approaches 1 only as n → ∞.  The sum
+    of k such terms therefore follows Gamma(k, scale=μₙ) approximately, not
+    Gamma(k, 1).  Using the correct scale factor removes the systematic bias
+    that the n=∞ approximation introduces for finite (especially small) n.
 
     Parameters
     ----------
@@ -1172,10 +1175,14 @@ def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
     """
     if not np.isfinite(rp_obs) or rp_obs <= 0 or n < 1 or k < 1:
         return np.nan
-    # -log(rank product) ~ Gamma(k, 1) under the null
     stat = -np.log(rp_obs)
+    # Finite-n correction: mean of -log(r/n) for r ~ Uniform{1,...,n} is
+    # μₙ = log(n) − log(n!)/n.  The sum of k independent such terms is
+    # approximately Gamma(k, scale=μₙ).  For n→∞, μₙ→1 and this reduces to
+    # the standard Gamma(k, 1) approximation.
+    mu_n = np.log(n) - _gammaln(n + 1) / n
     # P(statistic ≥ observed) = P(rank product ≤ observed)
-    return float(gamma_dist.sf(stat, a=k))
+    return float(gamma_dist.sf(stat, a=k, scale=mu_n))
 
 
 def _simulate_statistical_analysis(
@@ -1423,8 +1430,18 @@ def _simulate_statistical_analysis(
                 k_dn = len(frac_a_desc) + len(frac_b_asc)
                 rp_dn = float(np.prod(np.concatenate([frac_a_desc, frac_b_asc])))
 
-                p_up = _rank_products_pvalue(rp_up, n_proteins, k_up)
-                p_dn = _rank_products_pvalue(rp_dn, n_proteins, k_dn)
+                # Use the average observed-protein count across the contributing
+                # replicates as the effective n for the finite-n correction.
+                # In the no-NaN case this equals n_proteins; in the NaN case it
+                # reflects the actual ranking-list size in each column.
+                n_eff_up = max(1, int(round(
+                    (n_obs_a[va_asc.index].sum() + n_obs_b[vb_desc.index].sum()) / k_up
+                )))
+                n_eff_dn = max(1, int(round(
+                    (n_obs_a[va_desc.index].sum() + n_obs_b[vb_asc.index].sum()) / k_dn
+                )))
+                p_up = _rank_products_pvalue(rp_up, n_eff_up, k_up)
+                p_dn = _rank_products_pvalue(rp_dn, n_eff_dn, k_dn)
 
                 # Two-tailed p-value: Bonferroni combination of both directions
                 p_values[idx] = min(min(p_up, p_dn) * 2, 1.0)
