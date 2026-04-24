@@ -38,7 +38,6 @@ from sklearn.ensemble import RandomForestRegressor
 
 from scipy.special import digamma, polygamma
 from scipy.stats import t as t_dist
-from scipy.stats import gamma as gamma_dist
 from scipy.stats import ttest_ind, mannwhitneyu
 
 from django.conf import settings
@@ -1146,64 +1145,6 @@ def _squeeze_var(
     return squeezed, df_prior
 
 
-def _rank_products_pvalue(rp_obs: float, n: int, k: int) -> float:
-    """One-tailed analytic p-value for the rank-product statistic.
-
-    Uses a moment-matched Gamma approximation.  Under the null hypothesis
-    that each rank is drawn independently and uniformly from {1, …, n},
-    the statistic S = −log(r₁/n) − … − log(rₖ/n) has true mean k·μₙ and
-    true variance k·σ²ₙ, where
-
-        μₙ  = mean   of −log(r/n)  for r = 1, …, n
-        σ²ₙ = variance of −log(r/n) for r = 1, …, n
-
-    S is approximated by Gamma(α, β) with
-
-        α = k · μₙ² / σ²ₙ    (shape)
-        β = σ²ₙ / μₙ          (scale)
-
-    which matches both the mean (α·β = k·μₙ) and the variance (α·β² = k·σ²ₙ)
-    of the true null distribution.  As n → ∞, μₙ → 1 and σ²ₙ → 1, so
-    (α, β) → (k, 1), recovering the standard Breitling (2004) approximation.
-    For finite n this two-moment correction is substantially more accurate
-    than either the n = ∞ formula Gamma(k, 1) or the mean-only correction
-    Gamma(k, μₙ).
-
-    Parameters
-    ----------
-    rp_obs : float
-        Observed rank product value (product of fractional ranks across k
-        replicates, each factor in (0, 1]).
-    n : int
-        Number of proteins (size of the ranked list).
-    k : int
-        Total number of fractional-rank factors combined into the product.
-
-    Returns
-    -------
-    float
-        One-tailed p-value: P(RP ≤ rp_obs) under the null, i.e. the
-        probability of observing a rank product this small or smaller.
-        Returns NaN when inputs are invalid.
-    """
-    if not np.isfinite(rp_obs) or rp_obs <= 0 or n < 1 or k < 1:
-        return np.nan
-    stat = -np.log(rp_obs)
-    # Compute the first two moments of −log(r/n) over the discrete uniform
-    # distribution on {1, …, n}.
-    r_vals = np.arange(1, n + 1, dtype=float)
-    x = -np.log(r_vals / n)          # values of the transformed rank
-    mu_n = x.mean()                   # = log(n) − log(n!)/n
-    sigma2_n = x.var()                # population variance (ddof=0)
-    if mu_n <= 0 or sigma2_n <= 0:
-        # Degenerate case (n=1): fall back to the standard Gamma(k, 1).
-        return float(gamma_dist.sf(stat, a=k, scale=1.0))
-    # Moment-matched Gamma parameters for the sum of k independent terms.
-    shape = k * mu_n ** 2 / sigma2_n
-    scale = sigma2_n / mu_n
-    return float(gamma_dist.sf(stat, a=shape, scale=scale))
-
-
 def _simulate_statistical_analysis(
     dataset: pd.DataFrame, params: dict, visited_stations: set
 ) -> dict:
@@ -1394,79 +1335,87 @@ def _simulate_statistical_analysis(
                 f"({n_valid * N_PERMUTATIONS:,} null values), following the Perseus approach."
             )
 
-        elif test == "rank_products":
-            n_proteins = len(expr)
-            # Compute within-condition ranks for each replicate column.
-            # Proteins missing a value in a replicate are excluded from that
-            # replicate's ranking (na_option="keep").  This follows Breitling
-            # et al. (2004): a protein observed in at least one replicate per
-            # condition still receives a p-value.
-            #
-            # Two rank directions are needed for a two-tailed test:
-            #   UP  direction (upregulated in B):
-            #       ascending rank in A  (rank 1 = lowest in A)
-            #       descending rank in B (rank 1 = highest in B)
-            #   DOWN direction (downregulated in B = upregulated in A):
-            #       descending rank in A (rank 1 = highest in A)
-            #       ascending rank in B  (rank 1 = lowest in B)
-            # A protein consistently low-in-A AND high-in-B gets a small UP
-            # rank product and hence a small UP p-value; the converse holds
-            # for the DOWN direction.
-            ranks_a_asc = expr[COND_A].rank(axis=0, method="average", na_option="keep")
-            ranks_a_desc = expr[COND_A].rank(axis=0, method="average", na_option="keep", ascending=False)
-            ranks_b_asc = expr[COND_B].rank(axis=0, method="average", na_option="keep")
-            ranks_b_desc = expr[COND_B].rank(axis=0, method="average", na_option="keep", ascending=False)
+        elif test == "sam":
+            # SAM (Significance Analysis of Microarrays; Tusher et al. 2001).
+            # Computes a regularised fold-change statistic:
+            #   d(i) = (mean_B − mean_A) / (s(i) + s₀)
+            # where s(i) is the pooled standard error per protein and s₀ is a
+            # small positive "fudge factor" (5th percentile of all s(i)) that
+            # prevents spuriously significant calls for near-zero-variance proteins.
+            # P-values are obtained by permuting sample labels while keeping the
+            # denominator fixed at the observed s(i) + s₀, then pooling the
+            # resulting null statistics across all proteins.
+            N_PERMUTATIONS = 1000
+            rng = np.random.default_rng(42)
+            n_a = len(COND_A)
+            n_b = len(COND_B)
+            n_total = n_a + n_b
+            n_prot = len(expr)
+            X = expr[COND_A + COND_B].values.astype(float)  # (n_prot, n_total)
 
-            # Number of non-NaN proteins per replicate column (denominator for
-            # fractional ranks); computed once outside the per-protein loop.
-            n_obs_a = expr[COND_A].notna().sum(axis=0)  # Series indexed by COND_A
-            n_obs_b = expr[COND_B].notna().sum(axis=0)  # Series indexed by COND_B
+            # Per-protein pooled SE and observed mean difference
+            se_obs = np.full(n_prot, np.nan)
+            mean_diff_obs = np.full(n_prot, np.nan)
+            valid = np.zeros(n_prot, dtype=bool)
 
-            protein_index = expr.index
-            for idx in range(n_proteins):
-                row_label = protein_index[idx]
-                # Valid (non-NaN) ranks for this protein in each condition
-                va_asc  = ranks_a_asc.loc[row_label, COND_A].dropna()
-                va_desc = ranks_a_desc.loc[row_label, COND_A].dropna()
-                vb_asc  = ranks_b_asc.loc[row_label, COND_B].dropna()
-                vb_desc = ranks_b_desc.loc[row_label, COND_B].dropna()
-
-                if len(va_asc) == 0 or len(vb_asc) == 0:
-                    # No data in at least one condition – cannot produce a rank product
+            for idx in range(n_prot):
+                a = X[idx, :n_a]
+                b = X[idx, n_a:]
+                a = a[np.isfinite(a)]
+                b = b[np.isfinite(b)]
+                na, nb = len(a), len(b)
+                if na < 2 or nb < 2:
                     continue
+                sp2 = (
+                    (na - 1) * np.var(a, ddof=1) + (nb - 1) * np.var(b, ddof=1)
+                ) / (na + nb - 2)
+                se_i = np.sqrt(sp2 * (1.0 / na + 1.0 / nb))
+                if not np.isfinite(se_i):
+                    continue
+                mean_diff_obs[idx] = b.mean() - a.mean()
+                se_obs[idx] = se_i
+                valid[idx] = True
 
-                # Fractional ranks: rank / number of non-NaN proteins in that replicate
-                frac_a_asc  = (va_asc  / n_obs_a[va_asc.index]).values
-                frac_a_desc = (va_desc / n_obs_a[va_desc.index]).values
-                frac_b_asc  = (vb_asc  / n_obs_b[vb_asc.index]).values
-                frac_b_desc = (vb_desc / n_obs_b[vb_desc.index]).values
+            # Fudge factor: 5th percentile of per-protein SEs
+            se_valid_vals = se_obs[valid]
+            s0 = float(np.percentile(se_valid_vals, 5)) if len(se_valid_vals) > 0 else 0.0
 
-                # UP rank product: small when protein is high in B and low in A
-                k_up = len(frac_a_asc) + len(frac_b_desc)
-                rp_up = float(np.prod(np.concatenate([frac_a_asc, frac_b_desc])))
+            # Observed SAM statistic; denominator is fixed for permutations too.
+            # Clip to a minimum of 1e-12 so division is always safe (proteins with
+            # zero SE and zero s0 get an effectively infinite SAM statistic, which
+            # is correct — they are trivially significant if their means differ).
+            denom = np.where(valid, np.fmax(se_obs + s0, 1e-12), 1.0)
+            d_obs = np.where(valid, mean_diff_obs / denom, np.nan)
 
-                # DOWN rank product: small when protein is low in B and high in A
-                k_dn = len(frac_a_desc) + len(frac_b_asc)
-                rp_dn = float(np.prod(np.concatenate([frac_a_desc, frac_b_asc])))
+            # Null distribution: permute labels, reuse observed denominator
+            null_matrix = np.empty((n_prot, N_PERMUTATIONS))
+            null_matrix[:] = np.nan
+            for perm_k in range(N_PERMUTATIONS):
+                perm_idx = rng.permutation(n_total)
+                X_perm = X[:, perm_idx]
+                md_perm = (
+                    np.nanmean(X_perm[:, n_a:], axis=1)
+                    - np.nanmean(X_perm[:, :n_a], axis=1)
+                )
+                null_matrix[:, perm_k] = np.where(valid, md_perm / denom, np.nan)
 
-                # Use the average observed-protein count across the contributing
-                # replicates as the effective n for the finite-n correction.
-                # In the no-NaN case this equals n_proteins; in the NaN case it
-                # reflects the actual ranking-list size in each column.
-                n_eff_up = max(1, int(round(
-                    (n_obs_a[va_asc.index].sum() + n_obs_b[vb_desc.index].sum()) / k_up
-                )))
-                n_eff_dn = max(1, int(round(
-                    (n_obs_a[va_desc.index].sum() + n_obs_b[vb_asc.index].sum()) / k_dn
-                )))
-                p_up = _rank_products_pvalue(rp_up, n_eff_up, k_up)
-                p_dn = _rank_products_pvalue(rp_dn, n_eff_dn, k_dn)
+            # Pool |null d| across all valid proteins
+            pooled_null_sorted = np.sort(np.abs(null_matrix[valid, :].ravel()))
+            n_pooled = len(pooled_null_sorted)
 
-                # Two-tailed p-value: Bonferroni combination of both directions
-                p_values[idx] = min(min(p_up, p_dn) * 2, 1.0)
+            # Two-tailed p-value (Phipson & Smyth 2010 bias correction)
+            abs_d_obs = np.abs(np.where(valid, d_obs, 0.0))
+            exceed = n_pooled - np.searchsorted(pooled_null_sorted, abs_d_obs, side="left")
+            p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
 
+            n_valid = int(valid.sum())
             success = True
-            feedback = "✅ Rank Products test applied. Proteins were ranked within each replicate and the product of their fractional ranks was used to call significance."
+            feedback = (
+                f"✅ SAM test applied ({N_PERMUTATIONS} permutations, {n_valid} proteins). "
+                f"A regularised fold-change statistic (fudge factor s₀ = {s0:.4f}) "
+                "was used to stabilise variance estimates and reduce false positives "
+                "for low-variance proteins."
+            )
         else:
             success = False
             feedback = "⚠️ Unknown statistical test. The station declines to perform inferential improv theatre."

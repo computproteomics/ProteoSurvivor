@@ -37,7 +37,6 @@ from game.services import (
     PVALUE,
     TOT_PEP,
     _squeeze_var,
-    _rank_products_pvalue,
 )
 from game.models import StationRun
 
@@ -612,36 +611,16 @@ class TestStatisticalAnalysisStation(TestCase):
         self.assertFalse(result["success"])
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
-    def test_rank_products_produces_pvalues(self, _mock_vp):
+    def test_sam_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
         result = _simulate_statistical_analysis(
-            df, {"statistical_test": "rank_products"}, {"spectral_search"}
+            df, {"statistical_test": "sam"}, {"spectral_search"}
         )
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
         self.assertIn(FC, result["dataset"].columns)
         pvals = result["dataset"][PVALUE].dropna()
         self.assertTrue((pvals >= 0).all() and (pvals <= 1).all())
-
-    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
-    def test_rank_products_includes_proteins_with_missing_values(self, _mock_vp):
-        """A protein with NaN in some replicates but ≥1 valid value per condition
-        should still receive a p-value from the rank products test."""
-        df = _make_dataset()
-        # Protein 0: keep only replicate 0 in each condition; wipe the rest
-        df.loc[0, COND_A[1]] = np.nan
-        df.loc[0, COND_A[2]] = np.nan
-        df.loc[0, COND_B[1]] = np.nan
-        df.loc[0, COND_B[2]] = np.nan
-        result = _simulate_statistical_analysis(
-            df, {"statistical_test": "rank_products"}, {"spectral_search"}
-        )
-        self.assertTrue(result["success"])
-        p0 = result["dataset"].loc[0, PVALUE]
-        self.assertTrue(
-            np.isfinite(p0),
-            f"Expected finite p-value for NaN-heavy protein, got {p0}",
-        )
 
 
 class TestSqueezeVar(TestCase):
@@ -675,66 +654,27 @@ class TestSqueezeVar(TestCase):
         self.assertLess(squeezed[2], sample_vars[2])
 
 
-class TestRankProductsPvalue(TestCase):
-    """Unit tests for the _rank_products_pvalue analytic helper."""
-
-    def test_returns_valid_p_value(self):
-        """A typical rank product should yield a p-value in [0, 1]."""
-        p = _rank_products_pvalue(0.01, n=100, k=6)
-        self.assertTrue(0.0 <= p <= 1.0)
-
-    def test_very_small_rp_gives_small_pvalue(self):
-        """A rank product near zero (top-ranked in every replicate) should be highly significant."""
-        p = _rank_products_pvalue(1e-10, n=500, k=6)
-        self.assertLess(p, 0.01)
-
-    def test_rp_near_one_gives_large_pvalue(self):
-        """A rank product near 1 (bottom-ranked in every replicate) should not be significant."""
-        p = _rank_products_pvalue(0.99**6, n=500, k=6)
-        self.assertGreater(p, 0.05)
-
-    def test_n_affects_pvalue(self):
-        """p-value must depend on n: for the same fractional RP and k, smaller n
-        gives a smaller p-value.  The moment-matched Gamma correction accounts for
-        the fact that the discrete uniform distribution on {1,...,n}/n deviates
-        more from the continuous U(0,1) limit when n is small, resulting in a
-        tighter null distribution and hence a more extreme (smaller) p-value for
-        the same observed rank product."""
-        rp = 0.01
-        p_small_n = _rank_products_pvalue(rp, n=10, k=4)
-        p_large_n = _rank_products_pvalue(rp, n=1000, k=4)
-        self.assertNotEqual(p_small_n, p_large_n,
-                            "p-value must change with n (finite-n correction)")
-        self.assertLess(p_small_n, p_large_n,
-                        "smaller n → tighter discrete null → smaller p for same fractional RP")
-
-    def test_invalid_inputs_return_nan(self):
-        """Non-positive or non-finite inputs should return NaN."""
-        self.assertTrue(np.isnan(_rank_products_pvalue(0.0, n=100, k=6)))
-        self.assertTrue(np.isnan(_rank_products_pvalue(-0.5, n=100, k=6)))
-        self.assertTrue(np.isnan(_rank_products_pvalue(np.nan, n=100, k=6)))
-        self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=0, k=6)))
-        self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=100, k=0)))
 
 
-class TestRankProductsGroundTruth(TestCase):
-    """Ground-truth tests for the rank-products end-to-end path with known data."""
+class TestSamGroundTruth(TestCase):
+    """Ground-truth tests for the SAM end-to-end path with known data."""
 
-    def _run_rp(self, df):
-        from unittest.mock import patch
+    def _run_sam(self, df):
         with patch("game.services.volcano_plot", return_value="img"):
             return _simulate_statistical_analysis(
-                df, {"statistical_test": "rank_products"}, {"spectral_search"}
+                df, {"statistical_test": "sam"}, {"spectral_search"}
             )
 
     def _make_clear_df(self):
         """20-protein dataset where protein 0 is strongly UP and protein 19 is
         strongly DOWN (completely reversed ordering between A and B).
         Proteins 9 and 10 are the middle proteins with no consistent direction.
+        Each protein has a small random spread so variances are non-zero.
         """
+        rng = np.random.default_rng(0)
         n = 20
-        a_vals = np.arange(1.0, n + 1)          # 1, 2, ..., 20 in A
-        b_vals = np.arange(float(n), 0.0, -1.0)  # 20, 19, ..., 1 in B
+        a_vals = np.arange(1.0, n + 1)
+        b_vals = np.arange(float(n), 0.0, -1.0)
         base = {
             "Protein": [f"P{i:03d}" for i in range(n)],
             "Protein ID": [f"P{i:03d}" for i in range(n)],
@@ -752,16 +692,17 @@ class TestRankProductsGroundTruth(TestCase):
             "Total Spectral Count": [25] * n,
             "Indistinguishable Proteins": [""] * n,
         }
-        for col in COND_A:
-            base[col] = a_vals
-        for col in COND_B:
-            base[col] = b_vals
+        noise = rng.normal(0, 0.1, size=(n, len(COND_A) + len(COND_B)))
+        for j, col in enumerate(COND_A):
+            base[col] = a_vals + noise[:, j]
+        for j, col in enumerate(COND_B):
+            base[col] = b_vals + noise[:, len(COND_A) + j]
         return pd.DataFrame(base)
 
     def test_upregulated_protein_gets_smaller_pvalue_than_null(self):
         """P0 (lowest in A, highest in B) must be more significant than P9 (middle)."""
         df = self._make_clear_df()
-        result = self._run_rp(df)
+        result = self._run_sam(df)
         self.assertTrue(result["success"])
         pvals = result["dataset"][PVALUE]
         p_up = pvals.iloc[0]    # P0: strongly upregulated
@@ -774,24 +715,13 @@ class TestRankProductsGroundTruth(TestCase):
     def test_downregulated_protein_gets_smaller_pvalue_than_null(self):
         """P19 (highest in A, lowest in B) must be more significant than P10 (middle)."""
         df = self._make_clear_df()
-        result = self._run_rp(df)
+        result = self._run_sam(df)
         pvals = result["dataset"][PVALUE]
         p_down = pvals.iloc[19]  # P19: strongly downregulated
         p_null = pvals.iloc[10]  # P10: middle
         self.assertTrue(np.isfinite(p_down))
         self.assertLess(p_down, p_null,
                         f"Downregulated protein p={p_down:.4f} should be < null p={p_null:.4f}")
-
-    def test_up_and_down_have_similar_pvalues(self):
-        """With a fully reversed dataset the most extreme UP and DOWN proteins
-        should receive equal (or near-equal) p-values by symmetry."""
-        df = self._make_clear_df()
-        result = self._run_rp(df)
-        pvals = result["dataset"][PVALUE]
-        p_up = pvals.iloc[0]
-        p_down = pvals.iloc[19]
-        self.assertAlmostEqual(p_up, p_down, places=10,
-                               msg="Symmetric UP/DOWN should have equal p-values")
 
 
 # ---------------------------------------------------------------------------
@@ -975,7 +905,7 @@ class TestStationParameterConfigurations(TestCase):
             "limma": True,
             "mannwhitneyu": True,
             "permutation": True,
-            "rank_products": True,
+            "sam": True,
         }
         for test_name in options:
             with self.subTest(statistical_test=test_name):
