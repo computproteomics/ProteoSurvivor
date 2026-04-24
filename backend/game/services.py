@@ -1054,7 +1054,7 @@ def _trigamma_inv(y: float) -> float:
     """Return x such that trigamma(x) == y, using Newton's method.
 
     The starting approximation uses the asymptotic relation trigamma(x) ≈ 1/x,
-    giving x₀ ≈ 1/y for small y and x₀ ≈ 1/(0.5y + 0.5) for y > 0.5.
+    giving x₀ ≈ 1/y for large y (y > 0.5) and x₀ ≈ 1/(0.5y + 0.5) for small y (y ≤ 0.5).
     Clipped to 1e-10 to stay in the valid (positive) domain.
     Convergence is typically reached in fewer than 10 iterations; 50 is a
     generous safety limit.

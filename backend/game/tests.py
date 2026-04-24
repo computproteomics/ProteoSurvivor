@@ -700,6 +700,10 @@ class TestRankProductsPvalue(TestCase):
         self.assertTrue(np.isnan(_rank_products_pvalue(np.nan, n=100, k=6)))
         self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=0, k=6)))
         self.assertTrue(np.isnan(_rank_products_pvalue(0.5, n=100, k=0)))
+
+
+# ---------------------------------------------------------------------------
+# Station: veit (final scoring station)
 # ---------------------------------------------------------------------------
 
 
