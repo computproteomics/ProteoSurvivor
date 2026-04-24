@@ -39,7 +39,7 @@ from sklearn.ensemble import RandomForestRegressor
 from scipy.special import digamma, polygamma
 from scipy.stats import t as t_dist
 from scipy.stats import gamma as gamma_dist
-from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
+from scipy.stats import ttest_ind, mannwhitneyu
 
 from django.conf import settings
 
@@ -1318,31 +1318,36 @@ def _simulate_statistical_analysis(
 
         elif test == "permutation":
             N_PERMUTATIONS = 1000
-            for idx in range(len(expr)):
-                row = expr.iloc[idx]
-                A = row[COND_A].dropna().values
-                B = row[COND_B].dropna().values
+            rng = np.random.default_rng(42)
+            n_a = len(COND_A)
+            n_b = len(COND_B)
+            n_total = n_a + n_b
 
-                if len(A) == 0 or len(B) == 0:
-                    p_values[idx] = np.nan
-                    continue
+            # Build a single (n_proteins × n_samples) matrix for all proteins at once.
+            X = expr[COND_A + COND_B].values  # shape (n_proteins, n_total)
 
-                def statistic(x, y):
-                    return np.mean(y) - np.mean(x)
+            # Observed statistic: mean(B) - mean(A) per protein, ignoring NaN.
+            obs_stat = np.nanmean(X[:, n_a:], axis=1) - np.nanmean(X[:, :n_a], axis=1)
 
-                res = permutation_test(
-                    (A, B),
-                    statistic,
-                    vectorized=False,
-                    n_resamples=N_PERMUTATIONS,
-                    alternative="two-sided",
-                    random_state=42,
+            # Global permutations: the same label shuffle is applied to every protein
+            # simultaneously, preserving cross-protein correlation structure.
+            exceed_count = np.zeros(len(expr), dtype=int)
+            for _ in range(N_PERMUTATIONS):
+                perm_idx = rng.permutation(n_total)
+                X_perm = X[:, perm_idx]
+                perm_stat = (
+                    np.nanmean(X_perm[:, n_a:], axis=1)
+                    - np.nanmean(X_perm[:, :n_a], axis=1)
                 )
-                p = max(res.pvalue, 1 / (N_PERMUTATIONS + 1))
-                p_values[idx] = p
+                exceed_count += np.abs(perm_stat) >= np.abs(obs_stat)
+
+            # Proteins with no observed data in at least one condition get NaN.
+            valid = np.isfinite(obs_stat)
+            raw_p = exceed_count / N_PERMUTATIONS
+            p_values = np.where(valid, np.maximum(raw_p, 1.0 / (N_PERMUTATIONS + 1)), np.nan)
 
             success = True
-            feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} permutations). Chance was consulted repeatedly until it gave a usable answer."
+            feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations). Sample labels were shuffled across all proteins simultaneously to build a shared null distribution."
 
         elif test == "rank_products":
             n_proteins = len(expr)
