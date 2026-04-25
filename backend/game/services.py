@@ -1011,8 +1011,10 @@ def _simulate_the_cutter(
 
     # Count ground-truth recoverable true positives in the full pre-cutter dataset
     # so the veit station can compute recall and F1 score.
-    total_possible_tp = len(dataset.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")) + len(
-        dataset.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
+    total_possible_tp = len(
+        dataset.query(
+            f"({ORGANISM} == 'Yeast' and {FC} < 0) or ({ORGANISM} == 'E. coli' and {FC} > 0)"
+        )
     )
 
     return {
