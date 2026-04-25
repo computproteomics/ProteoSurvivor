@@ -243,7 +243,7 @@ def plot_scores(true_positives=None, false_positives=None):
         total = tp + fp
         if total <= 0 or fp <= 0:
             return None
-        return np.log10(fp / total)
+        return -np.log10(fp / total)
 
     results = FinalStationResult.objects.all().values_list(
         "true_positives", "false_positives"
@@ -289,7 +289,7 @@ def plot_scores(true_positives=None, false_positives=None):
         )
 
     ax.set_title("Final Station Scores")
-    ax.set_xlabel("log10(real FDR)")
+    ax.set_xlabel("-log10(real FDR)")
     ax.set_ylabel("True Positives")
     ax.grid(alpha=0.25)
     if ax.get_legend_handles_labels()[0]:
