@@ -754,6 +754,15 @@ class TestVeitStation(TestCase):
             result = _simulate_veit(df, {}, set())
         self.assertEqual(result["score"], 0)
 
+    def test_f1_score_uses_total_possible_tp(self):
+        """F1 score accounts for false negatives when total_possible_tp is provided."""
+        with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
+            df = _make_dataset_with_stats()
+            # TP=3, FP=1, total_possible_tp=5 → FN=2
+            # F1 = 2*3 / (2*3 + 1 + 2) = 6/9
+            result = _simulate_veit(df, {"total_possible_tp": 5}, set())
+        self.assertAlmostEqual(result["score"], 6 / 9, places=9)
+
 
 # ---------------------------------------------------------------------------
 # Parameter-configuration coverage tests

@@ -127,6 +127,12 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
         visited_station_list = request.session.get("visited_stations", [])
         visited_stations = set(visited_station_list)
 
+    # Inject the ground-truth total recoverable TP count (stored by the_cutter) so the
+    # veit station can compute recall and the F1 score without access to the full dataset.
+    if station_id == "veit":
+        params = dict(params)
+        params["total_possible_tp"] = request.session.get("total_possible_tp", 0)
+
     result = runner(dataset, params, visited_stations)
 
     print(f"Simulation result for station '{station_id}': {result}")
@@ -159,6 +165,9 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
+    # Persist the ground-truth TP count from the_cutter so the veit station can use it.
+    if station_id == "the_cutter" and "total_possible_tp" in result:
+        request.session["total_possible_tp"] = result["total_possible_tp"]
     if request.user.is_authenticated:
         print(f"Updated session dataset for user {request.user.username}")
     else:
@@ -1000,11 +1009,18 @@ def _simulate_the_cutter(
 
     imgs.append(plot_significant_proteins(significant))
 
+    # Count ground-truth recoverable true positives in the full pre-cutter dataset
+    # so the veit station can compute recall and F1 score.
+    total_possible_tp = len(dataset.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")) + len(
+        dataset.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
+    )
+
     return {
         "summary": "Final candidate selection complete.",
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
+        "total_possible_tp": total_possible_tp,
         "feedback": f"✅ Candidate selection complete. You identified {len(significant)} proteins worthy of surviving the cutoffs, while the rest were quietly returned to statistical oblivion.",
         "img": imgs,
     }
@@ -1031,11 +1047,10 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations: set) -
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = (
-        true_positives * (1 - false_positives / len(significant))
-        if len(significant) > 0
-        else 0
-    )
+    total_possible_tp = params.get("total_possible_tp", 0)
+    false_negatives = max(0, total_possible_tp - true_positives)
+    f1_denominator = 2 * true_positives + false_positives + false_negatives
+    score = (2 * true_positives / f1_denominator) if f1_denominator > 0 else 0
     imgs.append(plot_scores(true_positives, false_positives))
 
     return {
