@@ -241,9 +241,9 @@ def plot_scores(true_positives=None, false_positives=None):
 
     def _fdr(tp, fp):
         total = tp + fp
-        if total <= 0:
+        if total <= 0 or fp <= 0:
             return None
-        return fp / total
+        return np.log10(fp / total)
 
     results = FinalStationResult.objects.all().values_list(
         "true_positives", "false_positives"
@@ -289,10 +289,9 @@ def plot_scores(true_positives=None, false_positives=None):
         )
 
     ax.set_title("Final Station Scores")
-    ax.set_xlabel("FDR (False Discovery Rate)")
+    ax.set_xlabel("log10(real FDR)")
     ax.set_ylabel("True Positives")
     ax.grid(alpha=0.25)
-    ax.set_xlim(-0.05, 1.05)
     if ax.get_legend_handles_labels()[0]:
         ax.legend()
 
