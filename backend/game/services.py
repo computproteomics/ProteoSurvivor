@@ -1261,6 +1261,10 @@ def _simulate_statistical_analysis(
             feedback = "✅ Limma moderated t-test applied. Variance estimates were squeezed toward a common prior, giving a fairer hearing to proteins measured with few replicates."
 
         elif test == "mannwhitneyu":
+            # With only N_REP replicates per condition the exact Mann-Whitney U
+            # test has extremely coarse p-value resolution and cannot reach p < 0.1
+            # for n=3 vs n=3.  The asymptotic (normal approximation with continuity
+            # correction) method is appropriate here and gives continuous p-values.
             for idx in range(len(expr)):
                 row = expr.iloc[idx]
                 a = row[COND_A].dropna()
@@ -1271,15 +1275,12 @@ def _simulate_statistical_analysis(
                     continue
 
                 try:
-                    _, p = mannwhitneyu(a, b, alternative="two-sided", method="exact")
+                    _, p = mannwhitneyu(a, b, alternative="two-sided", method="asymptotic")
                     p_values[idx] = p
                 except ValueError:
-                    _, p = mannwhitneyu(
-                        a, b, alternative="two-sided", method="asymptotic"
-                    )
-                    p_values[idx] = p
+                    p_values[idx] = np.nan
             success = True
-            feedback = "✅ Mann-Whitney U test applied. The samples were compared without assuming the universe had behaved normally."
+            feedback = "✅ Mann-Whitney U test applied. Samples were compared non-parametrically using the normal approximation, without assuming the data are normally distributed."
 
         elif test == "permutation":
             N_PERMUTATIONS = 1000
