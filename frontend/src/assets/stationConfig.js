@@ -17,7 +17,15 @@ const BACKGROUND_BY_BASENAME = Object.fromEntries(
 const DEFAULT_STATION_CONFIG = {
   title: 'Station',
   description: 'No station information was found.',
+  objective: 'Configure and run this station before returning to the map.',
+  expectations: 'Understand the core inputs and outputs of this station before running it.',
   parameters: [],
+  statusMessages: {
+    entered: 'Station ready. Configure your run to continue.',
+    submitting: 'Submitting completion...',
+    success: 'Station completed successfully.',
+    failed: 'Validation failed. Please adjust parameters and try again.',
+  },
 };
 
 export const STATION_BY_ID = stationData ?? {};
@@ -37,6 +45,22 @@ export function getStationDescription(stationId) {
 
 export function getStationParameters(stationId) {
   return getStationConfig(stationId).parameters ?? DEFAULT_STATION_CONFIG.parameters;
+}
+
+export function getStationObjective(stationId) {
+  return getStationConfig(stationId).objective ?? DEFAULT_STATION_CONFIG.objective;
+}
+
+export function getStationExpectations(stationId) {
+  return getStationConfig(stationId).expectations ?? DEFAULT_STATION_CONFIG.expectations;
+}
+
+export function getStationStatusMessages(stationId) {
+  const stationMessages = getStationConfig(stationId).statusMessages ?? {};
+  return {
+    ...DEFAULT_STATION_CONFIG.statusMessages,
+    ...stationMessages,
+  };
 }
 
 export function getStationBackgroundImage(stationId) {

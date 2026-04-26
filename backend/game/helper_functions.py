@@ -7,9 +7,20 @@ matplotlib.use("Agg")
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from .models import StationRun
 
 ORGANISM = "Organism"
 FC = "fold_change"
+
+
+def get_visited_stations(user) -> set[str]:
+    """Return unique station IDs the authenticated user has completed."""
+    if not getattr(user, "is_authenticated", False):
+        return set()
+
+    return set(
+        StationRun.objects.filter(player=user).values_list("station_id", flat=True)
+    )
 
 
 def fig_to_base64(fig):
