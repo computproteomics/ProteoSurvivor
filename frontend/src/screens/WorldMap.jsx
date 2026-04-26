@@ -100,6 +100,7 @@ export default function WorldMap() {
   const completedStations = useGameStore((s) => s.completedStations);
   const player = useGameStore((s) => s.mapPlayerPosition);
   const setMapPlayerPosition = useGameStore((s) => s.setMapPlayerPosition);
+  const resetGame = useGameStore((s) => s.resetGame);
   const canvasRef = useRef(null);
   const clickWalkPathRef = useRef([]);
   const clickWalkTimerRef = useRef(null);
@@ -230,6 +231,11 @@ export default function WorldMap() {
 
       stopClickWalk();
 
+      if (key === 'l') {
+        navigate('/leaderboard');
+        return;
+      }
+
       if (key === 'e' || key === 'enter') {
         const station = getNearbyStation(player.col, player.row);
         if (station) navigate(`/station/${station.id}`);
@@ -299,16 +305,31 @@ export default function WorldMap() {
   }
 
   const nearbyStation = getNearbyStation(player.col, player.row);
+  const completedCount = completedStations.length;
+  const totalStations = 10;
+
+  function handleRestart() {
+    if (window.confirm('Are you sure you want to restart the game? Your progress will be reset.')) {
+      resetGame();
+      navigate('/');
+    }
+  }
 
   return (
     <div className={styles.page}>
       <div className={styles.headerRow}>
         <div>
           <h1 className={styles.title}>Proteomics Lab Map</h1>
-          <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter</p>
+          <p className={styles.help}>Move: WASD or arrow keys | Enter station: E or Enter | Leaderboard: L</p>
+          <p className={styles.progressText}>
+            Progress: {completedCount} / {totalStations} stations completed
+          </p>
         </div>
         <button className={styles.leaderboardButton} onClick={() => navigate('/leaderboard')}>
           View leaderboard
+        </button>
+        <button className={styles.restartButton} onClick={handleRestart}>
+          Restart game
         </button>
         <button className={styles.creditsButton} onClick={() => navigate('/credits')}>
           Credits

@@ -1,11 +1,12 @@
 import styles from './StationResults.module.css';
 
-export function getStationResultsRenderer(stationId) {
-  void stationId;
-  return GenericStationResultsContent;
+export function getStationResultsRenderer(_stationId, handlers = {}) {
+  const { onImageClick } = handlers;
+
+  return (props) => GenericStationResultsContent({ ...props, onImageClick });
 }
 
-function GenericStationResultsContent({ stationResults }) {
+function GenericStationResultsContent({ stationResults, onImageClick }) {
   const { summary, recommendation, feedback, img, ...detailFields } = stationResults;
   const resultImages = normalizeImageList(img);
 
@@ -44,12 +45,25 @@ function GenericStationResultsContent({ stationResults }) {
           <h2 className={styles.imageTitle}>Result Plots</h2>
           <div className={styles.imageGrid}>
             {resultImages.map((imageSrc, index) => (
-              <figure key={index} className={styles.imageCard}>
+              <figure
+                key={index}
+                className={styles.imageCard}
+                onClick={() => onImageClick && onImageClick(index)}
+                role={onImageClick ? 'button' : undefined}
+                tabIndex={onImageClick ? 0 : undefined}
+                onKeyDown={(e) => {
+                  if (onImageClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onImageClick(index);
+                  }
+                }}
+              >
                 <img
                   src={toImageDataUrl(imageSrc)}
                   alt={`Result plot ${index + 1}`}
                   className={styles.resultImage}
                 />
+                {onImageClick && <div className={styles.imageHint}>Click to enlarge</div>}
               </figure>
             ))}
           </div>

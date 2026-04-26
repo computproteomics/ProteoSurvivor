@@ -134,7 +134,7 @@ export default function ParametrizationView() {
       const responseData = res.data ?? {};
       const resultPayload = responseData.results ?? responseData;
       const runSuccess =
-        responseData.success ?? responseData.succes ?? resultPayload.success ?? resultPayload.succes;
+        responseData.success ?? resultPayload.success;
 
       setStationResults({
         ...resultPayload,
