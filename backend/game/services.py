@@ -932,12 +932,12 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
             "success": False,
-            "feedback": "⚠️ No final candidate set detected. Veit arrived ready to judge the outcome and found only the ceremonial remains of a pipeline.",
+            "feedback": "⚠️ No final candidate set detected. The \"Please Let This Be Significant\" Lounge opened for business and found only ceremonial pipeline debris.",
             "score": 0,
             "dataset": pd.DataFrame(),
             "true_positives": 0,
@@ -962,7 +962,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
 
     return {
         "success": True,
-        "feedback": "✅ You made it to Veit. Against all reasonable expectation, the pipeline held together, the result is interpretable, and the lab may proceed with confidence and only minimal existential damage.",
+        "feedback": "✅ You made it to The \"Please Let This Be Significant\" Lounge. Against all expectation, the pipeline held together and your report looks statistically defensible.",
         "score": score,
         "true_positives": true_positives,
         "false_positives": false_positives,
@@ -1036,65 +1036,7 @@ def _simulate_statistical_analysis(
             feedback = "✅ Welch's t-test applied. Unequal variances were acknowledged and the proteins were judged accordingly."
 
         elif test == "limma":
-            # Simplified limma-like implementation using empirical Bayes approach
-            # Limma computes moderated t-statistics by sharing variance information across genes
-            from scipy.stats import t as t_dist
-        
-            # Collect all p-values to compute prior variance
-            individual_variances = []
-        
-            for idx in range(len(expr)):
-                row = expr.iloc[idx]
-                a = row[COND_A].dropna().values
-                b = row[COND_B].dropna().values
-            
-                if len(a) < 2 or len(b) < 2:
-                    p_values[idx] = np.nan
-                    continue
-            
-                # Compute variance for this protein
-                var_a = np.var(a, ddof=1)
-                var_b = np.var(b, ddof=1)
-                pooled_var = ((len(a) - 1) * var_a + (len(b) - 1) * var_b) / (len(a) + len(b) - 2)
-                individual_variances.append(pooled_var)
-        
-            # Compute median variance (prior) for empirical Bayes moderation
-            if individual_variances:
-                prior_var = np.median(individual_variances)
-            else:
-                prior_var = 1.0
-        
-            # Compute moderated t-statistics
-            for idx in range(len(expr)):
-                row = expr.iloc[idx]
-                a = row[COND_A].dropna().values
-                b = row[COND_B].dropna().values
-            
-                if len(a) < 2 or len(b) < 2:
-                    p_values[idx] = np.nan
-                    continue
-            
-                # Compute t-statistic with moderated variance
-                mean_diff = np.mean(b) - np.mean(a)
-                var_a = np.var(a, ddof=1)
-                var_b = np.var(b, ddof=1)
-                pooled_var = ((len(a) - 1) * var_a + (len(b) - 1) * var_b) / (len(a) + len(b) - 2)
-            
-                # Moderated variance: shrink toward prior
-                moderated_var = (pooled_var + prior_var) / 2
-                se = np.sqrt(moderated_var * (1/len(a) + 1/len(b)))
-            
-                if se == 0:
-                    p_values[idx] = np.nan
-                    continue
-            
-                t_stat = mean_diff / se
-                df = len(a) + len(b) - 2
-                p = 2 * (1 - t_dist.cdf(np.abs(t_stat), df))
-                p_values[idx] = p
-        
-            success = True
-            feedback = "✅ Limma test applied. The empirical Bayes machinery borrowed strength across proteins to make better judgments."
+            raise NotImplementedError("Limma not implemented")
 
         elif test == "mannwhitneyu":
             for idx in range(len(expr)):
@@ -1187,7 +1129,7 @@ STATION_SIMULATORS.update(
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
-        "veit": _simulate_veit,
+        "final_report": _simulate_final_report,
         # ...
     }
 )

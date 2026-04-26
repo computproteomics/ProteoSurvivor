@@ -1,24 +1,24 @@
 import { useNavigate } from 'react-router-dom';
 import styles from './BreakingNews.module.css';
 import useGameStore from '../store/gameSlice';
-import aiCompany from '../assets/shitty_logo.png'
+import newsLogo from '../assets/news_logo.png';
 import advertisement1 from '../assets/Protein_separation_ad.png';
 import advertisement2 from '../assets/Grow_hela.png';
 import advertisement4 from '../assets/EscapeRoom.png';
 import advertisement5 from '../assets/proteomics_ad.png';
 import advertisement6 from '../assets/spectrometry_ad.png';
 
+const NEWS_BROADCAST_DATE = '2026-03-14';
 
 function Header() {
-  const time = "2026-03-14";
   return (
     <div className={styles.header}>
       <div className={styles.rightHeader}>
-        <img className={styles.logo} src={aiCompany} alt="add company logo" />
+        <img className={styles.logo} src={newsLogo} alt="Broadcast logo" />
       </div>
       <div className={styles.leftHeader}>
         <h3>
-          {time}
+          {NEWS_BROADCAST_DATE}
         </h3>
       </div>
     </div>

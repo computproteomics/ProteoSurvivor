@@ -128,7 +128,7 @@ ProteoSurviver/
 5. Parameters are sent to the backend which **simulates** realistic lab results.
 6. The **Results** screen shows a summary, key metrics, and a recommendation.
 7. The player confirms results and returns to the World Map to continue.
-8. After completing all stations the player hands in their report at the **Veit**
+8. After completing all stations the player hands in their report at **The "Please Let This Be Significant" Lounge**
    station, which evaluates the quality of the findings and closes the experiment.
 
 ---
@@ -150,7 +150,7 @@ reads the same file at startup via `STATIONS_CONFIG`.
 | `multiple_testing_corrector`| Multiple Testing Corrector  | Control false discoveries across many statistical tests           |
 | `the_cutter`                | The Cutter                  | Set fold-change and FDR cutoffs for the final candidate list      |
 | `statistical_analysis`      | Statistical Analysis        | Compare conditions and identify significantly regulated proteins  |
-| `veit`                      | Veit                        | Supervisor who reviews the final written report                   |
+| `final_report`              | The "Please Let This Be Significant" Lounge | Final report station for high-stakes interpretation and submission |
 
 ---
 

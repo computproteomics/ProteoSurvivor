@@ -165,7 +165,7 @@ export default function Leaderboard() {
             <p className={styles.kicker}>Live ranking</p>
             <h1 className={styles.title}>Leaderboard</h1>
             <p className={styles.subtitle}>
-              Finished runs stay on top. Everyone else is listed below as DNF until they reach Veit.
+              Finished runs stay on top. Everyone else is listed below as DNF until they reach The "Please Let This Be Significant" Lounge.
             </p>
           </div>
 
