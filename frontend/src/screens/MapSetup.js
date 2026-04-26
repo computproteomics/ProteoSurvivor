@@ -74,14 +74,19 @@ export const WALK_FRAME_DURATION = 120;
 // ===============================
 // Colors
 // ===============================
+const TILE_COLORS = {
+  floorA: '#EAF3FB',
+  floorB: '#D6E6F5',
+  wall: '#5B7594',
+  wallTop: '#7390AE',
+  wallShadow: '#334A63',
+  woodLight: '#D2A06C',
+  woodDark: '#7C5231',
+};
+
 export const COLORS = {
-  floorA: '#d0dce8',
-  floorB: '#c4d4e2',
-  wall: '#3a5070',
-  wallTop: '#4a6888',
-  wallShadow: '#243448',
-  woodLight: '#c48a4a',
-  woodDark: '#6b3f1e',
+  ...TILE_COLORS,
+  stationTileBg: '#E7F0FA',
   player: '#1a2a3a',
   playerAccent: '#5ad4f8',
   ring: '#f8e45a',
@@ -649,7 +654,7 @@ function drawIconStatAnalysis(ctx, cx, cy) {
   ctx.restore();
 }
 
-// veit: stick-figure person with filled lab-coat body and lapels
+// stick-figure person with filled lab-coat body and lapels
 function drawIconVeit(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -764,8 +769,33 @@ export const MAP = ASCII_LAYOUT.map((rowString) => {
   const padded = rowString.padEnd(COLS, ' ');
   return [...padded].map((char) => toTileType(char));
 });
+
+const WALK_TILE_INSET = 1.5;
+const WALK_TILE_RADIUS = 7;
+
 export function fitCanvasToViewport(canvas) {
-  const scale = Math.min((window.innerWidth * 0.9) / WIDTH, (window.innerHeight * 0.75) / HEIGHT);
+  const parent = canvas.parentElement;
+  let maxWidth = window.innerWidth * 0.94;
+
+  if (parent) {
+    const parentStyles = window.getComputedStyle(parent);
+    const parentPaddingX =
+      parseFloat(parentStyles.paddingLeft) + parseFloat(parentStyles.paddingRight);
+    const parentBorderX =
+      parseFloat(parentStyles.borderLeftWidth) + parseFloat(parentStyles.borderRightWidth);
+    const canvasStyles = window.getComputedStyle(canvas);
+    const canvasMarginX =
+      parseFloat(canvasStyles.marginLeft) + parseFloat(canvasStyles.marginRight);
+
+    // Use the parent's content box width and reserve canvas margins.
+    maxWidth = Math.max(
+      parent.getBoundingClientRect().width - parentPaddingX - parentBorderX - canvasMarginX,
+      0
+    );
+  }
+
+  const maxHeight = window.innerHeight * 0.75;
+  const scale = Math.min(maxWidth / WIDTH, maxHeight / HEIGHT);
   canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
   canvas.style.height = `${Math.floor(HEIGHT * scale)}px`;
 }
@@ -774,6 +804,21 @@ export function fitCanvasToViewport(canvas) {
 // Finds a station exactly on one tile, used for direct click-to-enter.
 export function getStationAtTile(col, row) {
   return STATIONS.find((station) => station.col === col && station.row === row);
+}
+
+function drawRoundedRect(context, x, y, width, height, radius) {
+  const cornerRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  context.beginPath();
+  context.moveTo(x + cornerRadius, y);
+  context.lineTo(x + width - cornerRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + cornerRadius);
+  context.lineTo(x + width, y + height - cornerRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - cornerRadius, y + height);
+  context.lineTo(x + cornerRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - cornerRadius);
+  context.lineTo(x, y + cornerRadius);
+  context.quadraticCurveTo(x, y, x + cornerRadius, y);
+  context.closePath();
 }
 
 
@@ -823,7 +868,29 @@ function drawTile(context, col, row, tileType) {
   }
 
   context.fillStyle = (row + col) % 2 === 0 ? COLORS.floorA : COLORS.floorB;
-  context.fillRect(x, y, TILE, TILE);
+
+  const tileSize = TILE - WALK_TILE_INSET * 2;
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
+
+  // Add a subtle top highlight to reduce the flat look of floor tiles.
+  context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    10,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
 }
 // ===============================
 // Movement config
@@ -858,19 +925,42 @@ export function pointerToTile(canvas, clientX, clientY) {
 function drawStation(context, station, done) {
   const x = station.col * TILE;
   const y = station.row * TILE;
+  const tileSize = TILE - WALK_TILE_INSET * 2;
 
-  // Draw bench/table block under station marker.
-  context.fillStyle = COLORS.woodLight;
-  context.fillRect(x, y, TILE, TILE);
-  context.fillStyle = COLORS.woodDark;
-  context.fillRect(x, y, TILE, 6);
-  context.fillRect(x, y + TILE - 6, TILE, 6);
-  context.fillRect(x, y, 6, TILE);
-  context.fillRect(x + TILE - 6, y, 6, TILE);
+  // Draw the base tile under the station marker without a dark border ring.
+  context.fillStyle = COLORS.stationTileBg;
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
 
-    // Fill station marker inset so wood border remains visible.
+  // Fill station marker using the same footprint as walkable tiles.
   context.fillStyle = station.color;
-    context.fillRect(x + 7, y + 7, TILE - 14, TILE - 14);
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    tileSize,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
+
+  context.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  drawRoundedRect(
+    context,
+    x + WALK_TILE_INSET,
+    y + WALK_TILE_INSET,
+    tileSize,
+    10,
+    WALK_TILE_RADIUS
+  );
+  context.fill();
 
   // Draw station-specific icon nearly full-tile.
   const drawIcon = STATION_ICON_DRAWERS[station.id];

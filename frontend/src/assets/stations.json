@@ -2,17 +2,46 @@
   "sample_prep": {
     "id": "sample_prep",
     "title": "Sample Preparation",
-    "description": "Prepare the infected and control samples for mass spectrometry."
+    "description": "Welcome to sample prep, where your experiment begins. Keep sample handling consistent across conditions so downstream comparisons stay trustworthy.",
+    "requires": [],
+    "objective": "Prepare infected and control samples with consistent handling so they are LC-MS ready.",
+    "expectations": "Understand contamination risks, labeling strategies, and why consistent prep reduces technical bias.",
+    "statusMessages": {
+      "entered": "Gloves on, chaos off. Let us prepare our samples like professionals.",
+      "submitting": "Packing tiny protein lunchboxes...",
+      "success": "Sample prep aced. Pipettes are leaving the building.",
+      "failed": "The tubes are judging us. Try the prep again."
+    }
   },
   "mass_spec": {
     "id": "mass_spec",
     "title": "Mass Spectrometer",
-    "description": "Run the samples on the mass spectrometer. Acquisition method: DDA."
+    "description": "Welcome to the mass spectrometer, where peptides become spectra. Robust acquisition settings help getting good identifications.",
+    "requires": [
+      {
+        "id": "sample_prep",
+        "message": "⚠️ Nice try. The mass spec refuses to run on unprepared samples and pure optimism. Do sample prep first."
+      }
+    ],
+    "objective": "Run DDA acquisition and verify spectra quality before downstream processing.",
+    "expectations": "Understand precursor selection and fragmentation concepts, basic instrument settings, and signs of a successful run.",
+    "statusMessages": {
+      "entered": "The mass spectrometer is awake and waiting for peptides.",
+      "submitting": "Launching ions into the void...",
+      "success": "Spectra acquired with smoke coming out of the machine due to its high throughput.",
+      "failed": "The machine coughed politely. Please rerun."
+    }
   },
   "spectral_search": {
     "id": "spectral_search",
     "title": "Spectral Search Station",
-    "description": "Identify peptides by matching spectra against a protein sequence database.",
+    "description": "Welcome to spectral search, where raw spectra meet protein databases. Tune tolerances and enzyme rules carefully to improve confident matches.",
+    "requires": [
+      {
+        "id": "mass_spec",
+        "message": "⚠️ Spectral search is locked. The mass spectrometer must run first, or you are searching for peptides in pure imagination."
+      }
+    ],
     "parameters": [
       {
         "id": "tool",
@@ -130,12 +159,26 @@
         "Oxidation (M)",
         "Acetyl (protein N-term)"
       ]
+    },
+    "objective": "Configure database-search parameters to maximize confident peptide-spectrum matches.",
+    "expectations": "Understand mass tolerances, enzyme specificity, and trade-offs between sensitivity and specificity.",
+    "statusMessages": {
+      "entered": "Time to play hide-and-seek with peptides.",
+      "submitting": "Interrogating spectra under a bright lamp...",
+      "success": "Many peptides found. The database search engine breathes exhausted from the vast search space.",
+      "failed": "No solid alibi from these spectra. Tweak and retry."
     }
   },
   "filtering": {
     "id": "filtering",
     "title": "Filtering Station",
-    "description": "Filter identifications to remove Low-confidence entries.",
+    "description": "Welcome to filtering, where signal is separated from noise. While strict enough thresholds improve reliability, over-filtering can hide biology.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Filtering station is locked until spectral search has produced real protein data. Right now you are filtering pure optimism."
+      }
+    ],
     "parameters": [
       {
         "id": "remove_missing_proteins",
@@ -161,12 +204,26 @@
         ],
         "defaultValue": "1"
       }
-    ]
+    ],
+    "objective": "Remove low-confidence identifications without discarding biologically relevant proteins.",
+    "expectations": "Understand missing-value behavior, peptide support thresholds, and false-positive control.",
+    "statusMessages": {
+      "entered": "Welcome to Protein Bouncer Club. IDs and visa please.",
+      "submitting": "Politely escorting noisy entries outside...",
+      "success": "Cleaned house. Are the rowdy proteins gone?",
+      "failed": "Too many rowdy proteins snuck in. Adjust filters."
+    }
   },
   "transform": {
     "id": "transform",
     "title": "Transform Station",
-    "description": "Transform intensity values to stabilize variance before comparison.",
+    "description": "Welcome to the transform station, where raw intensities become analysis-ready values. Logarithmic transformations can reduce skew and stabilize variance.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Transform station is offline until spectral search has produced actual data. Right now you are trying to normalize a rumor."
+      }
+    ],
     "parameters": [
       {
         "id": "transform_method",
@@ -182,12 +239,26 @@
         },
         "defaultValue": "ln"
       }
-    ]
+    ],
+    "objective": "Apply an intensity transformation that stabilizes variance for fair comparisons.",
+    "expectations": "Understand why log transforms reduce skew and how transformation affects downstream statistics.",
+    "statusMessages": {
+      "entered": "Bending numbers to tame the variance.",
+      "submitting": "Applying math yoga to intensities...",
+      "success": "Numbers feel like the have undergone a transformation.",
+      "failed": "Math yoga cramp. Something went wrong."
+    }
   },
   "normalize": {
     "id": "normalize",
     "title": "Normalize Station",
-    "description": "Correct systematic intensity shifts between samples.",
+    "description": "Welcome to normalization, where samples are brought onto a common scale. Pick a method that removes technical drift without erasing valuable information.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Normalization is unavailable until spectral search has produced data worth rescuing. At the moment you are standardizing empty ambition."
+      }
+    ],
     "parameters": [
       {
         "id": "normalization",
@@ -213,12 +284,26 @@
         },
         "defaultValue": "none"
       }
-    ]
+    ],
+    "objective": "Normalize sample intensities to reduce technical shifts while preserving biological signal.",
+    "expectations": "Understand batch and loading effects and how normalization methods change comparability.",
+    "statusMessages": {
+      "entered": "Normalization lab open. Time to tame sample loading effects.",
+      "submitting": "Recalibrating sample intensity levels...",
+      "success": "Normalization complete. The samples are finally on speaking terms.",
+      "failed": "Normalization drift detected. Try another method and rerun."
+    }
   },
   "imputer": {
     "id": "imputer",
     "title": "Imputer Station",
-    "description": "Handle missing values introduced by low abundance and stochastic sampling.",
+    "description": "Welcome to imputation, where missing values get estimated values. Choose a method that fits your missingness pattern to avoid biased conclusions.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Imputation cannot begin until spectral search has produced something missing in the first place. Right now you are repairing imaginary gaps."
+      }
+    ],
     "parameters": [
       {
         "id": "imputation_method",
@@ -246,12 +331,26 @@
         },
         "defaultValue": "none"
       }
-    ]
+    ],
+    "objective": "Handle missing values using an imputation strategy appropriate to the dataset structure.",
+    "expectations": "Understand missingness mechanisms and how imputation can introduce bias.",
+    "statusMessages": {
+      "entered": "Filling in blanks like a magician.",
+      "submitting": "Summoning missing values from the data ether...",
+      "success": "Missing values patched. Does it hold up?",
+      "failed": "The ghosts of NaN remain. Try another method."
+    }
   },
   "multiple_testing_corrector": {
     "id": "multiple_testing_corrector",
     "title": "Multiple Testing Corrector",
-    "description": "Control false discoveries after running many statistical tests.",
+    "description": "Welcome to multiple-testing correction, where false positives are kept in check. FDR-based methods usually balance discovery and reliability.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "You need data before you can perform this step!"
+      }
+    ],
     "parameters": [
       {
         "id": "correction_method",
@@ -273,12 +372,26 @@
         },
         "defaultValue": "bh"
       }
-    ]
+    ],
+    "objective": "Apply multiple-testing correction to control false discoveries across many hypotheses.",
+    "expectations": "Understand adjusted p-values, FDR control, and why correction is required in omics-scale testing.",
+    "statusMessages": {
+      "entered": "You will keep false positives on a short leash.",
+      "submitting": "Negotiating peace with p-values...",
+      "success": "False discoveries contained. Statistical order restored.",
+      "failed": "P-values started a rebellion. Change correction method."
+    }
   },
   "the_cutter": {
     "id": "the_cutter",
     "title": "The Cutter",
-    "description": "Set fold-change and confidence cutoffs to define your final candidate list.",
+    "description": "Welcome to The Cutter, where final candidates are selected. Combine fold-change and adjusted p-value cutoffs for a balanced shortlist.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ The cutter remains sheathed until spectral search and downstream analysis have produced something worth slicing. Right now you are applying thresholds to wishful thinking."
+      }
+    ],
     "parameters": [
       {
         "id": "fold_change_cutoff",
@@ -298,12 +411,26 @@
         "step": 0.01,
         "defaultValue": 0.05
       }
-    ]
+    ],
+    "objective": "Set fold-change and adjusted p-value cutoffs to define a robust candidate list.",
+    "expectations": "Understand effect-size versus significance trade-offs and threshold impact on hit confidence.",
+    "statusMessages": {
+      "entered": "Sharpening thresholds. Snip snip.",
+      "submitting": "Carefully trimming the candidate list...",
+      "success": "Cuts made cleanly. Candidate list looks sharp.",
+      "failed": "Snipped too wild. Recalibrate those cutoffs."
+    }
   },
   "statistical_analysis": {
     "id": "statistical_analysis",
     "title": "Statistical Analysis",
-    "description": "Compare conditions and identify significantly regulated proteins and pathways.",
+    "description": "Welcome to statistical analysis, where hypotheses face the data. Choose tests that match your design and data distribution assumptions.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Statistical analysis is unavailable until spectral search has produced data worth interrogating. At the moment you are testing hypotheses against fog."
+      }
+    ],
     "parameters": [
       {
         "id": "statistical_test",
@@ -323,12 +450,28 @@
         },
         "defaultValue": "welch"
       }
-    ]
+    ],
+    "objective": "Choose and run an appropriate statistical test to detect regulated proteins.",
+    "expectations": "Understand test assumptions, group comparison design, and interpretation of significance outputs.",
+    "statusMessages": {
+      "entered": "Stats alarm. Interrogate the data with hard questions.",
+      "submitting": "Running tests while pretending this is fun...",
+      "success": "Stats complete. Significant things happened.",
+      "failed": "Statistics said nope. Try another test setup."
+    }
   },
   "veit": {
     "id": "veit",
     "title": "Veit",
     "final": true,
-    "description": "Hand in your comprehensive report with findings and interpretations."
+    "description": "Welcome to the final report station, where the story comes together. Did you find the right combinations of methods?",
+    "requires": [],
+    "objective": "Submit your final interpretation report and complete the investigation.",
+    "statusMessages": {
+      "entered": "Final boss: hand in the report with a dramatic sighing.",
+      "submitting": "Polishing conclusions and pretending confidence...",
+      "success": "Report submitted. Silence.",
+      "failed": "The report needs one more heroic revision."
+    }
   }
 }
