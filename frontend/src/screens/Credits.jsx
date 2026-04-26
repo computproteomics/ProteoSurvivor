@@ -144,8 +144,8 @@ export default function Credits() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Source Code &amp; Licence</h2>
-          <p className={styles.licenceText}>
+          <h2 className={styles.sectionTitle}>Source Code &amp; License</h2>
+          <p className={styles.licenseText}>
             ProteoSurviver is open source.{' '}
             <a
               href="https://github.com/computproteomics/ProteoSurviver"
