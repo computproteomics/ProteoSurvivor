@@ -33,6 +33,13 @@
   color: #40546a;
 }
 
+.progressText {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: #2d4157;
+  font-weight: 600;
+}
+
 .leaderboardButton {
   border: 1px solid #7f9cbc;
   background: linear-gradient(180deg, #fff8e6 0%, #f6e4b8 100%);
@@ -49,6 +56,24 @@
 .leaderboardButton:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(88, 70, 20, 0.2);
+}
+
+.restartButton {
+  border: 1px solid #c89c8b;
+  background: linear-gradient(180deg, #fce8e3 0%, #f5d4c8 100%);
+  color: #6b3226;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(120, 60, 40, 0.12);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.restartButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(120, 60, 40, 0.18);
 }
 
 .creditsButton {

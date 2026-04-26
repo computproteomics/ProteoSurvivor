@@ -113,7 +113,7 @@
         ],
         "optionLabels": {
           "trypsin": "Trypsin",
-          "strricttrypsin": "Trypsin/P"
+          "stricttrypsin": "Trypsin/P"
         },
         "defaultValue": "stricttrypsin"
       },

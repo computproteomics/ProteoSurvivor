@@ -137,6 +137,19 @@
   border: 1px solid rgba(226, 232, 240, 0.65);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.65);
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.imageCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.imageCard:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .resultImage {
@@ -144,6 +157,25 @@
   width: 100%;
   height: auto;
   border-radius: 8px;
+}
+
+.imageHint {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.8);
+  color: white;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.imageCard:hover .imageHint {
+  opacity: 1;
 }
 
 .buttonRow {
@@ -179,4 +211,108 @@
 
 .secondaryButton:hover {
   background: rgba(248, 250, 252, 0.65);
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(9, 17, 30, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modalWindow {
+  width: min(900px, 95vw);
+  max-height: 92vh;
+  overflow: auto;
+  border-radius: 22px;
+  border: 1px solid rgba(80, 105, 131, 0.34);
+  background: linear-gradient(170deg, rgba(247, 251, 255, 0.97), rgba(255, 247, 232, 0.94));
+  box-shadow: 0 30px 60px rgba(10, 18, 30, 0.32);
+  padding: 1.5rem;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.4vw, 1.55rem);
+  color: #1b2b3b;
+}
+
+.modalCloseButton {
+  border: 1px solid #99acc0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f3347;
+  font-size: 0.9rem;
+  padding: 0.52rem 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.modalCloseButton:hover {
+  background: #f0f4f8;
+}
+
+.modalImageWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+  max-height: 70vh;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.5);
+  padding: 1rem;
+}
+
+.modalImage {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+}
+
+.modalNavigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.modalNavButton {
+  border: 1px solid #b8d0e8;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #1f3347;
+  padding: 0.52rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.modalNavButton:hover {
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(32, 58, 86, 0.1);
+}
+
+.modalNavInfo {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 600;
+  min-width: 3.5rem;
+  text-align: center;
 }
