@@ -151,6 +151,9 @@ export default function WorldMap() {
         <button className={styles.leaderboardButton} onClick={() => navigate('/leaderboard')}>
           View leaderboard
         </button>
+        <button className={styles.creditsButton} onClick={() => navigate('/credits')}>
+          Credits
+        </button>
       </div>
 
       <div className={styles.mapContainer}>

@@ -6,6 +6,7 @@ import StationView from './screens/StationView';
 import ParametrizationView from './screens/ParametrizationView';
 import StationResults from './screens/StationResults';
 import Leaderboard from './screens/Leaderboard';
+import Credits from './screens/Credits';
 import useGameStore from './store/gameSlice';
 
 function RequireAuth({ children }) {
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/news" element={<RequireAuth><BreakingNews /></RequireAuth>} />
         <Route path="/world" element={<RequireAuth><WorldMap /></RequireAuth>} />
         <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        <Route path="/credits" element={<RequireAuth><Credits /></RequireAuth>} />
         <Route path="/station/:stationId" element={<RequireAuth><StationView /></RequireAuth>} />
         <Route path="/station/:stationId/params" element={<RequireAuth><ParametrizationView /></RequireAuth>} />
         <Route path="/station/:stationId/results" element={<RequireAuth><StationResults /></RequireAuth>} />
