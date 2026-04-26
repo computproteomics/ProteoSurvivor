@@ -55,7 +55,8 @@
           "fragpipe": "FragPipe",
           "maxquant": "MaxQuant"
         },
-        "defaultValue": "fragpipe"
+        "defaultValue": "fragpipe",
+        "tooltip": "Search engines differ in scoring models and feature support. FragPipe is often a strong default for modern workflows, while MaxQuant remains widely used and can behave differently on specific datasets."
       },
       {
         "id": "match_between_runs",
@@ -69,7 +70,8 @@
           "TRUE": "Yes",
           "FALSE": "No"
         },
-        "defaultValue": "FALSE"
+        "defaultValue": "FALSE",
+        "tooltip": "Match-between-runs transfers identifications across LC-MS runs. It can improve coverage, but may also propagate incorrect matches if retention alignment is poor."
       },
       {
         "id": "precursor_mass_tolerance",
@@ -85,7 +87,8 @@
           "10": "10 ppm",
           "20": "20 ppm"
         },
-        "defaultValue": "5"
+        "defaultValue": "5",
+        "tooltip": "Lower precursor tolerance is stricter and reduces false matches when mass accuracy is good. Wider tolerance can recover more IDs on noisier data but risks more ambiguity."
       },
       {
         "id": "fragment_mass_tolerance",
@@ -101,7 +104,8 @@
           "0.02": "0.02 Da",
           "0.03": "0.03 Da"
         },
-        "defaultValue": "0.01"
+        "defaultValue": "0.01",
+        "tooltip": "Fragment tolerance controls how closely fragment peaks must align. Tight windows increase specificity for high-resolution MS/MS, while wider windows are more forgiving but less selective."
       },
       {
         "id": "enzyme",
@@ -115,7 +119,8 @@
           "trypsin": "Trypsin",
           "stricttrypsin": "Trypsin/P"
         },
-        "defaultValue": "stricttrypsin"
+        "defaultValue": "stricttrypsin",
+        "tooltip": "Enzyme specificity defines expected peptide boundaries. Stricter cleavage rules can improve confidence but may miss real semi-specific peptides in messy samples."
       },
       {
         "id": "missed_cleavages",
@@ -125,7 +130,8 @@
           "1",
           "2"
         ],
-        "defaultValue": "1"
+        "defaultValue": "1",
+        "tooltip": "Allowed missed cleavages model incomplete digestion. Higher values increase search space and sensitivity, but can raise computational cost and false discovery risk."
       },
       {
         "id": "min_peptide_length",
@@ -135,7 +141,8 @@
           "5",
           "7"
         ],
-        "defaultValue": "5"
+        "defaultValue": "5",
+        "tooltip": "Short peptides can be less unique and harder to identify confidently. Raising the minimum length often improves specificity at the cost of some sensitivity."
       },
       {
         "id": "max_peptide_length",
@@ -147,7 +154,8 @@
           "40",
           "50"
         ],
-        "defaultValue": "27"
+        "defaultValue": "27",
+        "tooltip": "Long peptide allowances influence search scope. Higher maxima can capture rare long peptides, but usually expand search complexity with limited practical gain."
       }
     ],
     "fixedParameters": {
@@ -191,7 +199,8 @@
           "3",
           "4"
         ],
-        "defaultValue": "0"
+        "defaultValue": "0",
+        "tooltip": "This threshold removes proteins with excessive missing values. Lower limits are stricter and improve robustness, while higher limits retain coverage but can increase noise."
       },
       {
         "id": "min_peptides_per_protein",
@@ -202,7 +211,8 @@
           "2",
           "3"
         ],
-        "defaultValue": "1"
+        "defaultValue": "1",
+        "tooltip": "Minimum peptide support controls protein-level confidence. Requiring more peptides reduces questionable IDs but may remove low-abundance true proteins."
       }
     ],
     "objective": "Remove low-confidence identifications without discarding biologically relevant proteins.",
@@ -237,7 +247,8 @@
           "ln": "Natural logarithm (ln)",
           "log2": "Log2"
         },
-        "defaultValue": "ln"
+        "defaultValue": "ln",
+        "tooltip": "Log transforms stabilize variance and reduce right-skewed intensity distributions. Log2 is often preferred for fold-change interpretation, while ln behaves similarly statistically."
       }
     ],
     "objective": "Apply an intensity transformation that stabilizes variance for fair comparisons.",
@@ -282,7 +293,8 @@
           "quantile": "Quantile normalization",
           "zscore": "Standardization (Z-scores)"
         },
-        "defaultValue": "none"
+        "defaultValue": "none",
+        "tooltip": "Normalization corrects technical shifts between samples. Methods like median or total-intensity are common starting points; more aggressive methods can improve comparability but may distort biology if assumptions fail."
       }
     ],
     "objective": "Normalize sample intensities to reduce technical shifts while preserving biological signal.",
@@ -329,7 +341,8 @@
           "median": "Median",
           "mean": "Mean"
         },
-        "defaultValue": "none"
+        "defaultValue": "none",
+        "tooltip": "Imputation fills missing values to enable downstream statistics. Simpler methods are stable baselines, while model-based methods can preserve structure but risk introducing assumptions and bias."
       }
     ],
     "objective": "Handle missing values using an imputation strategy appropriate to the dataset structure.",
@@ -370,7 +383,8 @@
           "bonferroni": "Bonferroni",
           "holm": "Holm-Bonferroni"
         },
-        "defaultValue": "bh"
+        "defaultValue": "bh",
+        "tooltip": "Multiple-testing correction controls false positives across thousands of hypotheses. FDR methods (BH, Storey) usually balance discovery and rigor better than very conservative family-wise controls."
       }
     ],
     "objective": "Apply multiple-testing correction to control false discoveries across many hypotheses.",
@@ -400,7 +414,8 @@
         "min": 0,
         "max": 7,
         "step": 1,
-        "defaultValue": 1
+        "defaultValue": 1,
+        "tooltip": "Higher fold-change cutoffs prioritize larger biological effects but reduce hit counts. Lower cutoffs retain subtle changes but may include weaker candidates."
       },
       {
         "id": "pvalue_cutoff",
@@ -409,7 +424,8 @@
         "min": 0,
         "max": 1,
         "step": 0.01,
-        "defaultValue": 0.05
+        "defaultValue": 0.05,
+        "tooltip": "The adjusted p-value threshold sets statistical stringency after correction. Lower values reduce false discoveries but can miss weaker true effects."
       }
     ],
     "objective": "Set fold-change and adjusted p-value cutoffs to define a robust candidate list.",
@@ -448,7 +464,8 @@
           "mannwhitneyu": "Mann-Whitney U test",
           "permutation": "Permutation test"
         },
-        "defaultValue": "welch"
+        "defaultValue": "welch",
+        "tooltip": "Choose a test based on distribution assumptions and sample size. Welch is a robust default for unequal variances; non-parametric or permutation approaches can be safer for non-normal data."
       }
     ],
     "objective": "Choose and run an appropriate statistical test to detect regulated proteins.",

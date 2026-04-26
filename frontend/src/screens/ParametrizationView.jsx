@@ -17,13 +17,30 @@ function getOptionLabel(field, option) {
   return field.optionLabels?.[option] ?? option;
 }
 
+function ParameterLabel({ field, value }) {
+  const labelText = field.type === 'slider' ? `${field.label}: ${value}` : field.label;
+
+  return (
+    <label className={styles.label} htmlFor={field.id}>
+      <span>{labelText}</span>
+      {field.tooltip ? (
+        <span
+          className={styles.tooltipIcon}
+          title={field.tooltip}
+          aria-label={`Info: ${field.tooltip}`}
+        >
+          ?
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 function ParamField({ field, value, onChange }) {
   if (field.type === 'select') {
     return (
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={field.id}>
-          {field.label}
-        </label>
+        <ParameterLabel field={field} value={value} />
         <select
           id={field.id}
           className={styles.input}
@@ -43,9 +60,7 @@ function ParamField({ field, value, onChange }) {
   if (field.type === 'number') {
     return (
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={field.id}>
-          {field.label}
-        </label>
+        <ParameterLabel field={field} value={value} />
         <input
           id={field.id}
           className={styles.input}
@@ -63,9 +78,7 @@ function ParamField({ field, value, onChange }) {
   if (field.type === 'slider') {
     return (
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={field.id}>
-          {field.label}: {value}
-        </label>
+        <ParameterLabel field={field} value={value} />
         <input
           id={field.id}
           className={styles.input}
@@ -83,9 +96,7 @@ function ParamField({ field, value, onChange }) {
   if (field.type === 'textarea') {
     return (
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={field.id}>
-          {field.label}
-        </label>
+        <ParameterLabel field={field} value={value} />
         <textarea
           id={field.id}
           className={styles.textarea}
