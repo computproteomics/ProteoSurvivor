@@ -48,6 +48,20 @@
   font-size: 1rem;
 }
 
+.versionBadge {
+  display: inline-block;
+  margin: 0.6rem 0 0;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(42, 107, 69, 0.12);
+  border: 1px solid rgba(42, 107, 69, 0.3);
+  color: #1a4a2e;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: 'Courier New', monospace;
+}
+
 .backButton {
   border: 1px solid #91a8bf;
   background: rgba(255, 255, 255, 0.82);
@@ -139,7 +153,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem;
   border-radius: 14px;
   border: 1px solid rgba(78, 98, 118, 0.18);
   background: rgba(248, 252, 255, 0.88);
@@ -162,25 +176,10 @@
   object-fit: cover;
 }
 
-.contributorInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
 .contributorName {
   font-weight: 700;
   font-size: 0.9rem;
   color: #1b2d3f;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.contributorRole {
-  font-size: 0.75rem;
-  color: #56718a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

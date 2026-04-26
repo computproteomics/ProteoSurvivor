@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { version } from '../../package.json';
 import styles from './Credits.module.css';
 
 const RESEARCH_GROUPS = [
@@ -20,41 +21,13 @@ const RESEARCH_GROUPS = [
 ];
 
 const CONTRIBUTORS = [
-  {
-    name: 'Veit Schwämmle',
-    github: 'veitveit',
-    role: 'Project Lead & Lead Developer',
-  },
-  {
-    name: 'Lev Levitsky',
-    github: 'levitsky',
-    role: 'Backend & Simulation',
-  },
-  {
-    name: 'Christine Lærke Jensen',
-    github: 'chje118',
-    role: 'Frontend Development',
-  },
-  {
-    name: 'Malthe Letting',
-    github: 'M-Letting',
-    role: 'Frontend Development',
-  },
-  {
-    name: 'Maja Lindskow Jessen',
-    github: 'MajaLindskov',
-    role: 'Frontend Development',
-  },
-  {
-    name: 'Magnus Mørkeberg',
-    github: 'Mmoerkeberg',
-    role: 'Frontend Development',
-  },
-  {
-    name: 'Trenchcoat-capybara',
-    github: 'Trenchcoat-capybara',
-    role: 'Game Design & Development',
-  },
+  { name: 'Christine Lærke Jensen', github: 'chje118' },
+  { name: 'Lev Levitsky',           github: 'levitsky' },
+  { name: 'Magnus Mørkeberg',        github: 'Mmoerkeberg' },
+  { name: 'Maja Lindskow Jessen',    github: 'MajaLindskov' },
+  { name: 'Malthe Letting',          github: 'M-Letting' },
+  { name: 'Trenchcoat-capybara',     github: 'Trenchcoat-capybara' },
+  { name: 'Veit Schwämmle',          github: 'veitveit' },
 ];
 
 const TECH_STACK = [
@@ -79,6 +52,7 @@ export default function Credits() {
               ProteoSurviver is an open-source browser game for learning computational
               proteomics — built by researchers and students at the University of Southern Denmark.
             </p>
+            <p className={styles.versionBadge}>v{version}</p>
           </div>
           <button className={styles.backButton} onClick={() => navigate('/world')}>
             Back to map
@@ -122,10 +96,7 @@ export default function Credits() {
                   width={40}
                   height={40}
                 />
-                <div className={styles.contributorInfo}>
-                  <span className={styles.contributorName}>{person.name}</span>
-                  <span className={styles.contributorRole}>{person.role}</span>
-                </div>
+                <span className={styles.contributorName}>{person.name}</span>
               </a>
             ))}
           </div>
@@ -154,8 +125,17 @@ export default function Credits() {
               className={styles.inlineLink}
             >
               View the repository on GitHub
-            </a>{' '}
-            to contribute, report issues, or inspect the simulation code.
+            </a>
+            {' '}to contribute or inspect the simulation code. Found a bug?{' '}
+            <a
+              href="https://github.com/computproteomics/ProteoSurviver/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.inlineLink}
+            >
+              Open an issue
+            </a>
+            .
           </p>
         </section>
 
@@ -163,3 +143,4 @@ export default function Credits() {
     </div>
   );
 }
+
