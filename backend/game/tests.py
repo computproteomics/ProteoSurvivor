@@ -1020,7 +1020,7 @@ class TestRunStationAnonymousUser(TestCase):
         request = self._build_request()
         request.session["visited_stations"] = ["sample_prep"]
 
-        def _runner(_dataset, _params):
+        def _runner(_dataset, _params, _visited_stations=None):
             return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
 
         with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
@@ -1033,7 +1033,7 @@ class TestRunStationAnonymousUser(TestCase):
     def test_run_station_success_without_visited_stations_session_key(self):
         request = self._build_request()
 
-        def _runner(_dataset, _params):
+        def _runner(_dataset, _params, _visited_stations=None):
             return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
 
         with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):

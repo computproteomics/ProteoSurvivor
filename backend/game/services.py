@@ -959,7 +959,7 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations=None) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
@@ -1094,7 +1094,7 @@ def _squeeze_var(
 
 
 def _simulate_statistical_analysis(
-    dataset: pd.DataFrame, params: dict
+    dataset: pd.DataFrame, params: dict, visited_stations=None
 ) -> dict:
 
     test = params.get("statistical_test", "none")
