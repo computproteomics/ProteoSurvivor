@@ -21,13 +21,13 @@ const RESEARCH_GROUPS = [
 ];
 
 const CONTRIBUTORS = [
-  { name: 'Christine Lærke Jensen', github: 'chje118' },
-  { name: 'Lev Levitsky',           github: 'levitsky' },
-  { name: 'Magnus Mørkeberg',        github: 'Mmoerkeberg' },
-  { name: 'Maja Lindskow Jessen',    github: 'MajaLindskov' },
-  { name: 'Malthe Letting',          github: 'M-Letting' },
-  { name: 'Trenchcoat-capybara',     github: 'Trenchcoat-capybara' },
-  { name: 'Veit Schwämmle',          github: 'veitveit' },
+  { name: 'Christine Lærke Jensen',    github: 'chje118' },
+  { name: 'Jakob Gad Spoorendonk',     github: 'Trenchcoat-capybara' },
+  { name: 'Lev Levitsky',              github: 'levitsky' },
+  { name: 'Magnus Mørkeberg',          github: 'Mmoerkeberg' },
+  { name: 'Maja Lindskow Jessen',      github: 'MajaLindskov' },
+  { name: 'Malthe Letting',            github: 'M-Letting' },
+  { name: 'Veit Schwämmle',            github: 'veitveit' },
 ];
 
 const TECH_STACK = [
