@@ -149,7 +149,7 @@ const STATION_CHAR_TO_ID = {
   J: 'the_cutter',
   M: 'multiple_testing_corrector',
   S: 'statistical_analysis',
-  V: 'final_report',
+  V: 'veit',
 };
 
 const STATION_POSITIONS_BY_ID = (() => {
@@ -178,7 +178,7 @@ const STATION_COLORS = {
   multiple_testing_corrector: '#c4b5fd',
   the_cutter: '#fca5a5',
   statistical_analysis: '#f86a6a',
-  final_report: '#fde68a',
+  veit: '#fde68a',
 };
 
 // ── Station icon drawers ─────────────────────────────────────────────────────
@@ -655,7 +655,7 @@ function drawIconStatAnalysis(ctx, cx, cy) {
 }
 
 // stick-figure person with filled lab-coat body and lapels
-function drawIconFinalReport(ctx, cx, cy) {
+function drawIconVeit(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
   const dark = 'rgba(0,0,0,0.55)';
@@ -708,7 +708,7 @@ const STATION_ICON_DRAWERS = {
   multiple_testing_corrector: drawIconMTC,
   the_cutter: drawIconCutter,
   statistical_analysis: drawIconStatAnalysis,
-  final_report: drawIconFinalReport,
+  veit: drawIconVeit,
 };
 
 // Station definitions with position on map and color
@@ -939,27 +939,15 @@ function drawStation(context, station, done) {
   );
   context.fill();
 
-  // Fill station marker using the same footprint as walkable tiles.
+  // Match station marker size to normal walkable floor tile size.
+  const tileInset = 1.5;
+  const stationTileSize = TILE - tileInset * 2;
   context.fillStyle = station.color;
-  drawRoundedRect(
-    context,
-    x + WALK_TILE_INSET,
-    y + WALK_TILE_INSET,
-    tileSize,
-    tileSize,
-    WALK_TILE_RADIUS
-  );
+  drawRoundedRect(context, x + tileInset, y + tileInset, stationTileSize, stationTileSize, 8);
   context.fill();
 
   context.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  drawRoundedRect(
-    context,
-    x + WALK_TILE_INSET,
-    y + WALK_TILE_INSET,
-    tileSize,
-    10,
-    WALK_TILE_RADIUS
-  );
+  drawRoundedRect(context, x + tileInset, y + tileInset, stationTileSize, 10, 7);
   context.fill();
 
   // Draw station-specific icon nearly full-tile.
