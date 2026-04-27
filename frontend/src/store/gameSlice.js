@@ -52,6 +52,8 @@ const useGameStore = create(
               ? nextPosition(state.mapPlayerPosition)
               : nextPosition,
         })),
+      // Reset the entire game session to initial state.
+      resetGame: () => set(INITIAL_STATE),
     }),
     {
       name: 'proteosurviver-game-state',

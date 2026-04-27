@@ -1036,7 +1036,65 @@ def _simulate_statistical_analysis(
             feedback = "✅ Welch's t-test applied. Unequal variances were acknowledged and the proteins were judged accordingly."
 
         elif test == "limma":
-            raise NotImplementedError("Limma not implemented")
+            # Simplified limma-like implementation using empirical Bayes approach
+            # Limma computes moderated t-statistics by sharing variance information across genes
+            from scipy.stats import t as t_dist
+        
+            # Collect all p-values to compute prior variance
+            individual_variances = []
+        
+            for idx in range(len(expr)):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna().values
+                b = row[COND_B].dropna().values
+            
+                if len(a) < 2 or len(b) < 2:
+                    p_values[idx] = np.nan
+                    continue
+            
+                # Compute variance for this protein
+                var_a = np.var(a, ddof=1)
+                var_b = np.var(b, ddof=1)
+                pooled_var = ((len(a) - 1) * var_a + (len(b) - 1) * var_b) / (len(a) + len(b) - 2)
+                individual_variances.append(pooled_var)
+        
+            # Compute median variance (prior) for empirical Bayes moderation
+            if individual_variances:
+                prior_var = np.median(individual_variances)
+            else:
+                prior_var = 1.0
+        
+            # Compute moderated t-statistics
+            for idx in range(len(expr)):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna().values
+                b = row[COND_B].dropna().values
+            
+                if len(a) < 2 or len(b) < 2:
+                    p_values[idx] = np.nan
+                    continue
+            
+                # Compute t-statistic with moderated variance
+                mean_diff = np.mean(b) - np.mean(a)
+                var_a = np.var(a, ddof=1)
+                var_b = np.var(b, ddof=1)
+                pooled_var = ((len(a) - 1) * var_a + (len(b) - 1) * var_b) / (len(a) + len(b) - 2)
+            
+                # Moderated variance: shrink toward prior
+                moderated_var = (pooled_var + prior_var) / 2
+                se = np.sqrt(moderated_var * (1/len(a) + 1/len(b)))
+            
+                if se == 0:
+                    p_values[idx] = np.nan
+                    continue
+            
+                t_stat = mean_diff / se
+                df = len(a) + len(b) - 2
+                p = 2 * (1 - t_dist.cdf(np.abs(t_stat), df))
+                p_values[idx] = p
+        
+            success = True
+            feedback = "✅ Limma test applied. The empirical Bayes machinery borrowed strength across proteins to make better judgments."
 
         elif test == "mannwhitneyu":
             for idx in range(len(expr)):
