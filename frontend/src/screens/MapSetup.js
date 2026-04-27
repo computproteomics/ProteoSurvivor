@@ -149,7 +149,7 @@ const STATION_CHAR_TO_ID = {
   J: 'the_cutter',
   M: 'multiple_testing_corrector',
   S: 'statistical_analysis',
-  V: 'veit',
+  V: 'final_report',
 };
 
 const STATION_POSITIONS_BY_ID = (() => {
@@ -178,7 +178,7 @@ const STATION_COLORS = {
   multiple_testing_corrector: '#c4b5fd',
   the_cutter: '#fca5a5',
   statistical_analysis: '#f86a6a',
-  veit: '#fde68a',
+  final_report: '#fde68a',
 };
 
 // ── Station icon drawers ─────────────────────────────────────────────────────
@@ -655,7 +655,7 @@ function drawIconStatAnalysis(ctx, cx, cy) {
 }
 
 // stick-figure person with filled lab-coat body and lapels
-function drawIconVeit(ctx, cx, cy) {
+function drawIconFinalReport(ctx, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
   const dark = 'rgba(0,0,0,0.55)';
@@ -708,7 +708,7 @@ const STATION_ICON_DRAWERS = {
   multiple_testing_corrector: drawIconMTC,
   the_cutter: drawIconCutter,
   statistical_analysis: drawIconStatAnalysis,
-  veit: drawIconVeit,
+  final_report: drawIconFinalReport,
 };
 
 // Station definitions with position on map and color
