@@ -1113,7 +1113,7 @@ def _squeeze_var(
 
 
 def _simulate_statistical_analysis(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     test = params.get("statistical_test", "none")

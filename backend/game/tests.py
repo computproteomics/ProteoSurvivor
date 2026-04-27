@@ -516,7 +516,7 @@ class TestStatisticalAnalysisStation(TestCase):
     def test_limma_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
         result = _simulate_statistical_analysis(
-            df, {"statistical_test": "limma"}, {"spectral_search"}
+            df, {"statistical_test": "limma"}
         )
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
@@ -547,7 +547,7 @@ class TestStatisticalAnalysisStation(TestCase):
         base_df.loc[0, COND_B[1]] = np.nan
         base_df.loc[0, COND_B[2]] = np.nan
         result = _simulate_statistical_analysis(
-            base_df, {"statistical_test": "limma"}, {"spectral_search"}
+            base_df, {"statistical_test": "limma"}
         )
         self.assertTrue(result["success"])
         # The NaN-heavy protein must still get a p-value (prior variance covers it)
@@ -568,7 +568,7 @@ class TestStatisticalAnalysisStation(TestCase):
     def test_sam_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
         result = _simulate_statistical_analysis(
-            df, {"statistical_test": "sam"}, {"spectral_search"}
+            df, {"statistical_test": "sam"}
         )
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
@@ -614,7 +614,7 @@ class TestSamGroundTruth(TestCase):
     def _run_sam(self, df):
         with patch("game.services.volcano_plot", return_value="img"):
             return _simulate_statistical_analysis(
-                df, {"statistical_test": "sam"}, {"spectral_search"}
+                df, {"statistical_test": "sam"}
             )
 
     def _make_clear_df(self):
