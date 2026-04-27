@@ -1,7 +1,6 @@
 import io
 import base64
 import pandas as pd
-import math
 import matplotlib
 
 matplotlib.use("Agg")
@@ -251,12 +250,11 @@ def plot_scores(true_positives=None, false_positives=None):
     """Generate a scatter plot of all players' final-station results."""
     from .models import FinalStationResult
 
-    def _score_x_axis(tp, fp):
-        if tp <= 0:
+    def _fdr(tp, fp):
+        total = tp + fp
+        if total <= 0 or fp <= 0:
             return None
-        ratio = fp / tp
-        ratio = max(ratio, 1e-12)
-        return -math.log10(ratio)
+        return -np.log10(fp / total)
 
     results = FinalStationResult.objects.all().values_list(
         "true_positives", "false_positives"
@@ -265,7 +263,7 @@ def plot_scores(true_positives=None, false_positives=None):
     x_values = []
     y_values = []
     for tp, fp in results:
-        x_val = _score_x_axis(tp, fp)
+        x_val = _fdr(tp, fp)
         if x_val is None:
             continue
         x_values.append(x_val)
@@ -273,7 +271,7 @@ def plot_scores(true_positives=None, false_positives=None):
 
     current_x = None
     if true_positives is not None and false_positives is not None:
-        current_x = _score_x_axis(true_positives, false_positives)
+        current_x = _fdr(true_positives, false_positives)
 
     fig, ax = plt.subplots(figsize=(7, 5))
     if x_values:
@@ -302,7 +300,7 @@ def plot_scores(true_positives=None, false_positives=None):
         )
 
     ax.set_title("Final Station Scores")
-    ax.set_xlabel("-log10(False Positive Rate)")
+    ax.set_xlabel("-log10(real FDR)")
     ax.set_ylabel("True Positives")
     ax.grid(alpha=0.25)
     if ax.get_legend_handles_labels()[0]:

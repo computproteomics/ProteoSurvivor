@@ -56,7 +56,7 @@
           "maxquant": "MaxQuant"
         },
         "defaultValue": "fragpipe",
-        "tooltip": "Search engines differ in scoring models and feature support. FragPipe is often a strong default for modern workflows, while MaxQuant remains widely used and can behave differently on specific datasets."
+        "tooltip": "Search engines differ in scoring models and feature support."
       },
       {
         "id": "match_between_runs",
@@ -248,7 +248,7 @@
           "log2": "Log2"
         },
         "defaultValue": "ln",
-        "tooltip": "Log transforms stabilize variance and reduce right-skewed intensity distributions. Log2 is often preferred for fold-change interpretation, while ln behaves similarly statistically."
+        "tooltip": "Log transforms stabilize variance and reduce right-skewed intensity distributions. "
       }
     ],
     "objective": "Apply an intensity transformation that stabilizes variance for fair comparisons.",
@@ -294,7 +294,7 @@
           "zscore": "Standardization (Z-scores)"
         },
         "defaultValue": "none",
-        "tooltip": "Normalization corrects technical shifts between samples. Methods like median or total-intensity are common starting points; more aggressive methods can improve comparability but may distort biology if assumptions fail."
+        "tooltip": "Normalization corrects technical shifts between samples. Simple methods (median, total intensity) are robust and easy to understand, while more complex methods (VSN, quantile) can better handle certain data structures but risk overfitting and removing real biological variation if not used carefully."
       }
     ],
     "objective": "Normalize sample intensities to reduce technical shifts while preserving biological signal.",
@@ -361,7 +361,7 @@
     "requires": [
       {
         "id": "spectral_search",
-        "message": "You need data before you can perform this step!"
+        "message": "⚠️ Multiple-testing correction is locked until spectral search produces real data. Right now you are adjusting p-values for imaginary proteins."
       }
     ],
     "parameters": [
@@ -456,13 +456,15 @@
           "welch",
           "limma",
           "mannwhitneyu",
-          "permutation"
+          "permutation",
+          "sam"
         ],
         "optionLabels": {
           "welch": "Welch t-test",
           "limma": "Limma",
           "mannwhitneyu": "Mann-Whitney U test",
-          "permutation": "Permutation test"
+          "permutation": "Permutation test",
+          "sam": "SAM"
         },
         "defaultValue": "welch",
         "tooltip": "Choose a test based on distribution assumptions and sample size. Welch is a robust default for unequal variances; non-parametric or permutation approaches can be safer for non-normal data."
@@ -477,18 +479,18 @@
       "failed": "Statistics said nope. Try another test setup."
     }
   },
-  "veit": {
-    "id": "veit",
-    "title": "Veit",
+  "final_report": {
+    "id": "final_report",
+    "title": "The \"Please Let This Be Significant\" Lounge",
     "final": true,
-    "description": "Welcome to the final report station, where the story comes together. Did you find the right combinations of methods?",
+    "description": "Welcome to The \"Please Let This Be Significant\" Lounge, a highly professional space for high-stakes statistical coping. You wrap up all decisions and hope the proteome agrees with your life choices.",
     "requires": [],
-    "objective": "Submit your final interpretation report and complete the investigation.",
+    "objective": "Submit your final interpretation report and lock in the emergency action plan before the panic spreadsheet updates again.",
     "statusMessages": {
-      "entered": "Final boss: hand in the report with a dramatic sighing.",
-      "submitting": "Polishing conclusions and pretending confidence...",
-      "success": "Report submitted. Silence.",
-      "failed": "The report needs one more heroic revision."
+      "entered": "Welcome to the final lounge. Please breathe into a paper bag and open your volcano plot.",
+      "submitting": "Packaging your conclusions with equal parts rigor and caffeine...",
+      "success": "Report submitted. Somehow this looks statistically defensible.",
+      "failed": "The numbers requested a sequel. One more revision, brave analyst."
     }
   }
 }

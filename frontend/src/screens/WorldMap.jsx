@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
+import { STATION_IDS } from '../assets/stationConfig';
 import {
   WIDTH,
   HEIGHT,
@@ -306,7 +307,7 @@ export default function WorldMap() {
 
   const nearbyStation = getNearbyStation(player.col, player.row);
   const completedCount = completedStations.length;
-  const totalStations = 10;
+  const totalStations = STATION_IDS.length;
 
   function handleRestart() {
     if (window.confirm('Are you sure you want to restart the game? Your progress will be reset.')) {

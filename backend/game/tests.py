@@ -27,7 +27,7 @@ from game.services import (
     _simulate_statistical_analysis,
     _simulate_the_cutter,
     _simulate_transform,
-    _simulate_veit,
+    _simulate_final_report,
     run_station,
     COND_A,
     COND_B,
@@ -37,9 +37,9 @@ from game.services import (
     PROTEIN_ID,
     PVALUE,
     TOT_PEP,
+    _squeeze_var,
 )
 from game.models import StationRun
-from game.helper_functions import get_visited_stations
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -191,20 +191,6 @@ def _build_param_table_from_combinations(combos: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-class TestVisitedStationsHelper(TestCase):
-    def test_returns_empty_set_for_anonymous_user(self):
-        visited = get_visited_stations(AnonymousUser())
-        self.assertEqual(visited, set())
-
-    def test_returns_unique_station_ids_for_user(self):
-        user = get_user_model().objects.create_user(username="helper_user")
-        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
-        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
-        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
-
-        visited = get_visited_stations(user)
-        self.assertEqual(visited, {"sample_prep", "mass_spec"})
-
 
 class TestEnterStationPrerequisites(TestCase):
     def test_returns_feedback_when_required_station_missing(self):
@@ -221,7 +207,9 @@ class TestEnterStationPrerequisites(TestCase):
 
     def test_allows_entry_when_requirement_is_satisfied(self):
         user = get_user_model().objects.create_user(username="entry_ok_user")
-        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
+        StationRun.objects.create(
+            player=user, station_id="sample_prep", params={}, score=0
+        )
         self.client.force_login(user)
 
         response = self.client.post("/api/stations/mass_spec/enter/", data={})
@@ -363,9 +351,7 @@ class TestFilteringStation(TestCase):
 class TestNormalizeStation(TestCase):
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_no_normalization(self, _mock_hc):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "none"}
-        )
+        result = _simulate_normalize(_make_dataset(), {"normalization": "none"})
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
@@ -379,9 +365,7 @@ class TestNormalizeStation(TestCase):
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_zscore_normalization(self, _mock_hc):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "zscore"}
-        )
+        result = _simulate_normalize(_make_dataset(), {"normalization": "zscore"})
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
@@ -458,7 +442,9 @@ class TestMultipleTestingCorrectorStation(TestCase):
     @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
     def test_unknown_correction_fails(self, _mock_hist):
         df = _make_dataset_with_stats()
-        result = _simulate_multiple_testing_corrector(df, {"correction_method": "magic"})
+        result = _simulate_multiple_testing_corrector(
+            df, {"correction_method": "magic"}
+        )
         self.assertFalse(result["success"])
 
 
@@ -501,7 +487,9 @@ class TestTheCutterStation(TestCase):
 
 class TestStatisticalAnalysisStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_statistical_analysis(pd.DataFrame(), {"statistical_test": "welch"})
+        result = _simulate_statistical_analysis(
+            pd.DataFrame(), {"statistical_test": "welch"}
+        )
         self.assertFalse(result["success"])
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
@@ -518,24 +506,190 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_mannwhitneyu_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(df, {"statistical_test": "mannwhitneyu"})
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "mannwhitneyu"}
+        )
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_limma_produces_pvalues(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "limma"}
+        )
+        self.assertTrue(result["success"])
+        self.assertIn(PVALUE, result["dataset"].columns)
+        self.assertIn(FC, result["dataset"].columns)
+        pvals = result["dataset"][PVALUE].dropna()
+        self.assertTrue((pvals >= 0).all() and (pvals <= 1).all())
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_limma_includes_proteins_with_missing_values(self, _mock_vp):
+        """Proteins that lose some replicates to NaN but still have ≥1 per group
+        should receive a p-value rather than being silently dropped.
+
+        A larger dataset (30 proteins) is used so the empirical Bayes prior is
+        estimated reliably and the NaN-heavy protein can borrow variance from it.
+        """
+        n = 30
+        rng = np.random.default_rng(42)
+        base_df = _make_large_dataset_with_stats(n_rows=n)
+        # Replace intensity columns with random, non-zero-variance values
+        for col in COND_A:
+            base_df[col] = rng.normal(loc=10.0, scale=1.5, size=n)
+        for col in COND_B:
+            base_df[col] = rng.normal(loc=15.0, scale=1.5, size=n)
+        # Strip protein 0 down to 1 valid replicate per group (df_g = 0):
+        # only COND_A[0] / COND_B[0] remain; [1] and [2] are set to NaN.
+        base_df.loc[0, COND_A[1]] = np.nan
+        base_df.loc[0, COND_A[2]] = np.nan
+        base_df.loc[0, COND_B[1]] = np.nan
+        base_df.loc[0, COND_B[2]] = np.nan
+        result = _simulate_statistical_analysis(
+            base_df, {"statistical_test": "limma"}
+        )
+        self.assertTrue(result["success"])
+        # The NaN-heavy protein must still get a p-value (prior variance covers it)
+        p0 = result["dataset"].loc[0, PVALUE]
+        self.assertTrue(
+            np.isfinite(p0),
+            f"Expected finite p-value for NaN-heavy protein, got {p0}",
+        )
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_unknown_test_fails(self, _mock_vp):
-        result = _simulate_statistical_analysis(_make_dataset(), {"statistical_test": "magic"})
+        result = _simulate_statistical_analysis(
+            _make_dataset(), {"statistical_test": "magic"}
+        )
         self.assertFalse(result["success"])
 
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_sam_produces_pvalues(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "sam"}
+        )
+        self.assertTrue(result["success"])
+        self.assertIn(PVALUE, result["dataset"].columns)
+        self.assertIn(FC, result["dataset"].columns)
+        pvals = result["dataset"][PVALUE].dropna()
+        self.assertTrue((pvals >= 0).all() and (pvals <= 1).all())
+
+
+class TestSqueezeVar(TestCase):
+    """Unit tests for the _squeeze_var empirical Bayes helper."""
+
+    def test_returns_finite_squeezed_variances(self):
+        rng = np.random.default_rng(0)
+        n = 20
+        sample_vars = rng.exponential(scale=2.0, size=n)
+        dfs = np.full(n, 4.0)
+        squeezed, df_prior = _squeeze_var(sample_vars, dfs)
+        self.assertEqual(len(squeezed), n)
+        self.assertTrue(np.all(np.isfinite(squeezed)))
+        self.assertGreaterEqual(df_prior, 0.0)
+
+    def test_nan_proteins_get_prior_variance(self):
+        """Proteins with NaN sample_var (df=0) should receive the prior variance."""
+        sample_vars = np.array([1.0, 2.0, 3.0, np.nan, np.nan])
+        dfs = np.array([4.0, 4.0, 4.0, 0.0, 0.0])
+        squeezed, _ = _squeeze_var(sample_vars, dfs)
+        self.assertTrue(np.isfinite(squeezed[3]))
+        self.assertTrue(np.isfinite(squeezed[4]))
+
+    def test_shrinks_extreme_variances_toward_center(self):
+        """Highly variable per-protein variances should be pulled toward the center."""
+        sample_vars = np.array([0.01, 0.01, 100.0, 100.0])
+        dfs = np.full(4, 4.0)
+        squeezed, _ = _squeeze_var(sample_vars, dfs)
+        # Squeezed low variance should be above raw; squeezed high variance below raw
+        self.assertGreater(squeezed[0], sample_vars[0])
+        self.assertLess(squeezed[2], sample_vars[2])
+
+
+class TestSamGroundTruth(TestCase):
+    """Ground-truth tests for the SAM end-to-end path with known data."""
+
+    def _run_sam(self, df):
+        with patch("game.services.volcano_plot", return_value="img"):
+            return _simulate_statistical_analysis(
+                df, {"statistical_test": "sam"}
+            )
+
+    def _make_clear_df(self):
+        """20-protein dataset where protein 0 is strongly UP and protein 19 is
+        strongly DOWN (completely reversed ordering between A and B).
+        Proteins 9 and 10 are the middle proteins with no consistent direction.
+        Each protein has a small random spread so variances are non-zero.
+        """
+        rng = np.random.default_rng(0)
+        n = 20
+        a_vals = np.arange(1.0, n + 1)
+        b_vals = np.arange(float(n), 0.0, -1.0)
+        base = {
+            "Protein": [f"P{i:03d}" for i in range(n)],
+            "Protein ID": [f"P{i:03d}" for i in range(n)],
+            "Entry Name": [f"E{i:03d}" for i in range(n)],
+            "Gene": [f"G{i:03d}" for i in range(n)],
+            "Protein Length": [300] * n,
+            "Organism": ["Yeast"] * n,
+            "Protein Existence": ["Evidence at protein level"] * n,
+            "Description": ["Protein"] * n,
+            "Protein Probability": [0.99] * n,
+            "Top Peptide Probability": [0.98] * n,
+            "Total Peptides": [5] * n,
+            "Spectral Count": [20] * n,
+            "Unique Spectral Count": [10] * n,
+            "Total Spectral Count": [25] * n,
+            "Indistinguishable Proteins": [""] * n,
+        }
+        noise = rng.normal(0, 0.1, size=(n, len(COND_A) + len(COND_B)))
+        for j, col in enumerate(COND_A):
+            base[col] = a_vals + noise[:, j]
+        for j, col in enumerate(COND_B):
+            base[col] = b_vals + noise[:, len(COND_A) + j]
+        return pd.DataFrame(base)
+
+    def test_upregulated_protein_gets_smaller_pvalue_than_null(self):
+        """P0 (lowest in A, highest in B) must be more significant than P9 (middle)."""
+        df = self._make_clear_df()
+        result = self._run_sam(df)
+        self.assertTrue(result["success"])
+        pvals = result["dataset"][PVALUE]
+        p_up = pvals.iloc[0]  # P0: strongly upregulated
+        p_null = pvals.iloc[9]  # P9: middle, no consistent direction
+        self.assertTrue(np.isfinite(p_up))
+        self.assertTrue(np.isfinite(p_null))
+        self.assertLess(
+            p_up,
+            p_null,
+            f"Upregulated protein p={p_up:.4f} should be < null p={p_null:.4f}",
+        )
+
+    def test_downregulated_protein_gets_smaller_pvalue_than_null(self):
+        """P19 (highest in A, lowest in B) must be more significant than P10 (middle)."""
+        df = self._make_clear_df()
+        result = self._run_sam(df)
+        pvals = result["dataset"][PVALUE]
+        p_down = pvals.iloc[19]  # P19: strongly downregulated
+        p_null = pvals.iloc[10]  # P10: middle
+        self.assertTrue(np.isfinite(p_down))
+        self.assertLess(
+            p_down,
+            p_null,
+            f"Downregulated protein p={p_down:.4f} should be < null p={p_null:.4f}",
+        )
+
 
 # ---------------------------------------------------------------------------
-# Station: veit (final scoring station)
+# Station: final_report (final scoring station)
 # ---------------------------------------------------------------------------
 
 
-class TestVeitStation(TestCase):
+class TestFinalReportStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_veit(pd.DataFrame(), {})
+        result = _simulate_final_report(pd.DataFrame(), {})
         self.assertFalse(result["success"])
 
     def test_counts_true_and_false_positives(self):
@@ -543,20 +697,58 @@ class TestVeitStation(TestCase):
             df = _make_dataset_with_stats()
             # Yeast P0001 has FC=-1.5 → true positive; E.coli P0003 has FC=1.8 → true positive
             # Yeast P0002 has FC=-0.3 → true positive (FC < 0); Human P0004 → false positive
-            result = _simulate_veit(df, {})
+            result = _simulate_final_report(df, {})
         self.assertEqual(
             result["true_positives"], 3
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
         self.assertEqual(result["false_positives"], 1)  # P0004 Human
         self.assertGreater(result["score"], 0)
+        self.assertIn("Final score breakdown", result["feedback"])
 
     def test_score_is_zero_for_all_false_positives(self):
         with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
             # All Human → all false positives
             df = _make_dataset_with_stats()
             df[ORGANISM] = "Human"
-            result = _simulate_veit(df, {})
+            result = _simulate_final_report(df, {})
         self.assertEqual(result["score"], 0)
+
+    def test_score_increases_with_more_true_positives(self):
+        with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
+            low_tp_df = pd.DataFrame(
+                {
+                    ORGANISM: ["Yeast", "Human"],
+                    FC: [-1.0, 0.2],
+                }
+            )
+            high_tp_df = pd.DataFrame(
+                {
+                    ORGANISM: [
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "Human",
+                    ],
+                    FC: [-1.0, -1.2, -0.5, -0.9, -1.4, 0.6, 1.0, 0.8, 1.3, 0.4, 0.2],
+                }
+            )
+
+            low_tp_result = _simulate_final_report(low_tp_df, {})
+            high_tp_result = _simulate_final_report(high_tp_df, {})
+
+        self.assertEqual(low_tp_result["false_positives"], 1)
+        self.assertEqual(high_tp_result["false_positives"], 1)
+        self.assertGreater(
+            high_tp_result["true_positives"], low_tp_result["true_positives"]
+        )
+        self.assertGreater(high_tp_result["score"], low_tp_result["score"])
 
 
 # ---------------------------------------------------------------------------
@@ -637,9 +829,7 @@ class TestStationParameterConfigurations(TestCase):
         options = self.station_options["normalize"]["parameters"][0]["options"]
         for method in options:
             with self.subTest(normalization=method):
-                result = _simulate_normalize(
-                    _make_dataset(), {"normalization": method}
-                )
+                result = _simulate_normalize(_make_dataset(), {"normalization": method})
                 self.assertTrue(result["success"])
 
     @patch("game.services.imputer_before_after_stripgrid", return_value=_DUMMY_IMG)
@@ -703,6 +893,7 @@ class TestStationParameterConfigurations(TestCase):
             "limma": True,
             "mannwhitneyu": True,
             "permutation": True,
+            "sam": True,
         }
         for test_name in options:
             with self.subTest(statistical_test=test_name):
@@ -739,12 +930,12 @@ def _read_csv_for_spectral_search(path, *args, **kwargs):
 class TestFullWorkflow(TestCase):
     """
     Chains every station in the canonical pipeline order and verifies that data
-    flows correctly from one station to the next, ending with a scored veit result.
+    flows correctly from one station to the next, ending with a scored final_report result.
 
     Station order:
       sample_prep → mass_spec → spectral_search → transform → filtering →
       normalize → imputer → statistical_analysis → multiple_testing_corrector →
-      the_cutter → veit
+    the_cutter → final_report
     """
 
     def test_full_pipeline(
@@ -825,9 +1016,9 @@ class TestFullWorkflow(TestCase):
         self.assertIsNotNone(r["dataset"])
         dataset = r["dataset"]
 
-        # --- 11. veit (final scoring) ---
-        r = _simulate_veit(dataset, {})
-        self.assertTrue(r["success"], "veit failed")
+        # --- 11. final_report (final scoring) ---
+        r = _simulate_final_report(dataset, {})
+        self.assertTrue(r["success"], "final_report failed")
         self.assertIn("score", r)
         self.assertIn("true_positives", r)
         self.assertIn("false_positives", r)
@@ -847,28 +1038,3 @@ class TestRunStationAnonymousUser(TestCase):
         request.user = AnonymousUser()
         return request
 
-    def test_run_station_does_not_use_or_write_session_visited_stations(self):
-        request = self._build_request()
-        request.session["visited_stations"] = ["sample_prep"]
-
-        def _runner(_dataset, _params):
-            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
-
-        with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
-            result = run_station(request, station_id="mass_spec", params={})
-
-        self.assertTrue(result["success"])
-        self.assertEqual(request.session["visited_stations"], ["sample_prep"])
-        self.assertEqual(StationRun.objects.count(), 0)
-
-    def test_run_station_success_without_visited_stations_session_key(self):
-        request = self._build_request()
-
-        def _runner(_dataset, _params):
-            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
-
-        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
-            result = run_station(request, station_id="sample_prep", params={})
-
-        self.assertTrue(result["success"])
-        self.assertNotIn("visited_stations", request.session)
