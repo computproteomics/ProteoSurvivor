@@ -59,7 +59,7 @@ class Migration(migrations.Migration):
             name='StationRun',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('station_id', models.CharField(choices=[('sample_prep', 'Sample Preparation'), ('mass_spec', 'Mass Spectrometer'), ('spectral_search', 'Spectral Search Station'), ('filtering', 'Filtering Station'), ('transform', 'Transform Station'), ('normalize', 'Normalize Station'), ('imputer', 'Imputer Station'), ('multiple_testing_corrector', 'Multiple Testing Corrector'), ('the_cutter', 'The Cutter'), ('statistical_analysis', 'Statistical Analysis'), ('veit', 'Veit')], max_length=50)),
+                ('station_id', models.CharField(choices=[('sample_prep', 'Sample Preparation'), ('mass_spec', 'Mass Spectrometer'), ('spectral_search', 'Spectral Search Station'), ('filtering', 'Filtering Station'), ('transform', 'Transform Station'), ('normalize', 'Normalize Station'), ('imputer', 'Imputer Station'), ('multiple_testing_corrector', 'Multiple Testing Corrector'), ('the_cutter', 'The Cutter'), ('statistical_analysis', 'Statistical Analysis'), ('final_report', 'Final Report')], max_length=50)),
                 ('params', models.JSONField(default=dict)),
                 ('results', models.JSONField(default=dict)),
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('running', 'Running'), ('completed', 'Completed'), ('failed', 'Failed')], default='pending', max_length=20)),
