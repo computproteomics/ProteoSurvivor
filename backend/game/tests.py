@@ -27,7 +27,7 @@ from game.services import (
     _simulate_statistical_analysis,
     _simulate_the_cutter,
     _simulate_transform,
-    _simulate_veit,
+    _simulate_final_report,
     run_station,
     COND_A,
     COND_B,
@@ -688,13 +688,13 @@ class TestSamGroundTruth(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Station: veit (final scoring station)
+# Station: final_report (final scoring station)
 # ---------------------------------------------------------------------------
 
 
-class TestVeitStation(TestCase):
+class TestFinalReportStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_veit(pd.DataFrame(), {})
+        result = _simulate_final_report(pd.DataFrame(), {})
         self.assertFalse(result["success"])
 
     def test_counts_true_and_false_positives(self):
@@ -702,7 +702,7 @@ class TestVeitStation(TestCase):
             df = _make_dataset_with_stats()
             # Yeast P0001 has FC=-1.5 → true positive; E.coli P0003 has FC=1.8 → true positive
             # Yeast P0002 has FC=-0.3 → true positive (FC < 0); Human P0004 → false positive
-            result = _simulate_veit(df, {})
+            result = _simulate_final_report(df, {})
         self.assertEqual(
             result["true_positives"], 3
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
@@ -714,7 +714,7 @@ class TestVeitStation(TestCase):
             # All Human → all false positives
             df = _make_dataset_with_stats()
             df[ORGANISM] = "Human"
-            result = _simulate_veit(df, {})
+            result = _simulate_final_report(df, {})
         self.assertEqual(result["score"], 0)
 
     def test_f1_score_uses_total_possible_tp(self):
@@ -908,12 +908,12 @@ def _read_csv_for_spectral_search(path, *args, **kwargs):
 class TestFullWorkflow(TestCase):
     """
     Chains every station in the canonical pipeline order and verifies that data
-    flows correctly from one station to the next, ending with a scored veit result.
+    flows correctly from one station to the next, ending with a scored final_report result.
 
     Station order:
       sample_prep → mass_spec → spectral_search → transform → filtering →
       normalize → imputer → statistical_analysis → multiple_testing_corrector →
-      the_cutter → veit
+    the_cutter → final_report
     """
 
     def test_full_pipeline(
@@ -994,9 +994,9 @@ class TestFullWorkflow(TestCase):
         self.assertIsNotNone(r["dataset"])
         dataset = r["dataset"]
 
-        # --- 11. veit (final scoring) ---
-        r = _simulate_veit(dataset, {})
-        self.assertTrue(r["success"], "veit failed")
+        # --- 11. final_report (final scoring) ---
+        r = _simulate_final_report(dataset, {})
+        self.assertTrue(r["success"], "final_report failed")
         self.assertIn("score", r)
         self.assertIn("true_positives", r)
         self.assertIn("false_positives", r)

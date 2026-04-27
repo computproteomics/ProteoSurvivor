@@ -959,12 +959,12 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations=None) -> dict:
+def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
             "success": False,
-            "feedback": "⚠️ No final candidate set detected. Veit arrived ready to judge the outcome and found only the ceremonial remains of a pipeline.",
+            "feedback": "⚠️ No final candidate set detected. The \"Please Let This Be Significant\" Lounge opened for business and found only ceremonial pipeline debris.",
             "score": 0,
             "dataset": pd.DataFrame(),
             "true_positives": 0,
@@ -988,7 +988,7 @@ def _simulate_veit(dataset: pd.DataFrame, params: dict, visited_stations=None) -
 
     return {
         "success": True,
-        "feedback": "✅ You made it to Veit. Against all reasonable expectation, the pipeline held together, the result is interpretable, and the lab may proceed with confidence and only minimal existential damage.",
+        "feedback": "✅ You made it to The \"Please Let This Be Significant\" Lounge. Against all expectation, the pipeline held together and your report looks statistically defensible.",
         "score": score,
         "true_positives": true_positives,
         "false_positives": false_positives,
@@ -1400,7 +1400,7 @@ STATION_SIMULATORS.update(
         "multiple_testing_corrector": _simulate_multiple_testing_corrector,
         "the_cutter": _simulate_the_cutter,
         "statistical_analysis": _simulate_statistical_analysis,
-        "veit": _simulate_veit,
+        "final_report": _simulate_final_report,
         # ...
     }
 )
