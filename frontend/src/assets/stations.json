@@ -456,13 +456,15 @@
           "welch",
           "limma",
           "mannwhitneyu",
-          "permutation"
+          "permutation",
+          "sam"
         ],
         "optionLabels": {
           "welch": "Welch t-test",
           "limma": "Limma",
           "mannwhitneyu": "Mann-Whitney U test",
-          "permutation": "Permutation test"
+          "permutation": "Permutation test",
+          "sam": "SAM"
         },
         "defaultValue": "welch",
         "tooltip": "Choose a test based on distribution assumptions and sample size. Welch is a robust default for unequal variances; non-parametric or permutation approaches can be safer for non-normal data."

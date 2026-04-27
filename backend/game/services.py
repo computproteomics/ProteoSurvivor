@@ -35,7 +35,9 @@ from sklearn.impute import IterativeImputer
 from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 
-from scipy.stats import ttest_ind, mannwhitneyu, permutation_test
+from scipy.special import digamma, polygamma
+from scipy.stats import t as t_dist
+from scipy.stats import ttest_ind, mannwhitneyu
 
 from django.conf import settings
 
@@ -932,12 +934,14 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_final_report(
+    dataset: pd.DataFrame, params: dict
+) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
             "success": False,
-            "feedback": "⚠️ No final candidate set detected. The \"Please Let This Be Significant\" Lounge opened for business and found only ceremonial pipeline debris.",
+            "feedback": '⚠️ No final candidate set detected. The "Please Let This Be Significant" Lounge opened for business and found only ceremonial pipeline debris.',
             "score": 0,
             "dataset": pd.DataFrame(),
             "true_positives": 0,
@@ -945,30 +949,167 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
             "img": imgs,
         }
     significant = dataset.copy()
-    true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
-    true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
-    false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
-    false_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} <= 0")
-    false_human = significant.query(f"{ORGANISM} == 'Human'")
+    if ORGANISM not in significant.columns or FC not in significant.columns:
+        return {
+            "success": False,
+            "feedback": "⚠️ Final report requires Organism and fold_change columns. Please complete the statistical analysis step before submitting.",
+            "score": 0,
+            "dataset": significant,
+            "true_positives": 0,
+            "false_positives": 0,
+            "img": imgs,
+        }
+
+    true_yeast = significant[(significant[ORGANISM] == "Yeast") & (significant[FC] < 0)]
+    true_ecoli = significant[
+        (significant[ORGANISM] == "E. coli") & (significant[FC] > 0)
+    ]
+    false_yeast = significant[
+        (significant[ORGANISM] == "Yeast") & (significant[FC] >= 0)
+    ]
+    false_ecoli = significant[
+        (significant[ORGANISM] == "E. coli") & (significant[FC] <= 0)
+    ]
+    false_human = significant[significant[ORGANISM] == "Human"]
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    score = (
-        true_positives * (1 - false_positives / len(significant))
-        if len(significant) > 0
-        else 0
+
+    precision_denominator = true_positives + false_positives
+    precision = (
+        true_positives / precision_denominator if precision_denominator > 0 else 0
     )
+
+    # Reward larger high-quality hit sets so tiny TP counts with zero FP are not optimal.
+    tp_volume_factor = (
+        true_positives / (true_positives + 10) if true_positives > 0 else 0
+    )
+    score = precision * tp_volume_factor
     imgs.append(plot_scores(true_positives, false_positives))
+
+    feedback = (
+        '✅ You made it to The "Please Let This Be Significant" Lounge. '
+        "Against all expectation, the pipeline held together and your report looks statistically defensible.<br/><br/>"
+        "<strong>Final score breakdown</strong><br/>"
+        f"TP = {true_positives}, FP = {false_positives}<br/>"
+        "Precision = TP / (TP + FP)<br/>"
+        f"= {true_positives} / ({true_positives} + {false_positives}) = {precision:.4f}<br/><br/>"
+        "TP volume factor = TP / (TP + 10)<br/>"
+        f"= {true_positives} / ({true_positives} + 10) = {tp_volume_factor:.4f}<br/><br/>"
+        "Final score = Precision × TP volume factor<br/>"
+        f"= {precision:.4f} × {tp_volume_factor:.4f} = <strong>{score:.4f}</strong><br/><br/>"
+        "If high enough, you will see your score in the leaderboard and earn the respect of the proteome. If not, well... at least you made it here and learned something, and that's something to be proud of, right?"
+    )
 
     return {
         "success": True,
-        "feedback": "✅ You made it to The \"Please Let This Be Significant\" Lounge. Against all expectation, the pipeline held together and your report looks statistically defensible.",
+        "feedback": feedback,
         "score": score,
         "true_positives": true_positives,
         "false_positives": false_positives,
         "dataset": dataset,
         "img": imgs,
     }
+
+
+def _trigamma_inv(y: float) -> float:
+    """Return x such that trigamma(x) == y, using Newton's method.
+
+    The starting approximation uses the asymptotic relation trigamma(x) ≈ 1/x,
+    giving x₀ ≈ 1/y for large y (y > 0.5) and x₀ ≈ 1/(0.5y + 0.5) for small y (y ≤ 0.5).
+    Clipped to 1e-10 to stay in the valid (positive) domain.
+    Convergence is typically reached in fewer than 10 iterations; 50 is a
+    generous safety limit.
+    """
+    _MAX_ITER = 50
+    if not np.isfinite(y) or y <= 0:
+        return np.nan
+    # Starting approximation: trigamma(x) ≈ 1/x for large x
+    x = max(0.5 + 1.0 / y if y > 0.5 else 1.0 / (0.5 * y + 0.5), 1e-10)
+    for _ in range(_MAX_ITER):
+        tri = float(polygamma(1, x))
+        pent = float(polygamma(2, x))
+        if pent == 0:
+            break
+        step = (tri - y) / pent
+        x = max(x - step, 1e-10)
+        if abs(step) < 1e-8:
+            break
+    return x
+
+
+def _squeeze_var(
+    sample_vars: np.ndarray, residual_dfs: np.ndarray
+) -> tuple[np.ndarray, float]:
+    """
+    Empirical Bayes variance moderation following Smyth (2004) / limma squeezeVar.
+
+    Fits a scaled inverse chi-squared prior to the per-protein sample variances and
+    returns posterior (squeezed) variances together with the estimated prior degrees
+    of freedom.  Proteins without an estimable variance (df == 0) are assigned the
+    prior variance so they still receive a p-value.
+
+    Parameters
+    ----------
+    sample_vars : ndarray, shape (n,)
+        Per-protein pooled sample variance.  NaN where variance cannot be computed.
+    residual_dfs : ndarray, shape (n,)
+        Per-protein residual degrees of freedom (nA + nB - 2).
+
+    Returns
+    -------
+    squeezed_vars : ndarray, shape (n,)
+        Posterior variance estimate for each protein.
+    df_prior : float
+        Estimated prior degrees of freedom.
+    """
+    valid = np.isfinite(sample_vars) & (sample_vars > 0) & (residual_dfs > 0)
+
+    if valid.sum() < 3:
+        # Too few proteins to estimate the prior reliably.
+        # Use the median observed variance as the prior and treat it as having
+        # infinite prior df (complete pooling) so NaN-variance proteins still get a p-value.
+        finite_pos = np.isfinite(sample_vars) & (sample_vars > 0)
+        prior_var = (
+            float(np.median(sample_vars[finite_pos])) if finite_pos.any() else 1.0
+        )
+        squeezed = np.where(finite_pos, sample_vars, prior_var)
+        df_prior_fallback = np.inf if finite_pos.any() else 0.0
+        return squeezed, df_prior_fallback
+
+    sv = sample_vars[valid]
+    df = residual_dfs[valid]
+
+    # z_g = log(s²_g) − (ψ(d_g/2) − log(d_g/2))  →  E[z_g] ≈ log(s0²)
+    z = np.log(sv) - (digamma(df / 2) - np.log(df / 2))
+    z_mean = float(np.mean(z))
+    s0_sq = np.exp(z_mean)
+
+    # Var[z_g] ≈ trigamma(d0/2) + mean(trigamma(d_g/2))
+    z_var = float(np.var(z, ddof=1))
+    tg_correction = float(np.mean(polygamma(1, df / 2)))
+    target_tg = z_var - tg_correction
+
+    if target_tg <= 0:
+        # Observed inter-protein spread ≤ expected sampling noise → prior df is
+        # effectively infinite (complete pooling toward the grand mean variance).
+        df_prior = np.inf
+    else:
+        df_prior = max(2.0 * _trigamma_inv(target_tg), 0.0)
+
+    # Posterior: s̃²_g = (d0·s0² + d_g·s²_g) / (d0 + d_g)
+    # Build element-by-element to avoid inf/inf arithmetic when df_prior is infinite.
+    squeezed = np.full(len(sample_vars), s0_sq)
+    valid_mask = np.isfinite(sample_vars) & (residual_dfs > 0)
+    if np.isinf(df_prior):
+        # Complete pooling: every protein gets the grand-mean prior variance
+        pass  # squeezed already set to s0_sq everywhere
+    else:
+        dg = residual_dfs[valid_mask]
+        squeezed[valid_mask] = (df_prior * s0_sq + dg * sample_vars[valid_mask]) / (
+            df_prior + dg
+        )
+    return squeezed, df_prior
 
 
 def _simulate_statistical_analysis(
@@ -1036,9 +1177,53 @@ def _simulate_statistical_analysis(
             feedback = "✅ Welch's t-test applied. Unequal variances were acknowledged and the proteins were judged accordingly."
 
         elif test == "limma":
-            raise NotImplementedError("Limma not implemented")
+            n_proteins = len(expr)
+            sample_vars = np.full(n_proteins, np.nan)
+            residual_dfs = np.zeros(n_proteins)
+            mean_diffs = np.full(n_proteins, np.nan)
+            se_factors = np.full(n_proteins, np.nan)  # sqrt(1/nA + 1/nB)
+
+            for idx in range(n_proteins):
+                row = expr.iloc[idx]
+                a = row[COND_A].dropna()
+                b = row[COND_B].dropna()
+                nA, nB = len(a), len(b)
+                if nA < 1 or nB < 1:
+                    continue
+                mean_diffs[idx] = b.mean() - a.mean()
+                se_factors[idx] = np.sqrt(1.0 / nA + 1.0 / nB)
+                if nA >= 2 and nB >= 2:
+                    pooled_var = (
+                        (nA - 1) * a.var(ddof=1) + (nB - 1) * b.var(ddof=1)
+                    ) / (nA + nB - 2)
+                    sample_vars[idx] = pooled_var
+                    residual_dfs[idx] = nA + nB - 2
+
+            squeezed_vars, df_prior = _squeeze_var(sample_vars, residual_dfs)
+
+            for idx in range(n_proteins):
+                if not np.isfinite(mean_diffs[idx]) or not np.isfinite(se_factors[idx]):
+                    continue
+                sv = squeezed_vars[idx]
+                if not np.isfinite(sv) or sv <= 0:
+                    continue
+                se = np.sqrt(sv) * se_factors[idx]
+                if se == 0:
+                    continue
+                t_stat = mean_diffs[idx] / se
+                df_total = df_prior + residual_dfs[idx]
+                if df_total <= 0:
+                    continue
+                p_values[idx] = float(2 * t_dist.sf(abs(t_stat), df=df_total))
+
+            success = True
+            feedback = "✅ Limma moderated t-test applied. Variance estimates were squeezed toward a common prior, giving a fairer hearing to proteins measured with few replicates."
 
         elif test == "mannwhitneyu":
+            # With only N_REP replicates per condition the exact Mann-Whitney U
+            # test has extremely coarse p-value resolution and cannot reach p < 0.1
+            # for n=3 vs n=3.  The asymptotic (normal approximation with continuity
+            # correction) method is appropriate here and gives continuous p-values.
             for idx in range(len(expr)):
                 row = expr.iloc[idx]
                 a = row[COND_A].dropna()
@@ -1049,43 +1234,156 @@ def _simulate_statistical_analysis(
                     continue
 
                 try:
-                    _, p = mannwhitneyu(a, b, alternative="two-sided", method="exact")
-                    p_values[idx] = p
-                except ValueError:
                     _, p = mannwhitneyu(
                         a, b, alternative="two-sided", method="asymptotic"
                     )
                     p_values[idx] = p
+                except ValueError:
+                    p_values[idx] = np.nan
             success = True
-            feedback = "✅ Mann-Whitney U test applied. The samples were compared without assuming the universe had behaved normally."
+            feedback = "✅ Mann-Whitney U test applied. Samples were compared non-parametrically using the normal approximation, without assuming the data are normally distributed."
 
         elif test == "permutation":
             N_PERMUTATIONS = 1000
-            for idx in range(len(expr)):
-                row = expr.iloc[idx]
-                A = row[COND_A].dropna().values
-                B = row[COND_B].dropna().values
+            rng = np.random.default_rng(42)
+            n_a = len(COND_A)
+            n_b = len(COND_B)
+            n_total = n_a + n_b
 
-                if len(A) == 0 or len(B) == 0:
-                    p_values[idx] = np.nan
-                    continue
+            # Build a single (n_proteins × n_samples) matrix for all proteins at once.
+            X = expr[COND_A + COND_B].values  # shape (n_proteins, n_total)
 
-                def statistic(x, y):
-                    return np.mean(y) - np.mean(x)
+            # Observed statistic: mean(B) - mean(A) per protein, ignoring NaN.
+            obs_stat = np.nanmean(X[:, n_a:], axis=1) - np.nanmean(X[:, :n_a], axis=1)
 
-                res = permutation_test(
-                    (A, B),
-                    statistic,
-                    vectorized=False,
-                    n_resamples=N_PERMUTATIONS,
-                    alternative="two-sided",
-                    random_state=42,
+            # Global permutations: the same label shuffle is applied to every protein
+            # simultaneously, preserving cross-protein correlation structure.
+            # Accumulate all permuted statistics in a matrix for pooled null.
+            null_matrix = np.empty((len(expr), N_PERMUTATIONS))
+            for k in range(N_PERMUTATIONS):
+                perm_idx = rng.permutation(n_total)
+                X_perm = X[:, perm_idx]
+                null_matrix[:, k] = np.nanmean(X_perm[:, n_a:], axis=1) - np.nanmean(
+                    X_perm[:, :n_a], axis=1
                 )
-                p = max(res.pvalue, 1 / (N_PERMUTATIONS + 1))
-                p_values[idx] = p
+
+            # Variance-stabilisation (Perseus-style): divide each protein's observed
+            # statistic and null statistics by that protein's permutation standard
+            # deviation so that all proteins contribute on the same scale before
+            # pooling across proteins.
+            perm_std = np.nanstd(null_matrix, axis=1, ddof=1)
+            valid = np.isfinite(obs_stat) & (perm_std > 0)
+            obs_z = np.where(valid, obs_stat / perm_std, np.nan)
+            null_z = null_matrix / perm_std[:, np.newaxis]
+
+            # Pool all stabilised null statistics across proteins into one global null
+            # distribution.  Using only valid proteins avoids NaN contamination.
+            pooled_null_sorted = np.sort(np.abs(null_z[valid, :].ravel()))
+            n_pooled = len(pooled_null_sorted)
+
+            # Two-tailed p-value: fraction of pooled null >= |obs_z_i|.
+            # Phipson-Smyth (2010): add 1 to numerator and denominator so p != 0.
+            abs_obs_z = np.abs(np.where(valid, obs_z, 0.0))
+            exceed = n_pooled - np.searchsorted(
+                pooled_null_sorted, abs_obs_z, side="left"
+            )
+            p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
 
             success = True
-            feedback = f"✅ Permutation test applied ({N_PERMUTATIONS} permutations). Chance was consulted repeatedly until it gave a usable answer."
+            n_valid = int(valid.sum())
+            feedback = (
+                f"✅ Permutation test applied ({N_PERMUTATIONS} global permutations, "
+                f"{n_valid} proteins). Variance-stabilised statistics were pooled "
+                f"across all proteins to build a shared null distribution "
+                f"({n_valid * N_PERMUTATIONS:,} null values), following the Perseus approach."
+            )
+
+        elif test == "sam":
+            # SAM (Significance Analysis of Microarrays; Tusher et al. 2001).
+            # Computes a regularised fold-change statistic:
+            #   d(i) = (mean_B − mean_A) / (s(i) + s₀)
+            # where s(i) is the pooled standard error per protein and s₀ is a
+            # small positive "fudge factor" (5th percentile of all s(i)) that
+            # prevents spuriously significant calls for near-zero-variance proteins.
+            # P-values are obtained by permuting sample labels while keeping the
+            # denominator fixed at the observed s(i) + s₀, then pooling the
+            # resulting null statistics across all proteins.
+            N_PERMUTATIONS = 1000
+            rng = np.random.default_rng(42)
+            n_a = len(COND_A)
+            n_b = len(COND_B)
+            n_total = n_a + n_b
+            n_prot = len(expr)
+            X = expr[COND_A + COND_B].values.astype(float)  # (n_prot, n_total)
+
+            # Per-protein pooled SE and observed mean difference
+            se_obs = np.full(n_prot, np.nan)
+            mean_diff_obs = np.full(n_prot, np.nan)
+            valid = np.zeros(n_prot, dtype=bool)
+
+            for idx in range(n_prot):
+                a = X[idx, :n_a]
+                b = X[idx, n_a:]
+                a = a[np.isfinite(a)]
+                b = b[np.isfinite(b)]
+                na, nb = len(a), len(b)
+                if na < 2 or nb < 2:
+                    continue
+                sp2 = ((na - 1) * np.var(a, ddof=1) + (nb - 1) * np.var(b, ddof=1)) / (
+                    na + nb - 2
+                )
+                se_i = np.sqrt(sp2 * (1.0 / na + 1.0 / nb))
+                if not np.isfinite(se_i):
+                    continue
+                mean_diff_obs[idx] = b.mean() - a.mean()
+                se_obs[idx] = se_i
+                valid[idx] = True
+
+            # Fudge factor: 5th percentile of per-protein SEs
+            se_valid_vals = se_obs[valid]
+            s0 = (
+                float(np.percentile(se_valid_vals, 5))
+                if len(se_valid_vals) > 0
+                else 0.0
+            )
+
+            # Observed SAM statistic; denominator is fixed for permutations too.
+            # Clip to a minimum of 1e-12 so division is always safe (proteins with
+            # zero SE and zero s0 get an effectively infinite SAM statistic, which
+            # is correct — they are trivially significant if their means differ).
+            denom = np.where(valid, np.fmax(se_obs + s0, 1e-12), 1.0)
+            d_obs = np.where(valid, mean_diff_obs / denom, np.nan)
+
+            # Null distribution: permute labels, reuse observed denominator
+            null_matrix = np.empty((n_prot, N_PERMUTATIONS))
+            null_matrix[:] = np.nan
+            for perm_k in range(N_PERMUTATIONS):
+                perm_idx = rng.permutation(n_total)
+                X_perm = X[:, perm_idx]
+                md_perm = np.nanmean(X_perm[:, n_a:], axis=1) - np.nanmean(
+                    X_perm[:, :n_a], axis=1
+                )
+                null_matrix[:, perm_k] = np.where(valid, md_perm / denom, np.nan)
+
+            # Pool |null d| across all valid proteins
+            pooled_null_sorted = np.sort(np.abs(null_matrix[valid, :].ravel()))
+            n_pooled = len(pooled_null_sorted)
+
+            # Two-tailed p-value (Phipson & Smyth 2010 bias correction)
+            abs_d_obs = np.abs(np.where(valid, d_obs, 0.0))
+            exceed = n_pooled - np.searchsorted(
+                pooled_null_sorted, abs_d_obs, side="left"
+            )
+            p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
+
+            n_valid = int(valid.sum())
+            success = True
+            feedback = (
+                f"✅ SAM test applied ({N_PERMUTATIONS} permutations, {n_valid} proteins). "
+                f"A regularised fold-change statistic (fudge factor s₀ = {s0:.4f}) "
+                "was used to stabilise variance estimates and reduce false positives "
+                "for low-variance proteins."
+            )
         else:
             success = False
             feedback = "⚠️ Unknown statistical test. The station declines to perform inferential improv theatre."
