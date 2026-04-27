@@ -1,7 +1,6 @@
 import io
 import base64
 import pandas as pd
-import math
 import matplotlib
 
 matplotlib.use("Agg")
@@ -256,7 +255,7 @@ def plot_scores(true_positives=None, false_positives=None):
             return None
         ratio = fp / tp
         ratio = max(ratio, 1e-12)
-        return -math.log10(ratio)
+        return -np.log10(ratio)
 
     results = FinalStationResult.objects.all().values_list(
         "true_positives", "false_positives"
