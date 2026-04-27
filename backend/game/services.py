@@ -126,12 +126,6 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
         visited_station_list = request.session.get("visited_stations", [])
         visited_stations = set(visited_station_list)
 
-    # Inject the ground-truth total recoverable TP count (stored by the_cutter) so the
-    # veit station can compute recall and the F1 score without access to the full dataset.
-    if station_id == "veit":
-        params = dict(params)
-        params["total_possible_tp"] = request.session.get("total_possible_tp", 0)
-
     result = runner(dataset, params, visited_stations)
 
     print(f"Simulation result for station '{station_id}': {result}")
@@ -159,9 +153,6 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
-    # Persist the ground-truth TP count from the_cutter so the veit station can use it.
-    if station_id == "the_cutter" and "total_possible_tp" in result:
-        request.session["total_possible_tp"] = result["total_possible_tp"]
     if request.user.is_authenticated:
         print(f"Updated session dataset for user {request.user.username}")
     else:
@@ -940,31 +931,24 @@ def _simulate_the_cutter(
 
     imgs.append(plot_significant_proteins(significant))
 
-    # Count ground-truth recoverable true positives in the full pre-cutter dataset
-    # so the veit station can compute recall and F1 score.
-    total_possible_tp = len(
-        dataset.query(
-            f"({ORGANISM} == 'Yeast' and {FC} < 0) or ({ORGANISM} == 'E. coli' and {FC} > 0)"
-        )
-    )
-
     return {
         "summary": "Final candidate selection complete.",
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
-        "total_possible_tp": total_possible_tp,
         "feedback": f"✅ Candidate selection complete. You identified {len(significant)} proteins worthy of surviving the cutoffs, while the rest were quietly returned to statistical oblivion.",
         "img": imgs,
     }
 
 
-def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
+def _simulate_final_report(
+    dataset: pd.DataFrame, params: dict, visited_stations=None
+) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
             "success": False,
-            "feedback": "⚠️ No final candidate set detected. The \"Please Let This Be Significant\" Lounge opened for business and found only ceremonial pipeline debris.",
+            "feedback": '⚠️ No final candidate set detected. The "Please Let This Be Significant" Lounge opened for business and found only ceremonial pipeline debris.',
             "score": 0,
             "dataset": pd.DataFrame(),
             "true_positives": 0,
@@ -972,23 +956,61 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
             "img": imgs,
         }
     significant = dataset.copy()
-    true_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} < 0")
-    true_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} > 0")
-    false_yeast = significant.query(f"{ORGANISM} == 'Yeast' and {FC} >= 0")
-    false_ecoli = significant.query(f"{ORGANISM} == 'E. coli' and {FC} <= 0")
-    false_human = significant.query(f"{ORGANISM} == 'Human'")
+    if ORGANISM not in significant.columns or FC not in significant.columns:
+        return {
+            "success": False,
+            "feedback": "⚠️ Final report requires Organism and fold_change columns. Please complete the statistical analysis step before submitting.",
+            "score": 0,
+            "dataset": significant,
+            "true_positives": 0,
+            "false_positives": 0,
+            "img": imgs,
+        }
+
+    true_yeast = significant[(significant[ORGANISM] == "Yeast") & (significant[FC] < 0)]
+    true_ecoli = significant[
+        (significant[ORGANISM] == "E. coli") & (significant[FC] > 0)
+    ]
+    false_yeast = significant[
+        (significant[ORGANISM] == "Yeast") & (significant[FC] >= 0)
+    ]
+    false_ecoli = significant[
+        (significant[ORGANISM] == "E. coli") & (significant[FC] <= 0)
+    ]
+    false_human = significant[significant[ORGANISM] == "Human"]
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
-    total_possible_tp = params.get("total_possible_tp", 0)
-    false_negatives = max(0, total_possible_tp - true_positives)
-    f1_denominator = 2 * true_positives + false_positives + false_negatives
-    score = (2 * true_positives / f1_denominator) if f1_denominator > 0 else 0
+
+    precision_denominator = true_positives + false_positives
+    precision = (
+        true_positives / precision_denominator if precision_denominator > 0 else 0
+    )
+
+    # Reward larger high-quality hit sets so tiny TP counts with zero FP are not optimal.
+    tp_volume_factor = (
+        true_positives / (true_positives + 10) if true_positives > 0 else 0
+    )
+    score = precision * tp_volume_factor
     imgs.append(plot_scores(true_positives, false_positives))
+
+    feedback = (
+        '✅ You made it to The "Please Let This Be Significant" Lounge. '
+        "Against all expectation, the pipeline held together and your report looks statistically defensible.<br/><br/>"
+        "<strong>Final score breakdown</strong><br/>"
+        f"TP = {true_positives}, FP = {false_positives}<br/>"
+        "Precision = TP / (TP + FP)<br/>"
+        f"= {true_positives} / ({true_positives} + {false_positives}) = {precision:.4f}<br/><br/>"
+        "TP volume factor = TP / (TP + 10)<br/>"
+        f"= {true_positives} / ({true_positives} + 10) = {tp_volume_factor:.4f}<br/><br/>"
+        "Final score = Precision × TP volume factor<br/>"
+        f"= {precision:.4f} × {tp_volume_factor:.4f} = <strong>{score:.4f}</strong><br/><br/>"
+        "If high enough, you will see your score in the leaderboard and earn the respect of the proteome. If not, well... at least you made it here and learned something, and that's something to be proud of, right?"
+    )
 
     return {
         "success": True,
-        "feedback": "✅ You made it to The \"Please Let This Be Significant\" Lounge. Against all expectation, the pipeline held together and your report looks statistically defensible.",
+        "feedback": feedback,
         "score": score,
         "true_positives": true_positives,
         "false_positives": false_positives,
@@ -1055,7 +1077,9 @@ def _squeeze_var(
         # Use the median observed variance as the prior and treat it as having
         # infinite prior df (complete pooling) so NaN-variance proteins still get a p-value.
         finite_pos = np.isfinite(sample_vars) & (sample_vars > 0)
-        prior_var = float(np.median(sample_vars[finite_pos])) if finite_pos.any() else 1.0
+        prior_var = (
+            float(np.median(sample_vars[finite_pos])) if finite_pos.any() else 1.0
+        )
         squeezed = np.where(finite_pos, sample_vars, prior_var)
         df_prior_fallback = np.inf if finite_pos.any() else 0.0
         return squeezed, df_prior_fallback
@@ -1089,7 +1113,9 @@ def _squeeze_var(
         pass  # squeezed already set to s0_sq everywhere
     else:
         dg = residual_dfs[valid_mask]
-        squeezed[valid_mask] = (df_prior * s0_sq + dg * sample_vars[valid_mask]) / (df_prior + dg)
+        squeezed[valid_mask] = (df_prior * s0_sq + dg * sample_vars[valid_mask]) / (
+            df_prior + dg
+        )
     return squeezed, df_prior
 
 
@@ -1215,7 +1241,9 @@ def _simulate_statistical_analysis(
                     continue
 
                 try:
-                    _, p = mannwhitneyu(a, b, alternative="two-sided", method="asymptotic")
+                    _, p = mannwhitneyu(
+                        a, b, alternative="two-sided", method="asymptotic"
+                    )
                     p_values[idx] = p
                 except ValueError:
                     p_values[idx] = np.nan
@@ -1242,9 +1270,8 @@ def _simulate_statistical_analysis(
             for k in range(N_PERMUTATIONS):
                 perm_idx = rng.permutation(n_total)
                 X_perm = X[:, perm_idx]
-                null_matrix[:, k] = (
-                    np.nanmean(X_perm[:, n_a:], axis=1)
-                    - np.nanmean(X_perm[:, :n_a], axis=1)
+                null_matrix[:, k] = np.nanmean(X_perm[:, n_a:], axis=1) - np.nanmean(
+                    X_perm[:, :n_a], axis=1
                 )
 
             # Variance-stabilisation (Perseus-style): divide each protein's observed
@@ -1264,7 +1291,9 @@ def _simulate_statistical_analysis(
             # Two-tailed p-value: fraction of pooled null >= |obs_z_i|.
             # Phipson-Smyth (2010): add 1 to numerator and denominator so p != 0.
             abs_obs_z = np.abs(np.where(valid, obs_z, 0.0))
-            exceed = n_pooled - np.searchsorted(pooled_null_sorted, abs_obs_z, side="left")
+            exceed = n_pooled - np.searchsorted(
+                pooled_null_sorted, abs_obs_z, side="left"
+            )
             p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
 
             success = True
@@ -1307,9 +1336,9 @@ def _simulate_statistical_analysis(
                 na, nb = len(a), len(b)
                 if na < 2 or nb < 2:
                     continue
-                sp2 = (
-                    (na - 1) * np.var(a, ddof=1) + (nb - 1) * np.var(b, ddof=1)
-                ) / (na + nb - 2)
+                sp2 = ((na - 1) * np.var(a, ddof=1) + (nb - 1) * np.var(b, ddof=1)) / (
+                    na + nb - 2
+                )
                 se_i = np.sqrt(sp2 * (1.0 / na + 1.0 / nb))
                 if not np.isfinite(se_i):
                     continue
@@ -1319,7 +1348,11 @@ def _simulate_statistical_analysis(
 
             # Fudge factor: 5th percentile of per-protein SEs
             se_valid_vals = se_obs[valid]
-            s0 = float(np.percentile(se_valid_vals, 5)) if len(se_valid_vals) > 0 else 0.0
+            s0 = (
+                float(np.percentile(se_valid_vals, 5))
+                if len(se_valid_vals) > 0
+                else 0.0
+            )
 
             # Observed SAM statistic; denominator is fixed for permutations too.
             # Clip to a minimum of 1e-12 so division is always safe (proteins with
@@ -1334,9 +1367,8 @@ def _simulate_statistical_analysis(
             for perm_k in range(N_PERMUTATIONS):
                 perm_idx = rng.permutation(n_total)
                 X_perm = X[:, perm_idx]
-                md_perm = (
-                    np.nanmean(X_perm[:, n_a:], axis=1)
-                    - np.nanmean(X_perm[:, :n_a], axis=1)
+                md_perm = np.nanmean(X_perm[:, n_a:], axis=1) - np.nanmean(
+                    X_perm[:, :n_a], axis=1
                 )
                 null_matrix[:, perm_k] = np.where(valid, md_perm / denom, np.nan)
 
@@ -1346,7 +1378,9 @@ def _simulate_statistical_analysis(
 
             # Two-tailed p-value (Phipson & Smyth 2010 bias correction)
             abs_d_obs = np.abs(np.where(valid, d_obs, 0.0))
-            exceed = n_pooled - np.searchsorted(pooled_null_sorted, abs_d_obs, side="left")
+            exceed = n_pooled - np.searchsorted(
+                pooled_null_sorted, abs_d_obs, side="left"
+            )
             p_values = np.where(valid, (exceed + 1) / (n_pooled + 1), np.nan)
 
             n_valid = int(valid.sum())

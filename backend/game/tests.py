@@ -199,9 +199,15 @@ class TestVisitedStationsHelper(TestCase):
 
     def test_returns_unique_station_ids_for_user(self):
         user = get_user_model().objects.create_user(username="helper_user")
-        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
-        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
-        StationRun.objects.create(player=user, station_id="mass_spec", params={}, score=0)
+        StationRun.objects.create(
+            player=user, station_id="sample_prep", params={}, score=0
+        )
+        StationRun.objects.create(
+            player=user, station_id="mass_spec", params={}, score=0
+        )
+        StationRun.objects.create(
+            player=user, station_id="mass_spec", params={}, score=0
+        )
 
         visited = get_visited_stations(user)
         self.assertEqual(visited, {"sample_prep", "mass_spec"})
@@ -222,7 +228,9 @@ class TestEnterStationPrerequisites(TestCase):
 
     def test_allows_entry_when_requirement_is_satisfied(self):
         user = get_user_model().objects.create_user(username="entry_ok_user")
-        StationRun.objects.create(player=user, station_id="sample_prep", params={}, score=0)
+        StationRun.objects.create(
+            player=user, station_id="sample_prep", params={}, score=0
+        )
         self.client.force_login(user)
 
         response = self.client.post("/api/stations/mass_spec/enter/", data={})
@@ -364,9 +372,7 @@ class TestFilteringStation(TestCase):
 class TestNormalizeStation(TestCase):
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_no_normalization(self, _mock_hc):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "none"}
-        )
+        result = _simulate_normalize(_make_dataset(), {"normalization": "none"})
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
@@ -380,9 +386,7 @@ class TestNormalizeStation(TestCase):
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_zscore_normalization(self, _mock_hc):
-        result = _simulate_normalize(
-            _make_dataset(), {"normalization": "zscore"}
-        )
+        result = _simulate_normalize(_make_dataset(), {"normalization": "zscore"})
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
@@ -459,7 +463,9 @@ class TestMultipleTestingCorrectorStation(TestCase):
     @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
     def test_unknown_correction_fails(self, _mock_hist):
         df = _make_dataset_with_stats()
-        result = _simulate_multiple_testing_corrector(df, {"correction_method": "magic"})
+        result = _simulate_multiple_testing_corrector(
+            df, {"correction_method": "magic"}
+        )
         self.assertFalse(result["success"])
 
 
@@ -502,7 +508,9 @@ class TestTheCutterStation(TestCase):
 
 class TestStatisticalAnalysisStation(TestCase):
     def test_fails_on_empty_dataset(self):
-        result = _simulate_statistical_analysis(pd.DataFrame(), {"statistical_test": "welch"})
+        result = _simulate_statistical_analysis(
+            pd.DataFrame(), {"statistical_test": "welch"}
+        )
         self.assertFalse(result["success"])
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
@@ -519,7 +527,9 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_mannwhitneyu_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(df, {"statistical_test": "mannwhitneyu"})
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "mannwhitneyu"}
+        )
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
 
@@ -570,7 +580,9 @@ class TestStatisticalAnalysisStation(TestCase):
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_unknown_test_fails(self, _mock_vp):
-        result = _simulate_statistical_analysis(_make_dataset(), {"statistical_test": "magic"})
+        result = _simulate_statistical_analysis(
+            _make_dataset(), {"statistical_test": "magic"}
+        )
         self.assertFalse(result["success"])
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
@@ -615,8 +627,6 @@ class TestSqueezeVar(TestCase):
         # Squeezed low variance should be above raw; squeezed high variance below raw
         self.assertGreater(squeezed[0], sample_vars[0])
         self.assertLess(squeezed[2], sample_vars[2])
-
-
 
 
 class TestSamGroundTruth(TestCase):
@@ -668,12 +678,15 @@ class TestSamGroundTruth(TestCase):
         result = self._run_sam(df)
         self.assertTrue(result["success"])
         pvals = result["dataset"][PVALUE]
-        p_up = pvals.iloc[0]    # P0: strongly upregulated
+        p_up = pvals.iloc[0]  # P0: strongly upregulated
         p_null = pvals.iloc[9]  # P9: middle, no consistent direction
         self.assertTrue(np.isfinite(p_up))
         self.assertTrue(np.isfinite(p_null))
-        self.assertLess(p_up, p_null,
-                        f"Upregulated protein p={p_up:.4f} should be < null p={p_null:.4f}")
+        self.assertLess(
+            p_up,
+            p_null,
+            f"Upregulated protein p={p_up:.4f} should be < null p={p_null:.4f}",
+        )
 
     def test_downregulated_protein_gets_smaller_pvalue_than_null(self):
         """P19 (highest in A, lowest in B) must be more significant than P10 (middle)."""
@@ -683,8 +696,11 @@ class TestSamGroundTruth(TestCase):
         p_down = pvals.iloc[19]  # P19: strongly downregulated
         p_null = pvals.iloc[10]  # P10: middle
         self.assertTrue(np.isfinite(p_down))
-        self.assertLess(p_down, p_null,
-                        f"Downregulated protein p={p_down:.4f} should be < null p={p_null:.4f}")
+        self.assertLess(
+            p_down,
+            p_null,
+            f"Downregulated protein p={p_down:.4f} should be < null p={p_null:.4f}",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -708,6 +724,7 @@ class TestFinalReportStation(TestCase):
         )  # P0001+P0002 (Yeast FC<0) + P0003 (E.coli FC>0)
         self.assertEqual(result["false_positives"], 1)  # P0004 Human
         self.assertGreater(result["score"], 0)
+        self.assertIn("Final score breakdown", result["feedback"])
 
     def test_score_is_zero_for_all_false_positives(self):
         with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
@@ -717,14 +734,42 @@ class TestFinalReportStation(TestCase):
             result = _simulate_final_report(df, {})
         self.assertEqual(result["score"], 0)
 
-    def test_f1_score_uses_total_possible_tp(self):
-        """F1 score accounts for false negatives when total_possible_tp is provided."""
+    def test_score_increases_with_more_true_positives(self):
         with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
-            df = _make_dataset_with_stats()
-            # TP=3, FP=1, total_possible_tp=5 → FN=2
-            # F1 = 2*3 / (2*3 + 1 + 2) = 6/9
-            result = _simulate_veit(df, {"total_possible_tp": 5}, set())
-        self.assertAlmostEqual(result["score"], 6 / 9, places=9)
+            low_tp_df = pd.DataFrame(
+                {
+                    ORGANISM: ["Yeast", "Human"],
+                    FC: [-1.0, 0.2],
+                }
+            )
+            high_tp_df = pd.DataFrame(
+                {
+                    ORGANISM: [
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "Yeast",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "E. coli",
+                        "Human",
+                    ],
+                    FC: [-1.0, -1.2, -0.5, -0.9, -1.4, 0.6, 1.0, 0.8, 1.3, 0.4, 0.2],
+                }
+            )
+
+            low_tp_result = _simulate_final_report(low_tp_df, {})
+            high_tp_result = _simulate_final_report(high_tp_df, {})
+
+        self.assertEqual(low_tp_result["false_positives"], 1)
+        self.assertEqual(high_tp_result["false_positives"], 1)
+        self.assertGreater(
+            high_tp_result["true_positives"], low_tp_result["true_positives"]
+        )
+        self.assertGreater(high_tp_result["score"], low_tp_result["score"])
 
 
 # ---------------------------------------------------------------------------
@@ -805,9 +850,7 @@ class TestStationParameterConfigurations(TestCase):
         options = self.station_options["normalize"]["parameters"][0]["options"]
         for method in options:
             with self.subTest(normalization=method):
-                result = _simulate_normalize(
-                    _make_dataset(), {"normalization": method}
-                )
+                result = _simulate_normalize(_make_dataset(), {"normalization": method})
                 self.assertTrue(result["success"])
 
     @patch("game.services.imputer_before_after_stripgrid", return_value=_DUMMY_IMG)
@@ -1021,7 +1064,12 @@ class TestRunStationAnonymousUser(TestCase):
         request.session["visited_stations"] = ["sample_prep"]
 
         def _runner(_dataset, _params, _visited_stations=None):
-            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+            return {
+                "success": True,
+                "dataset": pd.DataFrame(),
+                "score": 0,
+                "feedback": "ok",
+            }
 
         with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
             result = run_station(request, station_id="mass_spec", params={})
@@ -1034,7 +1082,12 @@ class TestRunStationAnonymousUser(TestCase):
         request = self._build_request()
 
         def _runner(_dataset, _params, _visited_stations=None):
-            return {"success": True, "dataset": pd.DataFrame(), "score": 0, "feedback": "ok"}
+            return {
+                "success": True,
+                "dataset": pd.DataFrame(),
+                "score": 0,
+                "feedback": "ok",
+            }
 
         with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
             result = run_station(request, station_id="sample_prep", params={})
