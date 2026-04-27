@@ -40,7 +40,6 @@ from game.services import (
     _squeeze_var,
 )
 from game.models import StationRun
-from game.helper_functions import get_visited_stations
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -191,26 +190,6 @@ def _build_param_table_from_combinations(combos: list[dict]) -> pd.DataFrame:
         rows.append(row)
     return pd.DataFrame(rows)
 
-
-class TestVisitedStationsHelper(TestCase):
-    def test_returns_empty_set_for_anonymous_user(self):
-        visited = get_visited_stations(AnonymousUser())
-        self.assertEqual(visited, set())
-
-    def test_returns_unique_station_ids_for_user(self):
-        user = get_user_model().objects.create_user(username="helper_user")
-        StationRun.objects.create(
-            player=user, station_id="sample_prep", params={}, score=0
-        )
-        StationRun.objects.create(
-            player=user, station_id="mass_spec", params={}, score=0
-        )
-        StationRun.objects.create(
-            player=user, station_id="mass_spec", params={}, score=0
-        )
-
-        visited = get_visited_stations(user)
-        self.assertEqual(visited, {"sample_prep", "mass_spec"})
 
 
 class TestEnterStationPrerequisites(TestCase):
@@ -1059,38 +1038,3 @@ class TestRunStationAnonymousUser(TestCase):
         request.user = AnonymousUser()
         return request
 
-    def test_run_station_does_not_use_or_write_session_visited_stations(self):
-        request = self._build_request()
-        request.session["visited_stations"] = ["sample_prep"]
-
-        def _runner(_dataset, _params, _visited_stations=None):
-            return {
-                "success": True,
-                "dataset": pd.DataFrame(),
-                "score": 0,
-                "feedback": "ok",
-            }
-
-        with patch.dict("game.services.STATION_SIMULATORS", {"mass_spec": _runner}):
-            result = run_station(request, station_id="mass_spec", params={})
-
-        self.assertTrue(result["success"])
-        self.assertEqual(request.session["visited_stations"], ["sample_prep"])
-        self.assertEqual(StationRun.objects.count(), 0)
-
-    def test_run_station_success_without_visited_stations_session_key(self):
-        request = self._build_request()
-
-        def _runner(_dataset, _params, _visited_stations=None):
-            return {
-                "success": True,
-                "dataset": pd.DataFrame(),
-                "score": 0,
-                "feedback": "ok",
-            }
-
-        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _runner}):
-            result = run_station(request, station_id="sample_prep", params={})
-
-        self.assertTrue(result["success"])
-        self.assertNotIn("visited_stations", request.session)

@@ -119,14 +119,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
-    if request.user.is_authenticated:
-        user_runs = request.user.station_runs.all()
-        visited_stations = set(run.station_id for run in user_runs)
-    else:
-        visited_station_list = request.session.get("visited_stations", [])
-        visited_stations = set(visited_station_list)
-
-    result = runner(dataset, params, visited_stations)
+    result = runner(dataset, params)
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
@@ -163,7 +156,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     return cast(dict[str, Any], _to_json_safe(response_payload))
 
 
-def _simulate_sample_prep(dataset: dict, params: dict, visited_stations=None) -> dict:
+def _simulate_sample_prep(dataset: dict, params: dict) -> dict:
     return {
         "success": True,
         "feedback": "✅ Sample preparation complete. Strangely, your peptides made it through intact despite improbable handling, questionable luck, and the general hostility of the universe.",
@@ -172,7 +165,7 @@ def _simulate_sample_prep(dataset: dict, params: dict, visited_stations=None) ->
     }
 
 
-def _simulate_mass_spec(dataset: dict, params: dict, visited_stations=None) -> dict:
+def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
 
     return {
         "success": True,
@@ -183,7 +176,7 @@ def _simulate_mass_spec(dataset: dict, params: dict, visited_stations=None) -> d
 
 
 def _simulate_spectral_search(
-    dataset: dict, params: dict, visited_stations=None
+    dataset: dict, params: dict
 ) -> dict:
 
     tool = params.get("tool", "fragpipe")
@@ -349,7 +342,7 @@ def _simulate_spectral_search(
 
 
 def _simulate_transform(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("transform_method", "ln")
@@ -438,7 +431,7 @@ def _simulate_transform(
 
 
 def _simulate_filtering(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     missing_thresh = int(params.get("remove_missing_proteins", 0))
@@ -523,7 +516,7 @@ def _simulate_filtering(
 
 
 def _simulate_normalize(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("normalization", "none")
@@ -641,7 +634,7 @@ def _simulate_normalize(
     }
 
 
-def _simulate_imputer(dataset: dict, params: dict, visited_stations=None) -> dict:
+def _simulate_imputer(dataset: dict, params: dict) -> dict:
     """
     Simulate imputation of missing values in proteomics data based on selected method.
     - "none"        : No imputation, missing values remain as is.
@@ -801,7 +794,7 @@ def _simulate_imputer(dataset: dict, params: dict, visited_stations=None) -> dic
 
 
 def _simulate_multiple_testing_corrector(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     method = params.get("correction_method", "bh")
@@ -905,7 +898,7 @@ def _simulate_multiple_testing_corrector(
 
 
 def _simulate_the_cutter(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
 
     fc = float(params.get("fold_change_cutoff", 1))
@@ -942,7 +935,7 @@ def _simulate_the_cutter(
 
 
 def _simulate_final_report(
-    dataset: pd.DataFrame, params: dict, visited_stations=None
+    dataset: pd.DataFrame, params: dict
 ) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
