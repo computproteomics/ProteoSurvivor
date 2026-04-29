@@ -25,7 +25,6 @@ INSTALLED_APPS = [
     "corsheaders",
     # Local apps
     "game",
-    "data",
 ]
 
 MIDDLEWARE = [

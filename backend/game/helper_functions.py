@@ -246,15 +246,20 @@ def imputer_before_after_stripgrid(
     return fig_to_base64(fig)
 
 
-def plot_scores(true_positives=None, false_positives=None):
+def plot_scores(true_positives=None, false_positives=None, min_fdr=1e-3):
     """Generate a scatter plot of all players' final-station results."""
     from .models import FinalStationResult
 
-    def _fdr(tp, fp):
+    def _fdr(tp, fp, min_fdr=1e-3):
         total = tp + fp
-        if total <= 0 or fp <= 0:
+        if total <= 0:
             return None
-        return -np.log10(fp / total)
+        if fp > 0:
+            return -np.log10(fp / total)
+        elif min_fdr is not None:
+            return -np.log10(min_fdr)
+        else:
+            return None
 
     results = FinalStationResult.objects.all().values_list(
         "true_positives", "false_positives"
@@ -263,7 +268,7 @@ def plot_scores(true_positives=None, false_positives=None):
     x_values = []
     y_values = []
     for tp, fp in results:
-        x_val = _fdr(tp, fp)
+        x_val = _fdr(tp, fp, min_fdr)
         if x_val is None:
             continue
         x_values.append(x_val)
@@ -271,7 +276,7 @@ def plot_scores(true_positives=None, false_positives=None):
 
     current_x = None
     if true_positives is not None and false_positives is not None:
-        current_x = _fdr(true_positives, false_positives)
+        current_x = _fdr(true_positives, false_positives, min_fdr)
 
     fig, ax = plt.subplots(figsize=(7, 5))
     if x_values:
@@ -286,7 +291,6 @@ def plot_scores(true_positives=None, false_positives=None):
                 "Others' results" if current_x is not None else "Final Station Results"
             ),
         )
-
     if current_x is not None and true_positives is not None:
         sns.scatterplot(
             x=[current_x],

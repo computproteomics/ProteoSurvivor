@@ -9,6 +9,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import TestCase
+from django.test import TestCase
 from django.test.client import RequestFactory
 import itertools
 import json
@@ -189,7 +190,6 @@ def _build_param_table_from_combinations(combos: list[dict]) -> pd.DataFrame:
         }
         rows.append(row)
     return pd.DataFrame(rows)
-
 
 
 class TestEnterStationPrerequisites(TestCase):
@@ -515,9 +515,7 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_limma_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(
-            df, {"statistical_test": "limma"}
-        )
+        result = _simulate_statistical_analysis(df, {"statistical_test": "limma"})
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
         self.assertIn(FC, result["dataset"].columns)
@@ -546,9 +544,7 @@ class TestStatisticalAnalysisStation(TestCase):
         base_df.loc[0, COND_A[2]] = np.nan
         base_df.loc[0, COND_B[1]] = np.nan
         base_df.loc[0, COND_B[2]] = np.nan
-        result = _simulate_statistical_analysis(
-            base_df, {"statistical_test": "limma"}
-        )
+        result = _simulate_statistical_analysis(base_df, {"statistical_test": "limma"})
         self.assertTrue(result["success"])
         # The NaN-heavy protein must still get a p-value (prior variance covers it)
         p0 = result["dataset"].loc[0, PVALUE]
@@ -567,9 +563,7 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_sam_produces_pvalues(self, _mock_vp):
         df = _make_dataset()
-        result = _simulate_statistical_analysis(
-            df, {"statistical_test": "sam"}
-        )
+        result = _simulate_statistical_analysis(df, {"statistical_test": "sam"})
         self.assertTrue(result["success"])
         self.assertIn(PVALUE, result["dataset"].columns)
         self.assertIn(FC, result["dataset"].columns)
@@ -613,9 +607,7 @@ class TestSamGroundTruth(TestCase):
 
     def _run_sam(self, df):
         with patch("game.services.volcano_plot", return_value="img"):
-            return _simulate_statistical_analysis(
-                df, {"statistical_test": "sam"}
-            )
+            return _simulate_statistical_analysis(df, {"statistical_test": "sam"})
 
     def _make_clear_df(self):
         """20-protein dataset where protein 0 is strongly UP and protein 19 is
@@ -905,6 +897,125 @@ class TestStationParameterConfigurations(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Full workflow integration test (moved below all imports)
+# ---------------------------------------------------------------------------
+
+
+class TestFullWorkflowIntegration(TestCase):
+    def test_full_workflow_default_parameters(self):
+        """Run the full workflow of all stations with default parameters and report protein numbers and score."""
+        import pandas as pd
+        from unittest.mock import patch
+        from game.services import DATA_DIR, PROTEIN
+
+        # Helper to print protein stats
+        def print_stats(stage, df):
+            if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+                print(f"{stage}: No data")
+            else:
+                print(
+                    f"{stage}: n_rows={len(df)}, n_unique_proteins={df[PROTEIN].nunique() if PROTEIN in df.columns else 'NA'}"
+                )
+
+        # Patch pd.read_csv so that spectral_search loads the real ParameterSet_001.tsv
+        orig_read_csv = pd.read_csv
+
+        def patched_read_csv(path, *args, **kwargs):
+            path_str = str(path)
+            if path_str.endswith("ParameterTable.csv"):
+                return orig_read_csv(DATA_DIR / "ParameterTable.csv", *args, **kwargs)
+            if path_str.endswith("ParameterSet_001.tsv"):
+                return orig_read_csv(DATA_DIR / "ParameterSet_001.tsv", *args, **kwargs)
+            return orig_read_csv(path, *args, **kwargs)
+
+        with patch("pandas.read_csv", side_effect=patched_read_csv):
+            df = None
+
+            # Sample prep
+            result = _simulate_sample_prep(df, {})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("sample_prep", df)
+
+            # Mass spec
+            result = _simulate_mass_spec(df, {})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("mass_spec", df)
+
+            # Spectral search (simulate default params)
+            result = _simulate_spectral_search(df, {})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("spectral_search", df)
+
+            # Transform
+            result = _simulate_transform(df, {"transform_method": "ln"})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("transform", df)
+
+            # Filtering
+            result = _simulate_filtering(
+                df, {"remove_missing_proteins": 0, "min_peptides_per_protein": 1}
+            )
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("filtering", df)
+
+            # Normalize
+            result = _simulate_normalize(df, {"normalization": "none"})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("normalize", df)
+
+            # Imputer
+            result = _simulate_imputer(df, {"imputation_method": "none"})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("imputer", df)
+
+            # Statistical analysis (Welch's t-test)
+            result = _simulate_statistical_analysis(df, {"statistical_test": "welch"})
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("statistical_analysis", df)
+
+            # Multiple testing correction (Benjamini-Hochberg)
+            result = _simulate_multiple_testing_corrector(
+                df, {"correction_method": "bh"}
+            )
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("multiple_testing_corrector", df)
+
+            # The cutter (default cutoffs)
+
+            result = _simulate_the_cutter(
+                df, {"fold_change_cutoff": 1, "pvalue_cutoff": 0.05}
+            )
+            if "success" not in result:
+                print("the_cutter result (no 'success' key):", result)
+                self.fail(
+                    "the_cutter did not return a 'success' key. See printed result above."
+                )
+            self.assertTrue(result["success"])
+            df = result["dataset"]
+            print_stats("the_cutter", df)
+
+            # Final report
+            with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
+                result = _simulate_final_report(df, {})
+            self.assertTrue(result["success"])
+            print("\nFull workflow outcome:")
+            print(f"Number of proteins in final set: {len(df)}")
+            print(f"Final score: {result['score']}")
+            print(
+                f"True positives: {result['true_positives']}, False positives: {result['false_positives']}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # Full end-to-end workflow integration test
 # ---------------------------------------------------------------------------
 
@@ -1037,4 +1148,3 @@ class TestRunStationAnonymousUser(TestCase):
         request.session.save()
         request.user = AnonymousUser()
         return request
-

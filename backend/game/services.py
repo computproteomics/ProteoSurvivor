@@ -175,9 +175,7 @@ def _simulate_mass_spec(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_spectral_search(
-    dataset: dict, params: dict
-) -> dict:
+def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
 
     tool = params.get("tool", "fragpipe")
     match_between_runs = params.get("match_between_runs", "FALSE")
@@ -341,9 +339,7 @@ def _simulate_spectral_search(
     }
 
 
-def _simulate_transform(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_transform(dataset: pd.DataFrame, params: dict) -> dict:
 
     method = params.get("transform_method", "ln")
     success = False
@@ -430,9 +426,7 @@ def _simulate_transform(
     }
 
 
-def _simulate_filtering(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
 
     missing_thresh = int(params.get("remove_missing_proteins", 0))
     min_pep_num = int(params.get("min_peptides_per_protein", 1))
@@ -515,9 +509,7 @@ def _simulate_filtering(
     }
 
 
-def _simulate_normalize(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
 
     method = params.get("normalization", "none")
 
@@ -793,9 +785,7 @@ def _simulate_imputer(dataset: dict, params: dict) -> dict:
     }
 
 
-def _simulate_multiple_testing_corrector(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) -> dict:
 
     method = params.get("correction_method", "bh")
     success = False
@@ -897,9 +887,7 @@ def _simulate_multiple_testing_corrector(
     }
 
 
-def _simulate_the_cutter(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
 
     fc = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
@@ -926,6 +914,7 @@ def _simulate_the_cutter(
 
     return {
         "summary": "Final candidate selection complete.",
+        "success": True,
         "score": 0,
         "cutoffs": {"log2FC": fc, "FDR": pval},
         "dataset": significant,
@@ -934,9 +923,7 @@ def _simulate_the_cutter(
     }
 
 
-def _simulate_final_report(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
     imgs = []
     if dataset is None or dataset.empty:
         return {
@@ -985,7 +972,15 @@ def _simulate_final_report(
         true_positives / (true_positives + 10) if true_positives > 0 else 0
     )
     score = precision * tp_volume_factor
-    imgs.append(plot_scores(true_positives, false_positives))
+    min_fdr = 1e-3
+    # Use min_fdr for FDR if FP == 0, otherwise calculate normally
+    if precision_denominator > 0:
+        fdr = (
+            false_positives / precision_denominator if false_positives > 0 else min_fdr
+        )
+    else:
+        fdr = None
+    imgs.append(plot_scores(true_positives, false_positives, min_fdr=min_fdr))
 
     feedback = (
         '✅ You made it to The "Please Let This Be Significant" Lounge. '
@@ -993,7 +988,8 @@ def _simulate_final_report(
         "<strong>Final score breakdown</strong><br/>"
         f"TP = {true_positives}, FP = {false_positives}<br/>"
         "Precision = TP / (TP + FP)<br/>"
-        f"= {true_positives} / ({true_positives} + {false_positives}) = {precision:.4f}<br/><br/>"
+        f"= {true_positives} / ({true_positives} + {false_positives}) = {precision:.4f}<br/>"
+        f"FDR = FP / (TP + FP) = {false_positives} / ({true_positives} + {false_positives}) = {fdr:.6f}<br/><br/>"
         "TP volume factor = TP / (TP + 10)<br/>"
         f"= {true_positives} / ({true_positives} + 10) = {tp_volume_factor:.4f}<br/><br/>"
         "Final score = Precision × TP volume factor<br/>"
@@ -1055,16 +1051,8 @@ def _squeeze_var(
         Per-protein pooled sample variance.  NaN where variance cannot be computed.
     residual_dfs : ndarray, shape (n,)
         Per-protein residual degrees of freedom (nA + nB - 2).
-
-    Returns
-    -------
-    squeezed_vars : ndarray, shape (n,)
-        Posterior variance estimate for each protein.
-    df_prior : float
-        Estimated prior degrees of freedom.
     """
     valid = np.isfinite(sample_vars) & (sample_vars > 0) & (residual_dfs > 0)
-
     if valid.sum() < 3:
         # Too few proteins to estimate the prior reliably.
         # Use the median observed variance as the prior and treat it as having
@@ -1112,9 +1100,7 @@ def _squeeze_var(
     return squeezed, df_prior
 
 
-def _simulate_statistical_analysis(
-    dataset: pd.DataFrame, params: dict
-) -> dict:
+def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
 
     test = params.get("statistical_test", "none")
     success = False
@@ -1431,6 +1417,6 @@ STATION_SIMULATORS.update(
         # ...
     }
 )
-"""Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
-The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
-and the value is a function that takes (dataset, params) and returns a dict with results."""
+# Additional station simulators can be added to the STATION_SIMULATORS dict following the same pattern.
+# The key MUST correspond to the station_id used in the frontend configuration (frontend/src/assets/stations.json),
+# and the value is a function that takes (dataset, params) and returns a dict with results.
