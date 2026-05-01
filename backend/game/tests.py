@@ -447,6 +447,62 @@ class TestMultipleTestingCorrectorStation(TestCase):
         )
         self.assertFalse(result["success"])
 
+    @patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG])
+    def test_nan_pvalues_are_preserved_after_correction(self, _mock_hist):
+        """MTC must not corrupt valid p-values when the input contains NaNs.
+
+        Proteins that could not be tested (e.g. too few replicates) receive NaN
+        p-values from statistical_analysis. multipletests() cannot handle NaN
+        inputs so we must apply correction only to finite values and leave NaN
+        positions untouched.
+        """
+        df = _make_large_dataset_with_stats()
+        # Inject NaNs into the middle of the p-value column (simulating proteins
+        # that had no valid test statistic).
+        df.loc[10:50, PVALUE] = np.nan
+        n_valid_before = df[PVALUE].notna().sum()
+
+        result = _simulate_multiple_testing_corrector(df, {"correction_method": "bh"})
+
+        self.assertTrue(result["success"])
+        out = result["dataset"]
+        n_valid_after = out[PVALUE].notna().sum()
+        # The number of valid (non-NaN) corrected values must equal the number of
+        # valid input p-values — NaN rows must remain NaN, valid rows must be corrected.
+        self.assertEqual(
+            n_valid_after,
+            n_valid_before,
+            f"Expected {n_valid_before} valid corrected p-values, got {n_valid_after}",
+        )
+        corrected = out[PVALUE].dropna()
+        self.assertTrue((corrected >= 0).all() and (corrected <= 1).all())
+
+    def test_mtc_pvalues_valid_after_welch_pipeline_with_nans(self):
+        """MTC must not wipe out valid p-values when input contains NaN entries.
+
+        The key regression: multipletests() called on an array with NaNs returned
+        all-NaN adjusted values, making every histogram empty.
+        """
+        df = _make_large_dataset_with_stats()
+        # Simulate what statistical_analysis produces: some NaN p-values mixed with valid ones
+        df.loc[::5, PVALUE] = np.nan  # every 5th protein has no p-value
+        n_valid_before = df[PVALUE].notna().sum()
+
+        with patch("game.services.mtc_histograms", return_value=[_DUMMY_IMG]):
+            result = _simulate_multiple_testing_corrector(
+                df, {"correction_method": "bh"}
+            )
+
+        self.assertTrue(result["success"])
+        out = result["dataset"]
+        n_valid_after = out[PVALUE].notna().sum()
+        self.assertEqual(
+            n_valid_after,
+            n_valid_before,
+            f"Expected {n_valid_before} valid p-values after MTC but got {n_valid_after} — "
+            "NaN handling in multipletests() corrupted the output",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Station: the_cutter

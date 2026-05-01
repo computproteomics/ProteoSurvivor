@@ -255,9 +255,9 @@ def plot_scores(true_positives=None, false_positives=None, min_fdr=1e-3):
         if total <= 0:
             return None
         if fp > 0:
-            return -np.log10(fp / total)
+            return fp / total
         elif min_fdr is not None:
-            return -np.log10(min_fdr)
+            return min_fdr
         else:
             return None
 
@@ -304,8 +304,10 @@ def plot_scores(true_positives=None, false_positives=None, min_fdr=1e-3):
         )
 
     ax.set_title("Final Station Scores")
-    ax.set_xlabel("-log10(real FDR)")
+    ax.set_xlabel("FDR")
     ax.set_ylabel("True Positives")
+    ax.set_xscale("log")
+    ax.invert_xaxis()
     ax.grid(alpha=0.25)
     if ax.get_legend_handles_labels()[0]:
         ax.legend()
