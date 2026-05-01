@@ -821,45 +821,51 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
         }
 
     pvals = df[PVALUE].values
+    valid_mask = np.isfinite(pvals)
 
     print("running multiple testing correction with method:", method)
 
+    def _apply_correction(pvals_all, valid_mask, statsmodels_method):
+        """Apply multipletests only to finite p-values; NaN positions remain NaN."""
+        corrected = np.full(len(pvals_all), np.nan)
+        if valid_mask.sum() > 0:
+            adj = multipletests(pvals_all[valid_mask], method=statsmodels_method)
+            corrected[valid_mask] = adj[1]
+        return corrected
+
     try:
         if method == "bh":
-            adjusted = multipletests(pvals, method="fdr_bh")
-            df[PVALUE] = adjusted[1]
+            df[PVALUE] = _apply_correction(pvals, valid_mask, "fdr_bh")
             success = True
             score = 10
             feedback = "📊 Benjamini-Hochberg activated. False discoveries are brought under control."
         elif method == "bt":
-            adjusted = multipletests(pvals, method="fdr_by")
-            df[PVALUE] = adjusted[1]
+            df[PVALUE] = _apply_correction(pvals, valid_mask, "fdr_by")
             success = True
             score = 12
             feedback = "🧠 Benjamini-Tekutieli engaged. Even chaotic dependencies are contained."
         elif method == "storey":
             if _py_qvalue is not None:
-                qvals = _py_qvalue(pvals)["qvalues"]
-                df[PVALUE] = qvals
+                corrected = np.full(len(pvals), np.nan)
+                if valid_mask.sum() > 0:
+                    corrected[valid_mask] = _py_qvalue(pvals[valid_mask])["qvalues"]
+                df[PVALUE] = corrected
                 success = True
                 score = 15
                 feedback = "🔮 Storey q-values invoked. The hidden structure of truth is estimated."
             else:
                 # Fallback for environments where py-qvalue is unavailable (e.g. Python < 3.10).
-                adjusted = multipletests(pvals, method="fdr_bh")
-                df[PVALUE] = adjusted[1]
+                df[PVALUE] = _apply_correction(pvals, valid_mask, "fdr_bh")
                 success = True
                 score = 10
                 feedback = "📊 Storey q-values unavailable in this Python environment; used Benjamini-Hochberg instead."
         elif method == "bonferroni":
-            adjusted = multipletests(pvals, method="bonferroni")
-            df[PVALUE] = adjusted[1]
+            df[PVALUE] = _apply_correction(pvals, valid_mask, "bonferroni")
             success = True
             score = 6
             feedback = "🧨 Bonferroni applied. False positives are eliminated — along with most of your discoveries."
         elif method == "holm":
-            adjusted = multipletests(pvals, method="holm")
-            df[PVALUE] = adjusted[1]
+            df[PVALUE] = _apply_correction(pvals, valid_mask, "holm")
             success = True
             score = 9
             feedback = "⚖️ Holm-Bonferroni engaged. Order is restored more gracefully."
