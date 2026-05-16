@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Intro from './screens/Intro';
 import BreakingNews from './screens/BreakingNews'
+import AssignmentIntro from './screens/AssignmentIntro';
 import WorldMap from './screens/WorldMap';
 import StationView from './screens/StationView';
 import ParametrizationView from './screens/ParametrizationView';
@@ -87,6 +88,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Intro />} />
           <Route path="/news" element={<RequireAuth><BreakingNews /></RequireAuth>} />
+          <Route path="/assignment" element={<RequireAuth><AssignmentIntro /></RequireAuth>} />
           <Route path="/world" element={<RequireAuth><WorldMap /></RequireAuth>} />
           <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
           <Route path="/credits" element={<RequireAuth><Credits /></RequireAuth>} />
