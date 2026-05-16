@@ -27,6 +27,55 @@ docker build -t proteosurvivor .
 docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 ```
 
+#### Persisting the database outside the container
+
+By default the SQLite database lives at `/app/backend/db.sqlite3` inside the
+container and is lost when the container is removed.
+
+**Option 1 — named Docker volume** (recommended; data survives container
+restarts and removal):
+
+```bash
+docker volume create proteosurvivor-db
+
+docker run --env-file backend/.env \
+    -p 3000:3000 \
+    -v proteosurvivor-db:/app/backend \
+    proteosurvivor
+```
+
+**Option 2 — host-path bind mount** (database file is directly accessible on
+the host):
+
+```bash
+# Create the file first so Docker binds a file, not a directory
+touch /path/on/host/db.sqlite3
+
+docker run --env-file backend/.env \
+    -p 3000:3000 \
+    -v /path/on/host/db.sqlite3:/app/backend/db.sqlite3 \
+    proteosurvivor
+```
+
+#### Purging (resetting) the database
+
+To wipe all data and start fresh, stop the container and delete (or truncate)
+the database file:
+
+```bash
+# If using a host-mounted file
+rm /path/on/host/db.sqlite3
+
+# If using a named volume
+docker volume rm proteosurvivor-db
+docker volume create proteosurvivor-db
+```
+
+The next time the container starts, Django's `migrate` step re-creates an
+empty database automatically.
+
+---
+
 The nginx `location` block that proxies to the container:
 
 ```nginx
