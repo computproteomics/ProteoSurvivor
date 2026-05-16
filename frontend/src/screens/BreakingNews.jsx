@@ -79,8 +79,8 @@ function NextButton() {
   const navigate = useNavigate();
 
   return (
-    <button className={styles.nextButton} onClick={() => navigate("/world")}>
-      So let's go save the world!
+    <button className={styles.nextButton} onClick={() => navigate("/assignment")}>
+      Continue to your assignment
     </button>
   );
 }

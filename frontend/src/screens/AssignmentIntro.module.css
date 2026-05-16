@@ -1,0 +1,93 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg, #e6f1ff 0%, #f8fafc 100%);
+}
+
+.card {
+  width: min(820px, 95vw);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 16px;
+  padding: 2rem 2.25rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  border: 1px solid #dbe7f5;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.85rem;
+  color: #0f172a;
+}
+
+.lead {
+  margin: 0 0 1.25rem;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.section {
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: #0f3a7b;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #1e293b;
+  line-height: 1.55;
+}
+
+.list li {
+  margin-bottom: 0.35rem;
+}
+
+.startButton {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  background: #0f3a7b;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.startButton:hover {
+  background: #124896;
+}
+
+@media (max-width: 760px) {
+  .page {
+    align-items: start;
+    padding: 0.8rem;
+  }
+
+  .card {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 1.1rem 1rem;
+    border-radius: 12px;
+  }
+
+  .title {
+    font-size: 1.4rem;
+  }
+
+  .lead,
+  .list {
+    font-size: 0.95rem;
+  }
+
+  .startButton {
+    width: 100%;
+  }
+}
