@@ -1,150 +1,5 @@
 [
   {
-    "model": "auth.user",
-    "pk": 1001,
-    "fields": {
-      "username": "zara_ionblast",
-      "first_name": "Zara Ionblast",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1002,
-    "fields": {
-      "username": "orion_peptide",
-      "first_name": "Orion Peptide",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1003,
-    "fields": {
-      "username": "luna_spectra",
-      "first_name": "Luna Spectra",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1004,
-    "fields": {
-      "username": "dax_fragforge",
-      "first_name": "Dax Fragforge",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1005,
-    "fields": {
-      "username": "nova_trypsin",
-      "first_name": "Nova Trypsin",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1006,
-    "fields": {
-      "username": "kira_massworth",
-      "first_name": "Kira Massworth",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1007,
-    "fields": {
-      "username": "rex_isoform",
-      "first_name": "Rex Isoform",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1008,
-    "fields": {
-      "username": "sage_elution",
-      "first_name": "Sage Elution",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1009,
-    "fields": {
-      "username": "vex_proteon",
-      "first_name": "Vex Proteon",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1010,
-    "fields": {
-      "username": "ayla_glycan",
-      "first_name": "Ayla Glycan",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1011,
-    "fields": {
-      "username": "finn_pepticore",
-      "first_name": "Finn Pepticore",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1012,
-    "fields": {
-      "username": "mira_spectron",
-      "first_name": "Mira Spectron",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1013,
-    "fields": {
-      "username": "jak_foldsworth",
-      "first_name": "Jak Foldsworth",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1014,
-    "fields": {
-      "username": "skye_peptase",
-      "first_name": "Skye Peptase",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1015,
-    "fields": {
-      "username": "blaze_isocore",
-      "first_name": "Blaze Isocore",
-      "password": "!"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1016,
-    "fields": {
-      "username": "cleo_massfield",
-      "first_name": "Cleo Massfield",
-      "password": "!"
-    }
-  },
-
-  {
     "model": "game.stationrun",
     "pk": 2001,
     "fields": {
@@ -353,7 +208,7 @@
       "player": 1011,
       "station_id": "normalize",
       "params": {"normalization": "median"},
-      "score": 63.5,
+      "score": 0.5,
       "created_at": "2026-04-10T10:00:00Z"
     }
   },
@@ -364,7 +219,7 @@
       "player": 1012,
       "station_id": "imputer",
       "params": {"imputation_method": "knn"},
-      "score": 61.7,
+      "score": 0.7,
       "created_at": "2026-04-10T10:03:00Z"
     }
   },
@@ -375,7 +230,7 @@
       "player": 1013,
       "station_id": "transform",
       "params": {"transform_method": "log2"},
-      "score": 59.9,
+      "score": 0.58,
       "created_at": "2026-04-10T10:06:00Z"
     }
   },
@@ -386,7 +241,7 @@
       "player": 1014,
       "station_id": "filtering",
       "params": {"remove_contaminants": "yes"},
-      "score": 58.2,
+      "score": 0.2,
       "created_at": "2026-04-10T10:09:00Z"
     }
   },
@@ -397,7 +252,7 @@
       "player": 1015,
       "station_id": "multiple_testing_corrector",
       "params": {"correction_method": "fdr_bh"},
-      "score": 56.1,
+      "score": 0.1,
       "created_at": "2026-04-10T10:12:00Z"
     }
   },
@@ -408,7 +263,7 @@
       "player": 1016,
       "station_id": "spectral_search",
       "params": {"tool": "fragpipe"},
-      "score": 54.4,
+      "score": 0.4,
       "created_at": "2026-04-10T10:15:00Z"
     }
   }
