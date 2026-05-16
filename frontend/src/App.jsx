@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Intro from './screens/Intro';
-import BreakingNews from './screens/BreakingNews'
+import BreakingNews from './screens/BreakingNews';
 import AssignmentIntro from './screens/AssignmentIntro';
 import WorldMap from './screens/WorldMap';
 import StationView from './screens/StationView';
