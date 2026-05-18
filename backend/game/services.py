@@ -146,7 +146,7 @@ def _format_metric_value(value: Any, *, digits: int = 2, as_percent: bool = Fals
     if as_percent:
         return f"{rounded:.{digits}f}%"
 
-    if rounded.is_integer():
+    if rounded == int(rounded):
         return f"{int(rounded):,}"
 
     return f"{rounded:,.{digits}f}"
@@ -267,22 +267,22 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
             for organism, count in organism_counts.items()
         ]
 
-    preview_columns = [
-        column
-        for column in [
-            PROTEIN,
-            PROTEIN_ID,
-            GENE,
-            ORGANISM,
-            TOT_PEP,
-            SPEC_COUNT,
-            PROBABILITY,
-            *intensity_columns,
-            PVALUE if PVALUE in df.columns else None,
-            FC if FC in df.columns else None,
-        ]
-        if column and column in df.columns
+    preview_column_candidates = [
+        PROTEIN,
+        PROTEIN_ID,
+        GENE,
+        ORGANISM,
+        TOT_PEP,
+        SPEC_COUNT,
+        PROBABILITY,
+        *intensity_columns,
+        PVALUE if PVALUE in df.columns else None,
+        FC if FC in df.columns else None,
     ]
+    preview_columns = []
+    for column in preview_column_candidates:
+        if column and column in df.columns and column not in preview_columns:
+            preview_columns.append(column)
     preview_rows = (
         df[preview_columns]
         .head(DATA_REVIEW_TABLE_LIMIT)
