@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getStationDataset } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
 import { getStationResultsRenderer } from './resultRenderer';
@@ -12,6 +13,9 @@ export default function StationResults() {
   // Pull the latest station output and completion action from shared state.
   const { stationResults, markStationComplete } = useGameStore();
   const [zoomedImageIndex, setZoomedImageIndex] = useState(null);
+  const [datasetView, setDatasetView] = useState(null);
+  const [datasetLoading, setDatasetLoading] = useState(false);
+  const [datasetError, setDatasetError] = useState('');
 
   const title = getStationTitle(stationId);
   const stationBackground = getStationBackgroundImage(stationId);
@@ -24,6 +28,43 @@ export default function StationResults() {
     }
     : undefined;
   const didRunSucceed = stationResults?.success === true;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDatasetView() {
+      if (!stationResults) {
+        setDatasetView(null);
+        setDatasetError('');
+        return;
+      }
+
+      setDatasetLoading(true);
+      setDatasetError('');
+
+      try {
+        const response = await getStationDataset(stationId);
+        if (!cancelled) {
+          setDatasetView(response.data ?? null);
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          setDatasetView(null);
+          setDatasetError('Could not load the station table.');
+        }
+      } finally {
+        if (!cancelled) {
+          setDatasetLoading(false);
+        }
+      }
+    }
+
+    loadDatasetView();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stationId, stationResults]);
 
   function handleBackToMap() {
     // Only successful runs should count as completed stations.
@@ -65,7 +106,12 @@ export default function StationResults() {
         </div>
 
         <h1 className={styles.title}>Results</h1>
-        <StationResultContent stationResults={stationResults} />
+        <StationResultContent
+          stationResults={stationResults}
+          datasetView={datasetView}
+          datasetLoading={datasetLoading}
+          datasetError={datasetError}
+        />
 
         <div className={styles.buttonRow}>
           <button className={styles.secondaryButton} onClick={handleRetry}>

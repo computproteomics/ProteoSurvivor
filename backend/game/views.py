@@ -11,12 +11,13 @@ from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.middleware.csrf import get_token
 from .serializers import (
+    DataFrameSessionSerializer,
     NewPlayerSerializer,
     RunStationSerializer,
 )
 from .leaderboard import get_leaderboard_information
 from .helper_functions import plot_scores, get_visited_stations
-from .services import run_station
+from .services import build_dataset_browser_payload, run_station
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -191,3 +192,22 @@ class ScatterPlotView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class StationDatasetView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, station_id):
+        if station_id not in settings.STATIONS_CONFIG:
+            return Response(
+                {"detail": f"Unknown station '{station_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        dataset = request.session.get("current_dataset", None)
+        if dataset is not None:
+            dataset = DataFrameSessionSerializer.loads(dataset)
+
+        payload = build_dataset_browser_payload(dataset)
+        payload["station_id"] = station_id
+        return Response(payload, status=status.HTTP_200_OK)

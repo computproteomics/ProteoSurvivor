@@ -35,6 +35,9 @@ export const enterStation = (stationId, sessionId) =>
 export const runStation = (stationId, params) =>
   api.post(`/stations/${stationId}/run/`, { params });
 
+export const getStationDataset = (stationId) =>
+  api.get(`/stations/${stationId}/dataset/`);
+
 export const getLeaderboard = () => api.get('/leaderboard/');
 
 export const getScatterPlot = () => api.get('/scatter/');

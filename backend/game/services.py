@@ -74,6 +74,25 @@ INDIS_PROTEINS = "Indistinguishable Proteins"
 PVALUE = "p_value"
 FC = "fold_change"
 STATION_SIMULATORS = {}
+IMPORTANT_COLUMN_DESCRIPTIONS = {
+    PROTEIN: "Protein accession or identifier for the reported protein group.",
+    PROTEIN_ID: "Stable protein identifier used to track the same protein across analysis steps.",
+    ENTRY: "Database entry name associated with the matched protein.",
+    GENE: "Gene symbol linked to the protein when available.",
+    PROTEIN_LENGTH: "Protein sequence length in amino acids.",
+    ORGANISM: "Species that the protein was assigned to.",
+    EXISTENCE: "Database confidence level describing how strongly the protein is supported.",
+    DESCRIPTION: "Protein description from the reference database.",
+    PROBABILITY: "Protein-level identification confidence score from the search engine.",
+    TOP_PEP_PROB: "Confidence score for the best-supported peptide assigned to the protein.",
+    TOT_PEP: "Total number of peptides matched to the protein.",
+    SPEC_COUNT: "Number of spectra assigned to the protein.",
+    UNIQUE_SPEC_COUNT: "Number of uniquely assigned spectra supporting the protein.",
+    TOT_SPEC_COUNT: "Total spectral evidence collected for the protein.",
+    INDIS_PROTEINS: "Proteins that cannot be separated confidently from this protein group.",
+    PVALUE: "Per-protein p-value from the selected statistical test.",
+    FC: "Estimated log2 fold change between the two experimental conditions.",
+}
 
 
 def _to_json_safe(value: Any) -> Any:
@@ -154,6 +173,58 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     # Keep large internal data structures (e.g., DataFrames) in session only.
     response_payload = {key: value for key, value in result.items() if key != "dataset"}
     return cast(dict[str, Any], _to_json_safe(response_payload))
+
+
+def describe_dataset_column(column_name: str) -> str | None:
+    if column_name in IMPORTANT_COLUMN_DESCRIPTIONS:
+        return IMPORTANT_COLUMN_DESCRIPTIONS[column_name]
+
+    if column_name in COND_A:
+        return "Normalized or transformed abundance for a Condition A replicate."
+
+    if column_name in COND_B:
+        return "Normalized or transformed abundance for a Condition B replicate."
+
+    if "Condition_A" in column_name:
+        return "Raw intensity measurement for one replicate from Condition A."
+
+    if "Condition_B" in column_name:
+        return "Raw intensity measurement for one replicate from Condition B."
+
+    if column_name.endswith(" Intensity"):
+        return "Protein abundance intensity reported for a single sample."
+
+    return None
+
+
+def build_dataset_browser_payload(dataset: pd.DataFrame | None) -> dict[str, Any]:
+    if dataset is None or dataset.empty:
+        return {
+            "available": False,
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "important_columns": [],
+        }
+
+    columns = [str(column) for column in dataset.columns]
+    rows = [
+        {str(key): _to_json_safe(value) for key, value in row.items()}
+        for row in dataset.to_dict(orient="records")
+    ]
+    important_columns = [
+        {"name": column, "description": description}
+        for column in columns
+        if (description := describe_dataset_column(column)) is not None
+    ]
+
+    return {
+        "available": True,
+        "columns": columns,
+        "rows": rows,
+        "row_count": len(dataset.index),
+        "important_columns": important_columns,
+    }
 
 
 def _simulate_sample_prep(dataset: dict, params: dict) -> dict:

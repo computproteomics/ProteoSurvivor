@@ -41,6 +41,7 @@ from game.services import (
     _squeeze_var,
 )
 from game.models import StationRun
+from game.serializers import DataFrameSessionSerializer
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -218,6 +219,39 @@ class TestEnterStationPrerequisites(TestCase):
         payload = response.json()
         self.assertTrue(payload["success"])
         self.assertEqual(payload["station_id"], "mass_spec")
+
+
+class TestStationDatasetView(TestCase):
+    def test_returns_dataset_browser_payload_from_session(self):
+        session = self.client.session
+        session["current_dataset"] = DataFrameSessionSerializer.dumps(
+            _make_dataset_with_stats()
+        )
+        session.save()
+
+        response = self.client.get("/api/stations/the_cutter/dataset/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["available"])
+        self.assertEqual(payload["station_id"], "the_cutter")
+        self.assertEqual(payload["row_count"], 4)
+        self.assertIn(PROTEIN, payload["columns"])
+        self.assertEqual(payload["rows"][0][PROTEIN], "P0001")
+        descriptions = {
+            item["name"]: item["description"] for item in payload["important_columns"]
+        }
+        self.assertIn(PROTEIN, descriptions)
+        self.assertIn(FC, descriptions)
+
+    def test_returns_empty_payload_when_session_has_no_dataset(self):
+        response = self.client.get("/api/stations/the_cutter/dataset/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["available"])
+        self.assertEqual(payload["row_count"], 0)
+        self.assertEqual(payload["rows"], [])
 
 
 # ---------------------------------------------------------------------------

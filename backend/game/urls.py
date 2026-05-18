@@ -7,5 +7,6 @@ urlpatterns = [
     path("scatter/", views.ScatterPlotView.as_view(), name="scatter-plot"),
     # path("visited", views.VisitedStationsView.as_view(), name="visited-stations"),
     path("stations/<str:station_id>/enter/", views.enter_station_view, name="station-enter"),
+    path("stations/<str:station_id>/dataset/", views.StationDatasetView.as_view(), name="station-dataset"),
     path("stations/<str:station_id>/run/", views.run_station_view, name="station-run"),
 ]
