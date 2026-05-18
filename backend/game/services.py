@@ -179,10 +179,10 @@ def describe_dataset_column(column_name: str) -> str | None:
     if column_name in IMPORTANT_COLUMN_DESCRIPTIONS:
         return IMPORTANT_COLUMN_DESCRIPTIONS[column_name]
 
-    if column_name in COND_A:
+    if column_name.startswith("ConditionA_Sample"):
         return "Normalized or transformed abundance for a Condition A replicate."
 
-    if column_name in COND_B:
+    if column_name.startswith("ConditionB_Sample"):
         return "Normalized or transformed abundance for a Condition B replicate."
 
     if "Condition_A" in column_name:
@@ -208,10 +208,14 @@ def build_dataset_browser_payload(dataset: pd.DataFrame | None) -> dict[str, Any
         }
 
     columns = [str(column) for column in dataset.columns]
-    rows = [
-        {str(key): _to_json_safe(value) for key, value in row.items()}
-        for row in dataset.to_dict(orient="records")
-    ]
+    rows = []
+    for index, row in enumerate(dataset.to_dict(orient="records")):
+        rows.append(
+            {
+                "__row_id": index,
+                **{str(key): _to_json_safe(value) for key, value in row.items()},
+            }
+        )
     important_columns = [
         {"name": column, "description": description}
         for column in columns

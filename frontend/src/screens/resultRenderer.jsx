@@ -235,8 +235,8 @@ function DatasetBrowser({ datasetView, datasetLoading, datasetError }) {
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((row, index) => (
-              <tr key={`${safePage}-${index}`} className={styles.row}>
+            {visibleRows.map((row) => (
+              <tr key={row.__row_id} className={styles.row}>
                 {columns.map((column) => (
                   <td key={column} className={styles.dataValue}>
                     {formatDatasetCell(row[column])}
@@ -322,7 +322,19 @@ function formatDatasetCell(value) {
     return '—';
   }
   if (typeof value === 'number') {
-    return Number.isInteger(value) ? value.toLocaleString() : value.toPrecision(5);
+    if (Number.isInteger(value)) {
+      return value.toLocaleString();
+    }
+
+    const absoluteValue = Math.abs(value);
+    if (absoluteValue >= 1) {
+      return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    }
+    if (absoluteValue >= 0.001) {
+      return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+
+    return value.toExponential(2);
   }
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No';
