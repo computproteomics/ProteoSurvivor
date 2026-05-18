@@ -1,13 +1,14 @@
+import { useEffect, useMemo, useState } from 'react';
 import styles from './StationResults.module.css';
 
 export function getStationResultsRenderer(stationId, handlers = {}) {
   const { onImageClick } = handlers;
 
   if (stationId === 'data_review') {
-    return (props) => DataReviewResultsContent({ ...props, onImageClick });
+    return (props) => <DataReviewResultsContent {...props} onImageClick={onImageClick} />;
   }
 
-  return (props) => GenericStationResultsContent({ ...props, onImageClick });
+  return (props) => <GenericStationResultsContent {...props} onImageClick={onImageClick} />;
 }
 
 function GenericStationResultsContent({ stationResults, onImageClick }) {
@@ -97,6 +98,58 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
     table_preview: tablePreview,
   } = stationResults;
   const resultImages = normalizeImageList(img);
+  const tableColumns = useMemo(() => tablePreview?.columns ?? [], [tablePreview]);
+  const tableRows = useMemo(() => tablePreview?.rows ?? [], [tablePreview]);
+  const [filterText, setFilterText] = useState('');
+  const [sortColumn, setSortColumn] = useState(tableColumns[0] ?? '');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    if (tableColumns.length === 0) {
+      setSortColumn('');
+      return;
+    }
+    if (!tableColumns.includes(sortColumn)) {
+      setSortColumn(tableColumns[0]);
+    }
+  }, [sortColumn, tableColumns]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, pageSize, sortColumn, sortDirection, tableRows]);
+
+  const filteredAndSortedRows = useMemo(() => {
+    const normalizedFilter = filterText.trim().toLowerCase();
+    const filteredRows =
+      normalizedFilter.length === 0
+        ? tableRows
+        : tableRows.filter((row) =>
+            tableColumns.some((column) =>
+              getTableCellSearchText(row[column]).includes(normalizedFilter)
+            )
+          );
+
+    if (!sortColumn) {
+      return filteredRows;
+    }
+
+    return [...filteredRows].sort((leftRow, rightRow) => {
+      const comparison = compareTableValues(leftRow[sortColumn], rightRow[sortColumn]);
+      return sortDirection === 'desc' ? comparison * -1 : comparison;
+    });
+  }, [filterText, sortColumn, sortDirection, tableColumns, tableRows]);
+
+  const totalFilteredRows = filteredAndSortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredRows / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * pageSize;
+  const paginatedRows = filteredAndSortedRows.slice(pageStart, pageStart + pageSize);
+  const pageEnd = totalFilteredRows === 0 ? 0 : pageStart + paginatedRows.length;
+  const hasActiveFilter = filterText.trim().length > 0;
+  const rangeLabel =
+    totalFilteredRows === 0 ? 'Showing 0 rows' : `Showing ${pageStart + 1}-${pageEnd} of ${totalFilteredRows} rows`;
 
   return (
     <>
@@ -177,15 +230,19 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
 
       {columnExplanations.length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>What the important columns mean</h2>
-          <div className={styles.explanationList}>
-            {columnExplanations.map((item) => (
-              <details key={item.column} className={styles.explanationItem}>
-                <summary className={styles.explanationSummary}>{item.column}</summary>
-                <p>{item.explanation}</p>
-              </details>
-            ))}
-          </div>
+          <details className={styles.explanationPanel}>
+            <summary className={styles.explanationPanelSummary}>
+              What the important columns mean
+            </summary>
+            <div className={styles.explanationList}>
+              {columnExplanations.map((item) => (
+                <div key={item.column} className={styles.explanationItem}>
+                  <strong>{item.column}</strong>
+                  <p>{item.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </details>
         </section>
       )}
 
@@ -194,8 +251,57 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
           <div className={styles.tableHeader}>
             <h2 className={styles.sectionTitle}>Protein table</h2>
             <p className={styles.sectionMeta}>
-              Browsing {tablePreview.shown_rows} of {tablePreview.total_rows} rows
+              {rangeLabel}
+              {hasActiveFilter ? ` (filtered from ${tablePreview.total_rows})` : ''}
             </p>
+          </div>
+          <div className={styles.tableControls}>
+            <label className={styles.tableControl}>
+              <span className={styles.controlLabel}>Filter</span>
+              <input
+                className={styles.controlInput}
+                type="search"
+                value={filterText}
+                onChange={(event) => setFilterText(event.target.value)}
+                placeholder="Search any column"
+              />
+            </label>
+            <label className={styles.tableControl}>
+              <span className={styles.controlLabel}>Sort by</span>
+              <select
+                className={styles.controlInput}
+                value={sortColumn}
+                onChange={(event) => setSortColumn(event.target.value)}
+              >
+                {tableColumns.map((column) => (
+                  <option key={column} value={column}>
+                    {column}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.tableControl}>
+              <span className={styles.controlLabel}>Order</span>
+              <select
+                className={styles.controlInput}
+                value={sortDirection}
+                onChange={(event) => setSortDirection(event.target.value)}
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </label>
+            <label className={styles.tableControl}>
+              <span className={styles.controlLabel}>Rows per page</span>
+              <select
+                className={styles.controlInput}
+                value={String(pageSize)}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+            </label>
           </div>
           <div className={styles.dataTableWrap}>
             <table className={styles.dataTable}>
@@ -206,16 +312,46 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                   ))}
                 </tr>
               </thead>
-                <tbody>
-                {tablePreview.rows.map((row, rowIndex) => (
-                  <tr key={buildTableRowKey(row, rowIndex, tablePreview.columns)}>
-                    {tablePreview.columns.map((column) => (
+              <tbody>
+                {paginatedRows.map((row, rowIndex) => (
+                  <tr key={buildTableRowKey(row, pageStart + rowIndex, tableColumns)}>
+                    {tableColumns.map((column) => (
                       <td key={`${rowIndex}-${column}`}>{formatTableCell(row[column])}</td>
                     ))}
                   </tr>
                 ))}
+                {paginatedRows.length === 0 && (
+                  <tr>
+                    <td colSpan={tableColumns.length} className={styles.emptyTableState}>
+                      No proteins match the current filter.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+          <div className={styles.tablePagination}>
+            <p className={styles.paginationStatus}>
+              Page {safeCurrentPage} of {totalPages}
+            </p>
+            <div className={styles.paginationButtons}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -341,4 +477,41 @@ function buildTableRowKey(row, rowIndex, columns) {
   }
 
   return `row-${rowIndex}`;
+}
+
+function getTableCellSearchText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (Array.isArray(value)) {
+    return value.join(' ').toLowerCase();
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value).toLowerCase();
+  }
+  return String(value).toLowerCase();
+}
+
+function compareTableValues(leftValue, rightValue) {
+  if (leftValue === rightValue) {
+    return 0;
+  }
+  if (leftValue === null || leftValue === undefined || leftValue === '') {
+    return 1;
+  }
+  if (rightValue === null || rightValue === undefined || rightValue === '') {
+    return -1;
+  }
+
+  const leftNumber = Number(leftValue);
+  const rightNumber = Number(rightValue);
+  const bothNumeric = Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+  if (bothNumeric) {
+    return leftNumber - rightNumber;
+  }
+
+  return String(leftValue).localeCompare(String(rightValue), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
 }
