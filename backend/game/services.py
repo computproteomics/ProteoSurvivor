@@ -184,6 +184,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     missing_fraction = (
         (missing_cells / total_measurements) * 100 if total_measurements else None
     )
+    # If the primary protein identifier column is unavailable, fall back to row count.
     proteins = int(df[PROTEIN_ID].nunique()) if PROTEIN_ID in df.columns else int(len(df))
     peptides = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else None
     one_peptide = (
@@ -295,7 +296,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     if intensity_columns:
         column_explanations.append(
             {
-                "column": "ConditionA/ConditionB sample columns",
+                "column": "Sample intensity columns",
                 "explanation": "These replicate intensity columns are the core quantitative measurements used for filtering, normalization, and statistics.",
             }
         )

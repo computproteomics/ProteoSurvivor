@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './StationResults.module.css';
 
+const TABLE_ROW_KEY_COLUMNS = ['Protein ID', 'Protein', 'Gene'];
+
 export function getStationResultsRenderer(stationId, handlers = {}) {
   const { onImageClick } = handlers;
 
@@ -120,16 +122,23 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
     setCurrentPage(1);
   }, [filterText, pageSize, sortColumn, sortDirection, tableRows]);
 
+  const searchableRows = useMemo(
+    () =>
+      tableRows.map((row) => ({
+        row,
+        searchText: tableColumns.map((column) => getTableCellSearchText(row[column])).join(' '),
+      })),
+    [tableColumns, tableRows]
+  );
+
   const filteredAndSortedRows = useMemo(() => {
     const normalizedFilter = filterText.trim().toLowerCase();
     const filteredRows =
       normalizedFilter.length === 0
         ? tableRows
-        : tableRows.filter((row) =>
-            tableColumns.some((column) =>
-              getTableCellSearchText(row[column]).includes(normalizedFilter)
-            )
-          );
+        : searchableRows
+            .filter(({ searchText }) => searchText.includes(normalizedFilter))
+            .map(({ row }) => row);
 
     if (!sortColumn) {
       return filteredRows;
@@ -139,7 +148,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
       const comparison = compareTableValues(leftRow[sortColumn], rightRow[sortColumn]);
       return sortDirection === 'desc' ? comparison * -1 : comparison;
     });
-  }, [filterText, sortColumn, sortDirection, tableColumns, tableRows]);
+  }, [filterText, searchableRows, sortColumn, sortDirection, tableRows]);
 
   const totalFilteredRows = filteredAndSortedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredRows / pageSize));
@@ -461,7 +470,7 @@ function formatTableCell(value) {
 }
 
 function buildTableRowKey(row, rowIndex, columns) {
-  const preferredKey = ['Protein ID', 'Protein', 'Gene']
+  const preferredKey = TABLE_ROW_KEY_COLUMNS
     .map((column) => row[column])
     .find((value) => value !== null && value !== undefined && value !== '');
 

@@ -319,6 +319,12 @@ class TestDataReviewStation(TestCase):
                 for item in result["column_explanations"]
             )
         )
+        self.assertTrue(
+            any(
+                item["column"] == "Sample intensity columns"
+                for item in result["column_explanations"]
+            )
+        )
 
     def test_returns_full_table_for_browsing(self):
         large_dataset = pd.concat([_make_dataset()] * 8, ignore_index=True)
