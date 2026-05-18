@@ -18,6 +18,7 @@ import pandas as pd
 from pathlib import Path
 
 from game.services import (
+    _simulate_data_review,
     _simulate_filtering,
     _simulate_imputer,
     _simulate_mass_spec,
@@ -285,6 +286,39 @@ class TestSpectralSearchStation(TestCase):
         self.assertTrue(result["success"])
         self.assertIn("num_prot", result)
         self.assertIsInstance(result["img"], list)
+
+
+# ---------------------------------------------------------------------------
+# Station: data_review
+# ---------------------------------------------------------------------------
+
+
+class TestDataReviewStation(TestCase):
+    def test_fails_on_empty_dataset(self):
+        result = _simulate_data_review(pd.DataFrame(), {})
+        self.assertFalse(result["success"])
+        self.assertIn("spectral search", result["feedback"].lower())
+
+    def test_returns_metrics_and_preview_for_dataset(self):
+        result = _simulate_data_review(_make_dataset_with_stats(), {})
+        self.assertTrue(result["success"])
+        self.assertIn("metric_cards", result)
+        self.assertIn("table_preview", result)
+        self.assertEqual(result["table_preview"]["shown_rows"], 4)
+        self.assertEqual(result["table_preview"]["total_rows"], 4)
+        self.assertEqual(len(result["sample_metrics"]), len(COND_A) + len(COND_B))
+        self.assertTrue(
+            any(
+                metric["label"] == "Significant proteins"
+                for metric in result["metric_cards"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["column"] == "Protein Probability"
+                for item in result["column_explanations"]
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
