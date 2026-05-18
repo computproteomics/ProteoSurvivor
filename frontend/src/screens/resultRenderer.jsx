@@ -206,9 +206,9 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+                <tbody>
                 {tablePreview.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
+                  <tr key={buildTableRowKey(row, rowIndex, tablePreview.columns)}>
                     {tablePreview.columns.map((column) => (
                       <td key={`${rowIndex}-${column}`}>{formatTableCell(row[column])}</td>
                     ))}
@@ -322,4 +322,23 @@ function formatTableCell(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
   return formatValue(value);
+}
+
+function buildTableRowKey(row, rowIndex, columns) {
+  const preferredKey = ['Protein ID', 'Protein', 'Gene']
+    .map((column) => row[column])
+    .find((value) => value !== null && value !== undefined && value !== '');
+
+  if (preferredKey) {
+    return `${preferredKey}-${rowIndex}`;
+  }
+
+  const firstPopulatedColumn = columns.find(
+    (column) => row[column] !== null && row[column] !== undefined && row[column] !== ''
+  );
+  if (firstPopulatedColumn) {
+    return `${row[firstPopulatedColumn]}-${rowIndex}`;
+  }
+
+  return `row-${rowIndex}`;
 }

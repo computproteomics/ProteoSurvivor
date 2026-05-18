@@ -171,13 +171,15 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
 
     df = dataset.copy()
     intensity_columns = _existing_intensity_columns(df)
-    intensity_values = (
-        df[intensity_columns].replace([np.inf, -np.inf], np.nan)
-        if intensity_columns
-        else pd.DataFrame(index=df.index)
+    intensity_values = None
+    if intensity_columns:
+        intensity_values = df[intensity_columns].replace([np.inf, -np.inf], np.nan)
+    total_measurements = int(intensity_values.size) if intensity_values is not None else 0
+    missing_cells = (
+        int(intensity_values.isna().sum().sum())
+        if intensity_values is not None and total_measurements
+        else 0
     )
-    total_measurements = int(intensity_values.size)
-    missing_cells = int(intensity_values.isna().sum().sum()) if total_measurements else 0
     missing_fraction = (
         (missing_cells / total_measurements) * 100 if total_measurements else None
     )
@@ -282,9 +284,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     for column in preview_column_candidates:
         if column and column in df.columns and column not in preview_columns:
             preview_columns.append(column)
-    preview_rows = df[preview_columns].replace({np.nan: None, pd.NA: None}).to_dict(
-        orient="records"
-    )
+    preview_rows = df[preview_columns].to_dict(orient="records")
 
     column_explanations = [
         {"column": column, "explanation": explanation}
