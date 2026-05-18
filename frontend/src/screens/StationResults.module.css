@@ -174,39 +174,6 @@
   line-height: 1.45;
 }
 
-.tableControls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.9rem;
-  margin-bottom: 1rem;
-}
-
-.tableControl {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.controlLabel {
-  color: #475569;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.controlInput {
-  width: 100%;
-  border: 1px solid rgba(203, 213, 225, 0.95);
-  border-radius: 10px;
-  padding: 0.65rem 0.8rem;
-  background: rgba(255, 255, 255, 0.92);
-  color: #0f172a;
-  font-size: 0.95rem;
-}
-
-.controlInput:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.35);
-  outline-offset: 1px;
-}
-
 .dataTableWrap {
   overflow: auto;
   border: 1px solid rgba(226, 232, 240, 0.85);
@@ -235,6 +202,47 @@
   background: rgba(241, 245, 249, 0.98);
   color: #334155;
   font-weight: 700;
+  z-index: 1;
+}
+
+.columnHeaderButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.columnHeaderLabel {
+  overflow-wrap: anywhere;
+}
+
+.filterHeaderCell {
+  top: 44px;
+  padding-top: 0.45rem !important;
+  padding-bottom: 0.45rem !important;
+  background: rgba(248, 250, 252, 0.98) !important;
+}
+
+.columnFilterInput {
+  width: 100%;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.columnFilterInput:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
 }
 
 .dataTable tbody tr:nth-child(even) {
@@ -245,27 +253,6 @@
   text-align: center !important;
   color: #64748b;
   font-style: italic;
-}
-
-.tablePagination {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.paginationStatus {
-  margin: 0;
-  color: #475569;
-  font-size: 0.9rem;
-}
-
-.paginationButtons {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .errorBox {

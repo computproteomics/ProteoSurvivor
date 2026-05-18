@@ -102,11 +102,9 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   const resultImages = normalizeImageList(img);
   const tableColumns = useMemo(() => tablePreview?.columns ?? [], [tablePreview]);
   const tableRows = useMemo(() => tablePreview?.rows ?? [], [tablePreview]);
-  const [filterText, setFilterText] = useState('');
+  const [columnFilters, setColumnFilters] = useState({});
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (tableColumns.length === 0) {
@@ -119,26 +117,32 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   }, [sortColumn, tableColumns]);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filterText, pageSize, sortColumn, sortDirection, tableRows]);
+    setColumnFilters((currentFilters) =>
+      Object.fromEntries(
+        Object.entries(currentFilters).filter(([column]) => tableColumns.includes(column))
+      )
+    );
+  }, [tableColumns]);
 
-  const searchableRows = useMemo(
+  const activeColumnFilters = useMemo(
     () =>
-      tableRows.map((row) => ({
-        row,
-        searchText: tableColumns.map((column) => getTableCellSearchText(row[column])).join(' '),
-      })),
-    [tableColumns, tableRows]
+      Object.fromEntries(
+        tableColumns
+          .map((column) => [column, (columnFilters[column] ?? '').trim().toLowerCase()])
+          .filter(([, filterValue]) => filterValue.length > 0)
+      ),
+    [columnFilters, tableColumns]
   );
 
   const filteredAndSortedRows = useMemo(() => {
-    const normalizedFilter = filterText.trim().toLowerCase();
     const filteredRows =
-      normalizedFilter.length === 0
+      Object.keys(activeColumnFilters).length === 0
         ? tableRows
-        : searchableRows
-            .filter(({ searchText }) => searchText.includes(normalizedFilter))
-            .map(({ row }) => row);
+        : tableRows.filter((row) =>
+            Object.entries(activeColumnFilters).every(([column, filterValue]) =>
+              getTableCellSearchText(row[column]).includes(filterValue)
+            )
+          );
 
     if (!sortColumn) {
       return filteredRows;
@@ -148,17 +152,16 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
       const comparison = compareTableValues(leftRow[sortColumn], rightRow[sortColumn]);
       return sortDirection === 'desc' ? comparison * -1 : comparison;
     });
-  }, [filterText, searchableRows, sortColumn, sortDirection, tableRows]);
+  }, [activeColumnFilters, sortColumn, sortDirection, tableRows]);
 
   const totalFilteredRows = filteredAndSortedRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalFilteredRows / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pageStart = (safeCurrentPage - 1) * pageSize;
-  const paginatedRows = filteredAndSortedRows.slice(pageStart, pageStart + pageSize);
-  const pageEnd = totalFilteredRows === 0 ? 0 : pageStart + paginatedRows.length;
-  const hasActiveFilter = filterText.trim().length > 0;
+  const hasActiveFilter = Object.keys(activeColumnFilters).length > 0;
   const rangeLabel =
-    totalFilteredRows === 0 ? 'Showing 0 rows' : `Showing ${pageStart + 1}-${pageEnd} of ${totalFilteredRows} rows`;
+    totalFilteredRows === 0
+      ? 'Showing 0 rows'
+      : hasActiveFilter
+        ? `Showing ${totalFilteredRows} filtered rows`
+        : `Showing all ${totalFilteredRows} rows`;
 
   return (
     <>
@@ -264,103 +267,60 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
               {hasActiveFilter ? ` (filtered from ${tablePreview.total_rows})` : ''}
             </p>
           </div>
-          <div className={styles.tableControls}>
-            <label className={styles.tableControl}>
-              <span className={styles.controlLabel}>Filter</span>
-              <input
-                className={styles.controlInput}
-                type="search"
-                value={filterText}
-                onChange={(event) => setFilterText(event.target.value)}
-                placeholder="Search any column"
-              />
-            </label>
-            <label className={styles.tableControl}>
-              <span className={styles.controlLabel}>Sort by</span>
-              <select
-                className={styles.controlInput}
-                value={sortColumn}
-                onChange={(event) => setSortColumn(event.target.value)}
-              >
-                {tableColumns.map((column) => (
-                  <option key={column} value={column}>
-                    {column}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.tableControl}>
-              <span className={styles.controlLabel}>Order</span>
-              <select
-                className={styles.controlInput}
-                value={sortDirection}
-                onChange={(event) => setSortDirection(event.target.value)}
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
-            </label>
-            <label className={styles.tableControl}>
-              <span className={styles.controlLabel}>Rows per page</span>
-              <select
-                className={styles.controlInput}
-                value={String(pageSize)}
-                onChange={(event) => setPageSize(Number(event.target.value))}
-              >
-                <option value="10">10</option>
-                <option value="20">20</option>
-              </select>
-            </label>
-          </div>
           <div className={styles.dataTableWrap}>
             <table className={styles.dataTable}>
               <thead>
                 <tr>
                   {tablePreview.columns.map((column) => (
-                    <th key={column}>{column}</th>
+                    <th key={column}>
+                      <button
+                        type="button"
+                        className={styles.columnHeaderButton}
+                        onClick={() => toggleColumnSort(column, sortColumn, sortDirection, setSortColumn, setSortDirection)}
+                      >
+                        <span className={styles.columnHeaderLabel}>{column}</span>
+                        <span>{getSortIndicator(column, sortColumn, sortDirection)}</span>
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {tableColumns.map((column) => (
+                    <th key={`${column}-filter`} className={styles.filterHeaderCell}>
+                      <input
+                        type="search"
+                        className={styles.columnFilterInput}
+                        value={columnFilters[column] ?? ''}
+                        onChange={(event) =>
+                          setColumnFilters((currentFilters) => ({
+                            ...currentFilters,
+                            [column]: event.target.value,
+                          }))
+                        }
+                        placeholder={`Filter ${column}`}
+                        aria-label={`Filter ${column}`}
+                      />
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paginatedRows.map((row, rowIndex) => (
-                  <tr key={buildTableRowKey(row, pageStart + rowIndex, tableColumns)}>
+                {filteredAndSortedRows.map((row, rowIndex) => (
+                  <tr key={buildTableRowKey(row, rowIndex, tableColumns)}>
                     {tableColumns.map((column) => (
                       <td key={`${rowIndex}-${column}`}>{formatTableCell(row[column])}</td>
                     ))}
                   </tr>
                 ))}
-                {paginatedRows.length === 0 && (
+                {filteredAndSortedRows.length === 0 && (
                   <tr>
                     <td colSpan={tableColumns.length} className={styles.emptyTableState}>
-                      No proteins match the current filter.
+                      No proteins match the current column filters.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-          <div className={styles.tablePagination}>
-            <p className={styles.paginationStatus}>
-              Page {safeCurrentPage} of {totalPages}
-            </p>
-            <div className={styles.paginationButtons}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={safeCurrentPage === 1}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                disabled={safeCurrentPage === totalPages}
-              >
-                Next
-              </button>
-            </div>
           </div>
         </section>
       )}
@@ -523,4 +483,22 @@ function compareTableValues(leftValue, rightValue) {
     numeric: true,
     sensitivity: 'base',
   });
+}
+
+function toggleColumnSort(column, sortColumn, sortDirection, setSortColumn, setSortDirection) {
+  if (sortColumn !== column) {
+    setSortColumn(column);
+    setSortDirection('asc');
+    return;
+  }
+
+  setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
+}
+
+function getSortIndicator(column, sortColumn, sortDirection) {
+  if (sortColumn !== column) {
+    return '↕';
+  }
+
+  return sortDirection === 'asc' ? '↑' : '↓';
 }
