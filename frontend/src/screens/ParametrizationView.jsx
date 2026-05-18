@@ -112,6 +112,21 @@ function ParamField({ field, value, onChange }) {
   return null;
 }
 
+function getRunFailureResult(title, values, err) {
+  const feedback =
+    err?.response?.data?.feedback ||
+    err?.response?.data?.detail ||
+    err?.message ||
+    'The station run failed before results could be displayed.';
+
+  return {
+    success: false,
+    summary: `Could not display results for ${title}.`,
+    feedback,
+    params_received: values,
+  };
+}
+
 export default function ParametrizationView() {
   const { stationId } = useParams();
   const navigate = useNavigate();
@@ -140,24 +155,28 @@ export default function ParametrizationView() {
     setLoading(true);
     setStationParams(stationId, values);
 
+    let resultPayload;
+    let runSuccess;
+
     try {
       const res = await runStation(stationId, values);
       const responseData = res.data ?? {};
-      const resultPayload = responseData.results ?? responseData;
-      const runSuccess =
-        responseData.success ?? resultPayload.success;
+      resultPayload = responseData.results ?? responseData;
+      runSuccess = responseData.success ?? resultPayload.success;
+    } catch (err) {
+      setStationResults(getRunFailureResult(title, values, err));
+      navigate(`/station/${stationId}/results`);
+      return;
+    }
 
+    try {
       setStationResults({
         ...resultPayload,
         success: runSuccess,
       });
       navigate(`/station/${stationId}/results`);
     } catch (err) {
-      setStationResults({
-        success: false,
-        summary: `Parameters recorded for ${title}. (Backend not reachable - showing offline results.)`,
-        params_received: values,
-      });
+      setStationResults(getRunFailureResult(title, values, err));
       navigate(`/station/${stationId}/results`);
     } finally {
       setLoading(false);
