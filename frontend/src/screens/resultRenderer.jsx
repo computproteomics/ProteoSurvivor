@@ -107,6 +107,16 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
     () => Object.fromEntries(tableColumns.map((column, index) => [column, index])),
     [tableColumns]
   );
+  const numericColumns = useMemo(
+    () =>
+      Object.fromEntries(
+        tableColumns.map((column) => [
+          column,
+          isNumericTableColumn(column, tableRows, tableColumnIndex),
+        ])
+      ),
+    [tableColumnIndex, tableColumns, tableRows]
+  );
   const [columnFilters, setColumnFilters] = useState({});
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -125,28 +135,76 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   useEffect(() => {
     setColumnFilters((currentFilters) =>
       Object.fromEntries(
-        Object.entries(currentFilters).filter(([column]) => tableColumns.includes(column))
+        tableColumns.map((column) => {
+          const currentFilter = currentFilters[column];
+          if (numericColumns[column]) {
+            const numericFilter =
+              typeof currentFilter === 'object' && currentFilter !== null
+                ? currentFilter
+                : { min: '', max: '' };
+            return [
+              column,
+              {
+                min: numericFilter.min ?? '',
+                max: numericFilter.max ?? '',
+              },
+            ];
+          }
+
+          return [column, typeof currentFilter === 'string' ? currentFilter : ''];
+        })
       )
     );
-  }, [tableColumns]);
+  }, [numericColumns, tableColumns]);
 
-  const activeColumnFilters = useMemo(
+  const activeTextColumnFilters = useMemo(
     () =>
       Object.fromEntries(
         tableColumns
+          .filter((column) => !numericColumns[column])
           .map((column) => [column, (columnFilters[column] ?? '').trim().toLowerCase()])
           .filter(([, filterValue]) => filterValue.length > 0)
       ),
-    [columnFilters, tableColumns]
+    [columnFilters, numericColumns, tableColumns]
+  );
+
+  const activeNumericColumnFilters = useMemo(
+    () =>
+      Object.fromEntries(
+        tableColumns
+          .filter((column) => numericColumns[column])
+          .map((column) => {
+            const filterValue = columnFilters[column];
+            const min =
+              typeof filterValue === 'object' && filterValue !== null
+                ? normalizeRangeBoundary(filterValue.min)
+                : null;
+            const max =
+              typeof filterValue === 'object' && filterValue !== null
+                ? normalizeRangeBoundary(filterValue.max)
+                : null;
+            return [column, { min, max }];
+          })
+          .filter(([, filterValue]) => filterValue.min !== null || filterValue.max !== null)
+      ),
+    [columnFilters, numericColumns, tableColumns]
   );
 
   const filteredAndSortedRows = useMemo(() => {
     const filteredRows =
-      Object.keys(activeColumnFilters).length === 0
+      Object.keys(activeTextColumnFilters).length === 0 &&
+      Object.keys(activeNumericColumnFilters).length === 0
         ? tableRows
         : tableRows.filter((row) =>
-            Object.entries(activeColumnFilters).every(([column, filterValue]) =>
+            Object.entries(activeTextColumnFilters).every(([column, filterValue]) =>
               getTableCellSearchText(getTableValue(row, column, tableColumnIndex)).includes(filterValue)
+            ) &&
+            Object.entries(activeNumericColumnFilters).every(([column, filterValue]) =>
+              doesTableValueMatchRange(
+                getTableValue(row, column, tableColumnIndex),
+                filterValue.min,
+                filterValue.max
+              )
             )
           );
 
@@ -161,7 +219,14 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
       );
       return sortDirection === 'desc' ? comparison * -1 : comparison;
     });
-  }, [activeColumnFilters, sortColumn, sortDirection, tableColumnIndex, tableRows]);
+  }, [
+    activeNumericColumnFilters,
+    activeTextColumnFilters,
+    sortColumn,
+    sortDirection,
+    tableColumnIndex,
+    tableRows,
+  ]);
 
   const renderedTableRows = useMemo(
     () =>
@@ -174,7 +239,9 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
 
   const totalFilteredRows = filteredAndSortedRows.length;
   const totalRows = tablePreview?.total_rows ?? tableRows.length;
-  const hasActiveFilter = Object.keys(activeColumnFilters).length > 0;
+  const hasActiveFilter =
+    Object.keys(activeTextColumnFilters).length > 0 ||
+    Object.keys(activeNumericColumnFilters).length > 0;
   const totalPages = Math.max(1, Math.ceil(totalFilteredRows / TABLE_PAGE_SIZE));
   const pageStartIndex = totalFilteredRows === 0 ? 0 : (currentPage - 1) * TABLE_PAGE_SIZE;
   const pageEndIndex = Math.min(pageStartIndex + TABLE_PAGE_SIZE, totalFilteredRows);
@@ -189,7 +256,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeColumnFilters, tableRows]);
+  }, [activeNumericColumnFilters, activeTextColumnFilters, tableRows]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -320,19 +387,58 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                 <tr>
                   {tableColumns.map((column) => (
                     <th key={`${column}-filter`} className={styles.filterHeaderCell}>
-                      <input
-                        type="search"
-                        className={styles.columnFilterInput}
-                        value={columnFilters[column] ?? ''}
-                        onChange={(event) =>
-                          setColumnFilters((currentFilters) => ({
-                            ...currentFilters,
-                            [column]: event.target.value,
-                          }))
-                        }
-                        placeholder={`Filter ${column}`}
-                        aria-label={`Filter ${column}`}
-                      />
+                      {numericColumns[column] ? (
+                        <div className={styles.rangeFilterInputs}>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            className={styles.columnFilterInput}
+                            value={columnFilters[column]?.min ?? ''}
+                            onChange={(event) =>
+                              setColumnFilters((currentFilters) => ({
+                                ...currentFilters,
+                                [column]: {
+                                  min: event.target.value,
+                                  max: currentFilters[column]?.max ?? '',
+                                },
+                              }))
+                            }
+                            placeholder="Min"
+                            aria-label={`Minimum ${column}`}
+                          />
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            className={styles.columnFilterInput}
+                            value={columnFilters[column]?.max ?? ''}
+                            onChange={(event) =>
+                              setColumnFilters((currentFilters) => ({
+                                ...currentFilters,
+                                [column]: {
+                                  min: currentFilters[column]?.min ?? '',
+                                  max: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Max"
+                            aria-label={`Maximum ${column}`}
+                          />
+                        </div>
+                      ) : (
+                        <input
+                          type="search"
+                          className={styles.columnFilterInput}
+                          value={columnFilters[column] ?? ''}
+                          onChange={(event) =>
+                            setColumnFilters((currentFilters) => ({
+                              ...currentFilters,
+                              [column]: event.target.value,
+                            }))
+                          }
+                          placeholder={`Filter ${column}`}
+                          aria-label={`Filter ${column}`}
+                        />
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -357,6 +463,21 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
           </div>
           {totalFilteredRows > TABLE_PAGE_SIZE && (
             <div className={styles.paginationBar}>
+              <label className={styles.pageSelectLabel}>
+                Page
+                <select
+                  className={styles.pageSelect}
+                  value={currentPage}
+                  onChange={(event) => setCurrentPage(Number(event.target.value))}
+                  aria-label="Select table page"
+                >
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                    <option key={pageNumber} value={pageNumber}>
+                      {pageNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 className={styles.secondaryButton}
@@ -531,6 +652,55 @@ function getTableCellSearchText(value) {
     return JSON.stringify(value).toLowerCase();
   }
   return String(value).toLowerCase();
+}
+
+function normalizeRangeBoundary(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function doesTableValueMatchRange(value, min, max) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return false;
+  }
+
+  if (min !== null && numericValue < min) {
+    return false;
+  }
+
+  if (max !== null && numericValue > max) {
+    return false;
+  }
+
+  return true;
+}
+
+function isNumericTableColumn(column, rows, columnIndex) {
+  let sawNumericValue = false;
+
+  for (const row of rows) {
+    const value = getTableValue(row, column, columnIndex);
+    if (value === null || value === undefined || value === '') {
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      return false;
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+      return false;
+    }
+
+    sawNumericValue = true;
+  }
+
+  return sawNumericValue;
 }
 
 function compareTableValues(leftValue, rightValue) {

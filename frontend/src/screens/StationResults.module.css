@@ -248,6 +248,11 @@
   outline-offset: 1px;
 }
 
+.rangeFilterInputs {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .dataTable tbody tr:nth-child(even) {
   background: rgba(248, 250, 252, 0.75);
 }
@@ -270,6 +275,28 @@
 .paginationInfo {
   color: #475569;
   font-size: 0.9rem;
+}
+
+.pageSelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.pageSelect {
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.pageSelect:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
 }
 
 .errorBox {
