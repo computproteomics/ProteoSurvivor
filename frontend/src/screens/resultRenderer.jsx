@@ -132,9 +132,12 @@ function DatasetBrowser({ datasetView, datasetLoading, datasetError }) {
   const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: null, direction: 'asc' });
   const [page, setPage] = useState(1);
-  const columns = datasetView?.columns ?? [];
-  const rows = datasetView?.rows ?? [];
-  const importantColumns = datasetView?.important_columns ?? [];
+  const columns = useMemo(() => datasetView?.columns ?? [], [datasetView?.columns]);
+  const rows = useMemo(() => datasetView?.rows ?? [], [datasetView?.rows]);
+  const importantColumns = useMemo(
+    () => datasetView?.important_columns ?? [],
+    [datasetView?.important_columns]
+  );
   const pageSize = 50;
 
   const filteredRows = useMemo(() => {
