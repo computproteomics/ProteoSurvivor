@@ -25,11 +25,11 @@ export const TILE = 48;
 
 // O = bench/table obstacle (non-interactive)
 // X = walkable floor
-// A/B/C/D/E/F/I/J/M/S/V = station tile (walkable + interactable)
+// A/B/C/D/E/F/I/J/M/S/V/R = station tile (walkable + interactable)
 // space = wall/void
 const RAW_ASCII_LAYOUT = [
   ' OAXXXXXBOXXXOO',
-  ' OOXXOXXOOXXRCO',
+  ' OOXXOXXOOXXXCO',
   ' XXXXXXXXXXXOXX',
   ' XXXXXXXXXXXXXX',
   '            XX',
@@ -37,8 +37,8 @@ const RAW_ASCII_LAYOUT = [
   'ODXXXXXXXXXXXXX',
   'XXXXXXXXXXXXXFO',
   'XXXXXXXXXXXXXXX XXXX',
-  'OXXOOOOOOOOOOXXXXXXX',
-  'IXXOOOOOOOOOOXXXXXVO',
+  'OXXOOOOOROOOOXXXXXXX',
+  'IXXOOOOOXOOOOXXXXXVO',
   'XXXXXXXXXXXXXXX XXOO',
   'XXXXXXOOXXXXXXX',
   'XOSXXXOJXXXXXOO',
