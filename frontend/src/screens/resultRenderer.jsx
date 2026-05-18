@@ -169,7 +169,7 @@ function DatasetBrowser({ datasetView, datasetLoading, datasetError }) {
 
   useEffect(() => {
     setPage(1);
-  }, [datasetView?.row_count, filterText, sortConfig.column, sortConfig.direction]);
+  }, [datasetView?.row_count, datasetView?.station_id, filterText, sortConfig.column, sortConfig.direction]);
 
   if (datasetLoading) {
     return <p className={styles.datasetMessage}>Loading dataset table…</p>;

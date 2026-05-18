@@ -209,11 +209,14 @@ def build_dataset_browser_payload(dataset: pd.DataFrame | None) -> dict[str, Any
 
     columns = [str(column) for column in dataset.columns]
     rows = []
-    for index, row in enumerate(dataset.to_dict(orient="records")):
+    for index, row in enumerate(dataset.itertuples(index=False, name=None)):
         rows.append(
             {
                 "__row_id": index,
-                **{str(key): _to_json_safe(value) for key, value in row.items()},
+                **{
+                    column: _to_json_safe(value)
+                    for column, value in zip(columns, row, strict=False)
+                },
             }
         )
     important_columns = [
