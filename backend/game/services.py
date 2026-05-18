@@ -121,27 +121,28 @@ def _to_json_safe(value: Any) -> Any:
     return value
 
 
-def _round_float(value: Any, digits: int = 2) -> float | None:
-    """Round finite numeric values for compact frontend display."""
+def _format_metric_value(
+    value: Any,
+    *,
+    digits: int = 2,
+    as_percent: bool = False,
+    for_display: bool = True,
+) -> str | float | None:
+    """Normalize metric values for either frontend display strings or numeric JSON fields."""
     if value is None:
-        return None
+        return "n/a" if for_display else None
 
     try:
         float_value = float(value)
     except (TypeError, ValueError):
-        return None
+        return "n/a" if for_display else None
 
     if not np.isfinite(float_value):
-        return None
+        return "n/a" if for_display else None
 
-    return round(float_value, digits)
-
-
-def _format_metric_value(value: Any, *, digits: int = 2, as_percent: bool = False) -> str:
-    """Format compact metric strings for result cards."""
-    rounded = _round_float(value, digits=digits)
-    if rounded is None:
-        return "n/a"
+    rounded = round(float_value, digits)
+    if not for_display:
+        return rounded
 
     if as_percent:
         return f"{rounded:.{digits}f}%"
@@ -150,11 +151,6 @@ def _format_metric_value(value: Any, *, digits: int = 2, as_percent: bool = Fals
         return f"{int(rounded):,}"
 
     return f"{rounded:,.{digits}f}"
-
-
-def _existing_intensity_columns(df: pd.DataFrame) -> list[str]:
-    """Return the expected sample-intensity columns present in the dataset."""
-    return [column for column in COND_A + COND_B if column in df.columns]
 
 
 def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
@@ -171,7 +167,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         }
 
     df = dataset.copy()
-    intensity_columns = _existing_intensity_columns(df)
+    intensity_columns = [column for column in COND_A + COND_B if column in df.columns]
     intensity_values = None
     if intensity_columns:
         intensity_values = df[intensity_columns].replace([np.inf, -np.inf], np.nan)
@@ -255,10 +251,18 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         sample_metrics.append(
             {
                 "sample": column,
-                "median_intensity": _round_float(sample_series.median()),
-                "min_intensity": _round_float(sample_series.min()),
-                "max_intensity": _round_float(sample_series.max()),
-                "missing_fraction": _round_float(sample_series.isna().mean() * 100),
+                "median_intensity": _format_metric_value(
+                    sample_series.median(), for_display=False
+                ),
+                "min_intensity": _format_metric_value(
+                    sample_series.min(), for_display=False
+                ),
+                "max_intensity": _format_metric_value(
+                    sample_series.max(), for_display=False
+                ),
+                "missing_fraction": _format_metric_value(
+                    sample_series.isna().mean() * 100, for_display=False
+                ),
             }
         )
 
