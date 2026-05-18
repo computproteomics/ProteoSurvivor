@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './StationResults.module.css';
 
 const TABLE_ROW_KEY_COLUMNS = ['Protein ID', 'Protein', 'Gene'];
+const TABLE_PAGE_SIZE = 25;
 
 export function getStationResultsRenderer(stationId, handlers = {}) {
   const { onImageClick } = handlers;
@@ -109,6 +110,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   const [columnFilters, setColumnFilters] = useState({});
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (tableColumns.length === 0) {
@@ -173,12 +175,25 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   const totalFilteredRows = filteredAndSortedRows.length;
   const totalRows = tablePreview?.total_rows ?? tableRows.length;
   const hasActiveFilter = Object.keys(activeColumnFilters).length > 0;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredRows / TABLE_PAGE_SIZE));
+  const pageStartIndex = totalFilteredRows === 0 ? 0 : (currentPage - 1) * TABLE_PAGE_SIZE;
+  const pageEndIndex = Math.min(pageStartIndex + TABLE_PAGE_SIZE, totalFilteredRows);
+  const pagedTableRows = useMemo(
+    () => renderedTableRows.slice(pageStartIndex, pageEndIndex),
+    [pageEndIndex, pageStartIndex, renderedTableRows]
+  );
   const rangeLabel =
     totalFilteredRows === 0
       ? 'Showing 0 rows'
-      : hasActiveFilter
-        ? `Showing ${totalFilteredRows} filtered rows`
-        : `Showing all ${totalFilteredRows} rows`;
+      : `Showing rows ${pageStartIndex + 1}-${pageEndIndex} of ${totalFilteredRows}`;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeColumnFilters, tableRows.length]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   return (
     <>
@@ -282,6 +297,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
             <p className={styles.sectionMeta}>
               {rangeLabel}
               {hasActiveFilter ? ` (filtered from ${totalRows})` : ''}
+              {totalFilteredRows > 0 ? ` • Page ${currentPage} of ${totalPages}` : ''}
             </p>
           </div>
           <div className={styles.dataTableWrap}>
@@ -322,14 +338,14 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                 </tr>
               </thead>
               <tbody>
-                {renderedTableRows.map(({ key, row }) => (
+                {pagedTableRows.map(({ key, row }) => (
                   <tr key={key}>
                     {tableColumns.map((column) => (
                       <td key={`${key}-${column}`}>{formatTableCell(getTableValue(row, column, tableColumnIndex))}</td>
                     ))}
                   </tr>
                 ))}
-                {renderedTableRows.length === 0 && (
+                {pagedTableRows.length === 0 && (
                   <tr>
                     <td colSpan={tableColumns.length} className={styles.emptyTableState}>
                       No proteins match the current column filters.
@@ -339,6 +355,29 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
               </tbody>
             </table>
           </div>
+          {totalFilteredRows > TABLE_PAGE_SIZE && (
+            <div className={styles.paginationBar}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                ← Previous
+              </button>
+              <span className={styles.paginationInfo}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </section>
       )}
 
