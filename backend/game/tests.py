@@ -18,6 +18,7 @@ import pandas as pd
 from pathlib import Path
 
 from game.services import (
+    _to_json_safe,
     _simulate_data_review,
     _simulate_filtering,
     _simulate_imputer,

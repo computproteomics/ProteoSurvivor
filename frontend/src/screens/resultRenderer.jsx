@@ -322,7 +322,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                 </tr>
               </thead>
               <tbody>
-                {renderedTableRows.map(({ key, row }, rowIndex) => (
+                {renderedTableRows.map(({ key, row }) => (
                   <tr key={key}>
                     {tableColumns.map((column) => (
                       <td key={`${key}-${column}`}>{formatTableCell(getTableValue(row, column, tableColumnIndex))}</td>
