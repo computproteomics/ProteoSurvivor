@@ -272,8 +272,8 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
 
     table_columns = [str(column) for column in df.columns]
     table_rows = [
-        {str(column): _to_json_safe(value) for column, value in row.items()}
-        for row in df.to_dict(orient="records")
+        [_to_json_safe(value) for value in row]
+        for row in df.itertuples(index=False, name=None)
     ]
 
     column_explanations = [

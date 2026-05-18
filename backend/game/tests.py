@@ -334,6 +334,10 @@ class TestDataReviewStation(TestCase):
         self.assertEqual(result["table_preview"]["shown_rows"], len(large_dataset))
         self.assertEqual(result["table_preview"]["columns"], list(large_dataset.columns))
         self.assertEqual(len(result["table_preview"]["rows"]), len(large_dataset))
+        self.assertEqual(
+            result["table_preview"]["rows"][0],
+            [_to_json_safe(value) for value in large_dataset.iloc[0].tolist()],
+        )
 
 
 class TestDataReviewApi(TestCase):
@@ -359,6 +363,10 @@ class TestDataReviewApi(TestCase):
         self.assertEqual(payload["table_preview"]["total_rows"], len(dataset))
         self.assertEqual(payload["table_preview"]["columns"], list(dataset.columns))
         self.assertEqual(len(payload["table_preview"]["rows"]), len(dataset))
+        self.assertEqual(
+            payload["table_preview"]["rows"][0],
+            [_to_json_safe(value) for value in dataset.iloc[0].tolist()],
+        )
 
 
 # ---------------------------------------------------------------------------
