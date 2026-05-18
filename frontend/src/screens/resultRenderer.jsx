@@ -180,10 +180,10 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
           <h2 className={styles.sectionTitle}>What the important columns mean</h2>
           <div className={styles.explanationList}>
             {columnExplanations.map((item) => (
-              <div key={item.column} className={styles.explanationItem}>
-                <strong>{item.column}</strong>
+              <details key={item.column} className={styles.explanationItem}>
+                <summary className={styles.explanationSummary}>{item.column}</summary>
                 <p>{item.explanation}</p>
-              </div>
+              </details>
             ))}
           </div>
         </section>
@@ -192,9 +192,9 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
       {tablePreview?.columns?.length > 0 && (
         <section className={styles.section}>
           <div className={styles.tableHeader}>
-            <h2 className={styles.sectionTitle}>Protein table preview</h2>
+            <h2 className={styles.sectionTitle}>Protein table</h2>
             <p className={styles.sectionMeta}>
-              Showing {tablePreview.shown_rows} of {tablePreview.total_rows} rows
+              Browsing {tablePreview.shown_rows} of {tablePreview.total_rows} rows
             </p>
           </div>
           <div className={styles.dataTableWrap}>

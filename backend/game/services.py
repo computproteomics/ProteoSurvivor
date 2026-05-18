@@ -74,7 +74,6 @@ INDIS_PROTEINS = "Indistinguishable Proteins"
 PVALUE = "p_value"
 FC = "fold_change"
 STATION_SIMULATORS = {}
-DATA_REVIEW_TABLE_LIMIT = 20
 HIGH_CONFIDENCE_PROTEIN_PROBABILITY = 0.99
 
 DATA_REVIEW_COLUMN_EXPLANATIONS = {
@@ -283,11 +282,8 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     for column in preview_column_candidates:
         if column and column in df.columns and column not in preview_columns:
             preview_columns.append(column)
-    preview_rows = (
-        df[preview_columns]
-        .head(DATA_REVIEW_TABLE_LIMIT)
-        .replace({np.nan: None, pd.NA: None})
-        .to_dict(orient="records")
+    preview_rows = df[preview_columns].replace({np.nan: None, pd.NA: None}).to_dict(
+        orient="records"
     )
 
     column_explanations = [
@@ -305,7 +301,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
 
     return {
         "success": True,
-        "summary": f"Data review ready. Showing {min(len(df), DATA_REVIEW_TABLE_LIMIT)} of {len(df):,} rows from the current protein table.",
+        "summary": f"Data review ready. Browse all {len(df):,} rows from the current protein table.",
         "feedback": (
             "Look for heavy missingness, unusually different sample medians, many single-peptide proteins, "
             "or species imbalances before committing to downstream preprocessing choices."
@@ -318,7 +314,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         "table_preview": {
             "columns": preview_columns,
             "rows": preview_rows,
-            "shown_rows": min(len(df), DATA_REVIEW_TABLE_LIMIT),
+            "shown_rows": int(len(df)),
             "total_rows": int(len(df)),
         },
         "score": 0,

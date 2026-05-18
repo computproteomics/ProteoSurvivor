@@ -320,6 +320,13 @@ class TestDataReviewStation(TestCase):
             )
         )
 
+    def test_returns_full_table_for_browsing(self):
+        large_dataset = pd.concat([_make_dataset()] * 8, ignore_index=True)
+        result = _simulate_data_review(large_dataset, {})
+        self.assertTrue(result["success"])
+        self.assertEqual(result["table_preview"]["shown_rows"], len(large_dataset))
+        self.assertEqual(len(result["table_preview"]["rows"]), len(large_dataset))
+
 
 # ---------------------------------------------------------------------------
 # Station: transform

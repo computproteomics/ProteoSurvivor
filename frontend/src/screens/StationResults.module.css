@@ -134,8 +134,26 @@
   padding: 0.9rem 1rem;
 }
 
-.explanationItem strong {
+.explanationSummary {
+  cursor: pointer;
   color: #0f172a;
+  font-weight: 700;
+  list-style: none;
+}
+
+.explanationSummary::-webkit-details-marker {
+  display: none;
+}
+
+.explanationSummary::after {
+  content: '+';
+  float: right;
+  color: #475569;
+  font-weight: 700;
+}
+
+.explanationItem[open] .explanationSummary::after {
+  content: '–';
 }
 
 .explanationItem p {
