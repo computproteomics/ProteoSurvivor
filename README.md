@@ -43,6 +43,10 @@ docker run --env-file backend/.env \
     proteosurvivor
 ```
 
+When you restart the container with the same bind mount, Docker reuses the
+existing host file instead of overwriting it. Startup steps such as Django's
+`migrate` command can still update the mounted database in place.
+
 #### Purging (resetting) the database
 
 To wipe all data and start fresh, stop the container and delete the mounted
