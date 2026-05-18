@@ -102,6 +102,10 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   const resultImages = normalizeImageList(img);
   const tableColumns = useMemo(() => tablePreview?.columns ?? [], [tablePreview]);
   const tableRows = useMemo(() => tablePreview?.rows ?? [], [tablePreview]);
+  const tableColumnIndex = useMemo(
+    () => Object.fromEntries(tableColumns.map((column, index) => [column, index])),
+    [tableColumns]
+  );
   const [columnFilters, setColumnFilters] = useState({});
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -140,7 +144,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
         ? tableRows
         : tableRows.filter((row) =>
             Object.entries(activeColumnFilters).every(([column, filterValue]) =>
-              getTableCellSearchText(row[column]).includes(filterValue)
+              getTableCellSearchText(getTableValue(row, column, tableColumnIndex)).includes(filterValue)
             )
           );
 
@@ -149,18 +153,21 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
     }
 
     return [...filteredRows].sort((leftRow, rightRow) => {
-      const comparison = compareTableValues(leftRow[sortColumn], rightRow[sortColumn]);
+      const comparison = compareTableValues(
+        getTableValue(leftRow, sortColumn, tableColumnIndex),
+        getTableValue(rightRow, sortColumn, tableColumnIndex)
+      );
       return sortDirection === 'desc' ? comparison * -1 : comparison;
     });
-  }, [activeColumnFilters, sortColumn, sortDirection, tableRows]);
+  }, [activeColumnFilters, sortColumn, sortDirection, tableColumnIndex, tableRows]);
 
   const renderedTableRows = useMemo(
     () =>
       filteredAndSortedRows.map((row, rowIndex) => ({
-        key: buildTableRowKey(row, rowIndex, tableColumns),
+        key: buildTableRowKey(row, rowIndex, tableColumns, tableColumnIndex),
         row,
       })),
-    [filteredAndSortedRows, tableColumns]
+    [filteredAndSortedRows, tableColumnIndex, tableColumns]
   );
 
   const totalFilteredRows = filteredAndSortedRows.length;
@@ -318,7 +325,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                 {renderedTableRows.map(({ key, row }, rowIndex) => (
                   <tr key={key}>
                     {tableColumns.map((column) => (
-                      <td key={`${rowIndex}-${column}`}>{formatTableCell(row[column])}</td>
+                      <td key={`${key}-${column}`}>{formatTableCell(getTableValue(row, column, tableColumnIndex))}</td>
                     ))}
                   </tr>
                 ))}
@@ -439,9 +446,22 @@ function formatTableCell(value) {
   return formatValue(value);
 }
 
-function buildTableRowKey(row, rowIndex, columns) {
+function getTableValue(row, column, columnIndex) {
+  if (Array.isArray(row)) {
+    const valueIndex = columnIndex[column];
+    return valueIndex === undefined ? undefined : row[valueIndex];
+  }
+
+  if (typeof row === 'object' && row !== null) {
+    return row[column];
+  }
+
+  return undefined;
+}
+
+function buildTableRowKey(row, rowIndex, columns, columnIndex) {
   const preferredKey = TABLE_ROW_KEY_COLUMNS
-    .map((column) => row[column])
+    .map((column) => getTableValue(row, column, columnIndex))
     .find((value) => value !== null && value !== undefined && value !== '');
 
   if (preferredKey) {
@@ -449,10 +469,13 @@ function buildTableRowKey(row, rowIndex, columns) {
   }
 
   const firstPopulatedColumn = columns.find(
-    (column) => row[column] !== null && row[column] !== undefined && row[column] !== ''
+    (column) => {
+      const value = getTableValue(row, column, columnIndex);
+      return value !== null && value !== undefined && value !== '';
+    }
   );
   if (firstPopulatedColumn) {
-    return `${row[firstPopulatedColumn]}-${rowIndex}`;
+    return `${getTableValue(row, firstPopulatedColumn, columnIndex)}-${rowIndex}`;
   }
 
   return `row-${rowIndex}`;
