@@ -101,7 +101,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
   const tableColumns = useMemo(() => tablePreview?.columns ?? [], [tablePreview]);
   const tableRows = useMemo(() => tablePreview?.rows ?? [], [tablePreview]);
   const [filterText, setFilterText] = useState('');
-  const [sortColumn, setSortColumn] = useState(tableColumns[0] ?? '');
+  const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -455,7 +455,7 @@ function formatPercent(value) {
 
 function formatTableCell(value) {
   if (typeof value === 'number') {
-    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
   return formatValue(value);
 }

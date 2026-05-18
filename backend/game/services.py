@@ -75,6 +75,7 @@ PVALUE = "p_value"
 FC = "fold_change"
 STATION_SIMULATORS = {}
 HIGH_CONFIDENCE_PROTEIN_PROBABILITY = 0.99
+SIGNIFICANCE_THRESHOLD = 0.05
 
 DATA_REVIEW_COLUMN_EXPLANATIONS = {
     PROTEIN: "Protein group label reported by the search engine for this row.",
@@ -201,7 +202,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         else None
     )
     significant = (
-        int((pd.to_numeric(df[PVALUE], errors="coerce") <= 0.05).sum())
+        int((pd.to_numeric(df[PVALUE], errors="coerce") <= SIGNIFICANCE_THRESHOLD).sum())
         if PVALUE in df.columns
         else None
     )
@@ -235,7 +236,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         {
             "label": "High-confidence proteins",
             "value": _format_metric_value(high_confidence, digits=0),
-            "description": "Protein groups with probability ≥ 0.99.",
+            "description": f"Protein groups with probability ≥ {HIGH_CONFIDENCE_PROTEIN_PROBABILITY}.",
         },
     ]
     if significant is not None:
@@ -243,7 +244,7 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
             {
                 "label": "Significant proteins",
                 "value": _format_metric_value(significant, digits=0),
-                "description": "Rows with p-value ≤ 0.05 in the current table.",
+                "description": f"Rows with p-value ≤ {SIGNIFICANCE_THRESHOLD} in the current table.",
             }
         )
 
