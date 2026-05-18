@@ -42,6 +42,7 @@ from game.services import (
     _squeeze_var,
 )
 from game.models import StationRun
+from game.serializers import DataFrameSessionSerializer
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -331,7 +332,33 @@ class TestDataReviewStation(TestCase):
         result = _simulate_data_review(large_dataset, {})
         self.assertTrue(result["success"])
         self.assertEqual(result["table_preview"]["shown_rows"], len(large_dataset))
+        self.assertEqual(result["table_preview"]["columns"], list(large_dataset.columns))
         self.assertEqual(len(result["table_preview"]["rows"]), len(large_dataset))
+
+
+class TestDataReviewApi(TestCase):
+    def test_run_station_endpoint_returns_full_table_rows_and_columns(self):
+        user = get_user_model().objects.create_user(username="data_review_api_user")
+        self.client.force_login(user)
+
+        dataset = _make_large_dataset_with_stats(n_rows=200)
+        session = self.client.session
+        session["current_dataset"] = DataFrameSessionSerializer.dumps(dataset)
+        session.save()
+
+        response = self.client.post(
+            "/api/stations/data_review/run/",
+            data=json.dumps({"params": {}}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["table_preview"]["shown_rows"], len(dataset))
+        self.assertEqual(payload["table_preview"]["total_rows"], len(dataset))
+        self.assertEqual(payload["table_preview"]["columns"], list(dataset.columns))
+        self.assertEqual(len(payload["table_preview"]["rows"]), len(dataset))
 
 
 # ---------------------------------------------------------------------------

@@ -270,23 +270,8 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
             for organism, count in organism_counts.items()
         ]
 
-    preview_column_candidates = [
-        PROTEIN,
-        PROTEIN_ID,
-        GENE,
-        ORGANISM,
-        TOT_PEP,
-        SPEC_COUNT,
-        PROBABILITY,
-        *intensity_columns,
-        PVALUE if PVALUE in df.columns else None,
-        FC if FC in df.columns else None,
-    ]
-    preview_columns = []
-    for column in preview_column_candidates:
-        if column and column in df.columns and column not in preview_columns:
-            preview_columns.append(column)
-    preview_rows = df[preview_columns].to_dict(orient="records")
+    table_columns = [str(column) for column in df.columns]
+    table_rows = df.to_dict(orient="records")
 
     column_explanations = [
         {"column": column, "explanation": explanation}
@@ -314,8 +299,8 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
         "organism_breakdown": organism_breakdown,
         "column_explanations": column_explanations,
         "table_preview": {
-            "columns": preview_columns,
-            "rows": preview_rows,
+            "columns": table_columns,
+            "rows": table_rows,
             "shown_rows": int(len(df)),
             "total_rows": int(len(df)),
         },

@@ -182,6 +182,8 @@
 }
 
 .dataTable {
+  --data-table-column-min-width: 11rem;
+  --data-table-filter-row-top: 44px;
   width: 100%;
   border-collapse: collapse;
   min-width: 620px;
@@ -190,6 +192,7 @@
 
 .dataTable th,
 .dataTable td {
+  min-width: var(--data-table-column-min-width);
   padding: 0.7rem 0.8rem;
   border-bottom: 1px solid rgba(226, 232, 240, 0.85);
   text-align: left;
@@ -224,7 +227,7 @@
 }
 
 .filterHeaderCell {
-  top: 44px;
+  top: var(--data-table-filter-row-top);
   padding-top: 0.45rem !important;
   padding-bottom: 0.45rem !important;
   background: rgba(248, 250, 252, 0.98) !important;
