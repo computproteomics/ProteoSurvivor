@@ -57,6 +57,14 @@ const useGameStore = create(
     }),
     {
       name: 'proteosurviver-game-state',
+      partialize: (state) => ({
+        userId: state.userId,
+        userName: state.userName,
+        completedStations: state.completedStations,
+        sessionId: state.sessionId,
+        stationParams: state.stationParams,
+        mapPlayerPosition: state.mapPlayerPosition,
+      }),
     }
   )
 );

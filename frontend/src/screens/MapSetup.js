@@ -25,7 +25,7 @@ export const TILE = 48;
 
 // O = bench/table obstacle (non-interactive)
 // X = walkable floor
-// A/B/C/D/E/F/I/J/M/S/V = station tile (walkable + interactable)
+// A/B/C/D/E/F/I/J/M/S/V/R = station tile (walkable + interactable)
 // space = wall/void
 const RAW_ASCII_LAYOUT = [
   ' OAXXXXXBOXXXOO',
@@ -37,8 +37,8 @@ const RAW_ASCII_LAYOUT = [
   'ODXXXXXXXXXXXXX',
   'XXXXXXXXXXXXXFO',
   'XXXXXXXXXXXXXXX XXXX',
-  'OXXOOOOOOOOOOXXXXXXX',
-  'IXXOOOOOOOOOOXXXXXVO',
+  'OXXOOOOOROOOOXXXXXXX',
+  'IXXOOOOOXOOOOXXXXXVO',
   'XXXXXXXXXXXXXXX XXOO',
   'XXXXXXOOXXXXXXX',
   'XOSXXXOJXXXXXOO',
@@ -142,6 +142,7 @@ const STATION_CHAR_TO_ID = {
   A: 'sample_prep',
   B: 'mass_spec',
   C: 'spectral_search',
+  R: 'data_review',
   D: 'normalize',
   E: 'transform',
   F: 'filtering',
@@ -171,6 +172,7 @@ const STATION_COLORS = {
   sample_prep: '#f8b85a',
   mass_spec: '#5ad4f8',
   spectral_search: '#7dd3fc',
+  data_review: '#93c5fd',
   filtering: '#f89d5a',
   transform: '#86efac',
   normalize: '#58c87a',
@@ -330,6 +332,38 @@ function drawIconSpectralSearch(ctx, cx, cy) {
   ctx.beginPath();
   ctx.moveTo(-15, 4);
   ctx.lineTo(3, 4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawIconDataReview(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const dark = 'rgba(0,0,0,0.58)';
+  ctx.strokeStyle = dark;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.roundRect(-18, -14, 28, 24, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-12, -6);
+  ctx.lineTo(4, -6);
+  ctx.moveTo(-12, 0);
+  ctx.lineTo(4, 0);
+  ctx.moveTo(-12, 6);
+  ctx.lineTo(0, 6);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(11, 9, 7, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(16, 14);
+  ctx.lineTo(21, 19);
   ctx.stroke();
   ctx.restore();
 }
@@ -701,6 +735,7 @@ const STATION_ICON_DRAWERS = {
   sample_prep: drawIconSamplePrep,
   mass_spec: drawIconMassSpec,
   spectral_search: drawIconSpectralSearch,
+  data_review: drawIconDataReview,
   filtering: drawIconFiltering,
   transform: drawIconTransform,
   normalize: drawIconNormalize,

@@ -62,6 +62,243 @@
   line-height: 1.5;
 }
 
+.section {
+  margin-bottom: 1.75rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.85rem;
+  font-size: 1.08rem;
+  color: #0f172a;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sectionMeta {
+  margin: 0 0 0.75rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+
+.metricCard {
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 1rem;
+}
+
+.metricLabel {
+  margin: 0 0 0.35rem;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.metricValue {
+  margin: 0 0 0.5rem;
+  color: #0f172a;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.metricDescription {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.explanationList {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.explanationPanel {
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.75);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  padding: 0.9rem 1rem;
+}
+
+.explanationPanelSummary {
+  cursor: pointer;
+  color: #0f172a;
+  font-weight: 700;
+  list-style: none;
+}
+
+.explanationPanelSummary::-webkit-details-marker {
+  display: none;
+}
+
+.explanationPanelSummary::after {
+  content: '+';
+  float: right;
+  color: #475569;
+  font-weight: 700;
+}
+
+.explanationPanel[open] .explanationPanelSummary::after {
+  content: '–';
+}
+
+.explanationItem {
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  padding: 0.9rem 1rem;
+}
+
+.explanationItem strong {
+  color: #0f172a;
+}
+
+.explanationItem p {
+  margin: 0.35rem 0 0;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.dataTableWrap {
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.dataTable {
+  --data-table-column-min-width: 11rem;
+  --data-table-filter-row-top: 44px;
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+  font-size: 0.9rem;
+}
+
+.dataTable th,
+.dataTable td {
+  min-width: var(--data-table-column-min-width);
+  padding: 0.7rem 0.8rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dataTable th {
+  position: sticky;
+  top: 0;
+  background: rgba(241, 245, 249, 0.98);
+  color: #334155;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.columnHeaderButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.columnHeaderLabel {
+  overflow-wrap: anywhere;
+}
+
+.filterHeaderCell {
+  top: var(--data-table-filter-row-top);
+  padding-top: 0.45rem !important;
+  padding-bottom: 0.45rem !important;
+  background: rgba(248, 250, 252, 0.98) !important;
+}
+
+.columnFilterInput {
+  width: 100%;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.columnFilterInput:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
+}
+
+.rangeFilterInputs {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dataTable tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.emptyTableState {
+  text-align: center !important;
+  color: #64748b;
+  font-style: italic;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.paginationInfo {
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.pageSelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.pageSelect {
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.pageSelect:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 1px;
+}
+
 .errorBox {
   background: rgba(254, 242, 242, 0.65);
   border-left: 4px solid #ef4444;
@@ -211,6 +448,11 @@
 
 .secondaryButton:hover {
   background: rgba(248, 250, 252, 0.65);
+}
+
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .modalOverlay {

@@ -177,6 +177,26 @@
       "failed": "No solid alibi from these spectra. Tweak and retry."
     }
   },
+  "data_review": {
+    "id": "data_review",
+    "title": "Data Review Station",
+    "description": "Welcome to data review, where you inspect the current protein table before making irreversible analytical choices.",
+    "requires": [
+      {
+        "id": "spectral_search",
+        "message": "⚠️ Data review opens only after spectral search has produced a protein table worth inspecting."
+      }
+    ],
+    "parameters": [],
+    "objective": "Inspect the current data table, its confidence columns, and quick quality-control metrics.",
+    "expectations": "Recognize missingness, replicate balance, confidence signals, and species composition before moving deeper into preprocessing.",
+    "statusMessages": {
+      "entered": "The data table is open. Time to see whether the proteins look trustworthy.",
+      "submitting": "Pulling rows, columns, and suspicious patterns into view...",
+      "success": "Table loaded. The proteins are ready to be judged.",
+      "failed": "No table to inspect yet. Generate some protein data first."
+    }
+  },
   "filtering": {
     "id": "filtering",
     "title": "Filtering Station",

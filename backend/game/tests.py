@@ -18,6 +18,8 @@ import pandas as pd
 from pathlib import Path
 
 from game.services import (
+    _to_json_safe,
+    _simulate_data_review,
     _simulate_filtering,
     _simulate_imputer,
     _simulate_mass_spec,
@@ -41,6 +43,7 @@ from game.services import (
     _squeeze_var,
 )
 from game.models import StationRun
+from game.serializers import DataFrameSessionSerializer
 
 _DUMMY_IMG = "dummy_base64_image"
 _ALL_UPSTREAM = {"sample_prep", "mass_spec", "spectral_search"}
@@ -285,6 +288,86 @@ class TestSpectralSearchStation(TestCase):
         self.assertTrue(result["success"])
         self.assertIn("num_prot", result)
         self.assertIsInstance(result["img"], list)
+
+
+# ---------------------------------------------------------------------------
+# Station: data_review
+# ---------------------------------------------------------------------------
+
+
+class TestDataReviewStation(TestCase):
+    def test_fails_on_empty_dataset(self):
+        result = _simulate_data_review(pd.DataFrame(), {})
+        self.assertFalse(result["success"])
+        self.assertIn("spectral search", result["feedback"].lower())
+
+    def test_returns_metrics_and_preview_for_dataset(self):
+        result = _simulate_data_review(_make_dataset_with_stats(), {})
+        self.assertTrue(result["success"])
+        self.assertIn("metric_cards", result)
+        self.assertIn("table_preview", result)
+        self.assertEqual(result["table_preview"]["shown_rows"], 4)
+        self.assertEqual(result["table_preview"]["total_rows"], 4)
+        self.assertEqual(len(result["sample_metrics"]), len(COND_A) + len(COND_B))
+        self.assertTrue(
+            any(
+                metric["label"] == "Significant proteins"
+                for metric in result["metric_cards"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["column"] == "Protein Probability"
+                for item in result["column_explanations"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["column"] == "Sample intensity columns"
+                for item in result["column_explanations"]
+            )
+        )
+
+    def test_returns_full_table_for_browsing(self):
+        large_dataset = pd.concat([_make_dataset()] * 8, ignore_index=True)
+        result = _simulate_data_review(large_dataset, {})
+        self.assertTrue(result["success"])
+        self.assertEqual(result["table_preview"]["shown_rows"], len(large_dataset))
+        self.assertEqual(result["table_preview"]["columns"], list(large_dataset.columns))
+        self.assertEqual(len(result["table_preview"]["rows"]), len(large_dataset))
+        self.assertEqual(
+            result["table_preview"]["rows"][0],
+            [_to_json_safe(value) for value in large_dataset.iloc[0].tolist()],
+        )
+
+
+class TestDataReviewApi(TestCase):
+    def test_run_station_endpoint_returns_full_table_rows_and_columns(self):
+        user = get_user_model().objects.create_user(username="data_review_api_user")
+        self.client.force_login(user)
+
+        dataset = _make_large_dataset_with_stats(n_rows=200)
+        session = self.client.session
+        session["current_dataset"] = DataFrameSessionSerializer.dumps(dataset)
+        session.save()
+
+        response = self.client.post(
+            "/api/stations/data_review/run/",
+            data=json.dumps({"params": {}}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["table_preview"]["shown_rows"], len(dataset))
+        self.assertEqual(payload["table_preview"]["total_rows"], len(dataset))
+        self.assertEqual(payload["table_preview"]["columns"], list(dataset.columns))
+        self.assertEqual(len(payload["table_preview"]["rows"]), len(dataset))
+        self.assertEqual(
+            payload["table_preview"]["rows"][0],
+            [_to_json_safe(value) for value in dataset.iloc[0].tolist()],
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -74,6 +74,21 @@ INDIS_PROTEINS = "Indistinguishable Proteins"
 PVALUE = "p_value"
 FC = "fold_change"
 STATION_SIMULATORS = {}
+HIGH_CONFIDENCE_PROTEIN_PROBABILITY = 0.99
+SIGNIFICANCE_THRESHOLD = 0.05
+
+DATA_REVIEW_COLUMN_EXPLANATIONS = {
+    PROTEIN: "Protein group label reported by the search engine for this row.",
+    PROTEIN_ID: "Stable identifier for the leading protein in the group.",
+    ENTRY: "Database entry name used to map the hit back to the reference proteome.",
+    GENE: "Gene symbol connected to the matched protein entry.",
+    ORGANISM: "Species assignment for the protein group. Useful for spotting host/background contamination or biology.",
+    TOT_PEP: "Number of identified peptides supporting this protein group. Single-peptide hits are often less convincing.",
+    SPEC_COUNT: "How many spectra were assigned to this protein. Larger counts usually indicate stronger evidence.",
+    PROBABILITY: "Protein-level confidence score from the search workflow. Higher values mean the identification is more trustworthy.",
+    PVALUE: "Statistical evidence against no difference between conditions. Smaller values indicate stronger support.",
+    FC: "Estimated abundance change between conditions. Larger absolute values indicate stronger regulation.",
+}
 
 
 def _to_json_safe(value: Any) -> Any:
@@ -104,6 +119,201 @@ def _to_json_safe(value: Any) -> Any:
         return value if np.isfinite(value) else None
 
     return value
+
+
+def _format_metric_value(
+    value: Any,
+    *,
+    digits: int = 2,
+    as_percent: bool = False,
+    for_display: bool = True,
+) -> str | float | None:
+    """Normalize metric values for either frontend display strings or numeric JSON fields."""
+    if value is None:
+        return "n/a" if for_display else None
+
+    try:
+        float_value = float(value)
+    except (TypeError, ValueError):
+        return "n/a" if for_display else None
+
+    if not np.isfinite(float_value):
+        return "n/a" if for_display else None
+
+    rounded = round(float_value, digits)
+    if not for_display:
+        return rounded
+
+    if as_percent:
+        return f"{rounded:.{digits}f}%"
+
+    if rounded == int(rounded):
+        return f"{int(rounded):,}"
+
+    return f"{rounded:,.{digits}f}"
+
+
+def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
+    """Summarize the current working dataset so players can inspect it before downstream analysis."""
+    del params  # data review is intentionally parameter-free
+
+    if dataset is None or dataset.empty:
+        return {
+            "success": False,
+            "summary": "No protein table is available yet.",
+            "feedback": "⚠️ Run spectral search first so there is an actual dataset to inspect.",
+            "score": 0,
+            "dataset": pd.DataFrame(),
+        }
+
+    df = dataset.copy()
+    intensity_columns = [column for column in COND_A + COND_B if column in df.columns]
+    intensity_values = None
+    if intensity_columns:
+        intensity_values = df[intensity_columns].replace([np.inf, -np.inf], np.nan)
+    total_measurements = int(intensity_values.size) if intensity_values is not None else 0
+    missing_cells = (
+        int(intensity_values.isna().sum().sum())
+        if intensity_values is not None and total_measurements
+        else 0
+    )
+    missing_fraction = (
+        (missing_cells / total_measurements) * 100 if total_measurements else None
+    )
+    # If the primary protein identifier column is unavailable, fall back to row count.
+    proteins = int(df[PROTEIN_ID].nunique()) if PROTEIN_ID in df.columns else int(len(df))
+    peptides = int(df[TOT_PEP].sum()) if TOT_PEP in df.columns else None
+    one_peptide = (
+        int((pd.to_numeric(df[TOT_PEP], errors="coerce") <= 1).sum())
+        if TOT_PEP in df.columns
+        else None
+    )
+    high_confidence = (
+        int(
+            (
+                pd.to_numeric(df[PROBABILITY], errors="coerce")
+                >= HIGH_CONFIDENCE_PROTEIN_PROBABILITY
+            ).sum()
+        )
+        if PROBABILITY in df.columns
+        else None
+    )
+    significant = (
+        int((pd.to_numeric(df[PVALUE], errors="coerce") <= SIGNIFICANCE_THRESHOLD).sum())
+        if PVALUE in df.columns
+        else None
+    )
+
+    metric_cards = [
+        {
+            "label": "Proteins",
+            "value": f"{proteins:,}",
+            "description": "Unique protein groups currently carried through the workflow.",
+        },
+        {
+            "label": "Identified peptides",
+            "value": _format_metric_value(peptides, digits=0),
+            "description": "Total peptide evidence supporting the current table.",
+        },
+        {
+            "label": "Samples / replicates",
+            "value": f"{len(intensity_columns)}",
+            "description": "Intensity columns available for comparing conditions.",
+        },
+        {
+            "label": "Missing intensity values",
+            "value": _format_metric_value(missing_fraction, as_percent=True),
+            "description": "High missingness can make downstream statistics unstable.",
+        },
+        {
+            "label": "Single-peptide proteins",
+            "value": _format_metric_value(one_peptide, digits=0),
+            "description": "These hits can be less robust than proteins backed by multiple peptides.",
+        },
+        {
+            "label": "High-confidence proteins",
+            "value": _format_metric_value(high_confidence, digits=0),
+            "description": f"Protein groups with probability ≥ {HIGH_CONFIDENCE_PROTEIN_PROBABILITY}.",
+        },
+    ]
+    if significant is not None:
+        metric_cards.append(
+            {
+                "label": "Significant proteins",
+                "value": _format_metric_value(significant, digits=0),
+                "description": f"Rows with p-value ≤ {SIGNIFICANCE_THRESHOLD} in the current table.",
+            }
+        )
+
+    sample_metrics = []
+    for column in intensity_columns:
+        sample_series = pd.to_numeric(intensity_values[column], errors="coerce")
+        sample_metrics.append(
+            {
+                "sample": column,
+                "median_intensity": _format_metric_value(
+                    sample_series.median(), for_display=False
+                ),
+                "min_intensity": _format_metric_value(
+                    sample_series.min(), for_display=False
+                ),
+                "max_intensity": _format_metric_value(
+                    sample_series.max(), for_display=False
+                ),
+                "missing_fraction": _format_metric_value(
+                    sample_series.isna().mean() * 100, for_display=False
+                ),
+            }
+        )
+
+    organism_breakdown = []
+    if ORGANISM in df.columns:
+        organism_counts = df[ORGANISM].fillna("Unknown").value_counts()
+        organism_breakdown = [
+            {"organism": str(organism), "proteins": int(count)}
+            for organism, count in organism_counts.items()
+        ]
+
+    table_columns = [str(column) for column in df.columns]
+    table_rows = [
+        [_to_json_safe(value) for value in row]
+        for row in df.itertuples(index=False, name=None)
+    ]
+
+    column_explanations = [
+        {"column": column, "explanation": explanation}
+        for column, explanation in DATA_REVIEW_COLUMN_EXPLANATIONS.items()
+        if column in df.columns
+    ]
+    if intensity_columns:
+        column_explanations.append(
+            {
+                "column": "Sample intensity columns",
+                "explanation": "These replicate intensity columns are the core quantitative measurements used for filtering, normalization, and statistics.",
+            }
+        )
+
+    return {
+        "success": True,
+        "summary": f"Data review ready. Browse all {len(df):,} rows from the current protein table.",
+        "feedback": (
+            "Look for heavy missingness, unusually different sample medians, many single-peptide proteins, "
+            "or species imbalances before committing to downstream preprocessing choices."
+        ),
+        "recommendation": "Use this station whenever you want to sanity-check how the table changed after filtering, normalization, imputation, or statistics.",
+        "metric_cards": metric_cards,
+        "sample_metrics": sample_metrics,
+        "organism_breakdown": organism_breakdown,
+        "column_explanations": column_explanations,
+        "table_preview": {
+            "columns": table_columns,
+            "rows": table_rows,
+            "shown_rows": int(len(df)),
+            "total_rows": int(len(df)),
+        },
+        "score": 0,
+        "dataset": df,
+    }
 
 
 def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
@@ -1412,6 +1622,7 @@ STATION_SIMULATORS.update(
         "sample_prep": _simulate_sample_prep,
         "mass_spec": _simulate_mass_spec,
         "spectral_search": _simulate_spectral_search,
+        "data_review": _simulate_data_review,
         "filtering": _simulate_filtering,
         "transform": _simulate_transform,
         "normalize": _simulate_normalize,
