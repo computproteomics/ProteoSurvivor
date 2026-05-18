@@ -154,7 +154,17 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
     });
   }, [activeColumnFilters, sortColumn, sortDirection, tableRows]);
 
+  const renderedTableRows = useMemo(
+    () =>
+      filteredAndSortedRows.map((row, rowIndex) => ({
+        key: buildTableRowKey(row, rowIndex, tableColumns),
+        row,
+      })),
+    [filteredAndSortedRows, tableColumns]
+  );
+
   const totalFilteredRows = filteredAndSortedRows.length;
+  const totalRows = tablePreview?.total_rows ?? tableRows.length;
   const hasActiveFilter = Object.keys(activeColumnFilters).length > 0;
   const rangeLabel =
     totalFilteredRows === 0
@@ -264,7 +274,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
             <h2 className={styles.sectionTitle}>Protein table</h2>
             <p className={styles.sectionMeta}>
               {rangeLabel}
-              {hasActiveFilter ? ` (filtered from ${tablePreview.total_rows})` : ''}
+              {hasActiveFilter ? ` (filtered from ${totalRows})` : ''}
             </p>
           </div>
           <div className={styles.dataTableWrap}>
@@ -305,14 +315,14 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedRows.map((row, rowIndex) => (
-                  <tr key={buildTableRowKey(row, rowIndex, tableColumns)}>
+                {renderedTableRows.map(({ key, row }, rowIndex) => (
+                  <tr key={key}>
                     {tableColumns.map((column) => (
                       <td key={`${rowIndex}-${column}`}>{formatTableCell(row[column])}</td>
                     ))}
                   </tr>
                 ))}
-                {filteredAndSortedRows.length === 0 && (
+                {renderedTableRows.length === 0 && (
                   <tr>
                     <td colSpan={tableColumns.length} className={styles.emptyTableState}>
                       No proteins match the current column filters.
