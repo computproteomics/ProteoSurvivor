@@ -189,7 +189,7 @@ function DataReviewResultsContent({ stationResults, onImageClick }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeColumnFilters, tableRows.length]);
+  }, [activeColumnFilters, tableRows]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
