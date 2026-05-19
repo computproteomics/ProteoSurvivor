@@ -1,11 +1,253 @@
 [
   {
+    "model": "auth.user",
+    "pk": 1001,
+    "fields": {
+      "username": "seed_player_01",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1002,
+    "fields": {
+      "username": "seed_player_02",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1003,
+    "fields": {
+      "username": "seed_player_03",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1004,
+    "fields": {
+      "username": "seed_player_04",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1005,
+    "fields": {
+      "username": "seed_player_05",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1006,
+    "fields": {
+      "username": "seed_player_06",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1007,
+    "fields": {
+      "username": "seed_player_07",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1008,
+    "fields": {
+      "username": "seed_player_08",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1009,
+    "fields": {
+      "username": "seed_player_09",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1010,
+    "fields": {
+      "username": "seed_player_10",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1011,
+    "fields": {
+      "username": "seed_player_11",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1012,
+    "fields": {
+      "username": "seed_player_12",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1013,
+    "fields": {
+      "username": "seed_player_13",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1014,
+    "fields": {
+      "username": "seed_player_14",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1015,
+    "fields": {
+      "username": "seed_player_15",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1016,
+    "fields": {
+      "username": "seed_player_16",
+      "password": "!",
+      "is_active": true,
+      "is_staff": false,
+      "is_superuser": false,
+      "date_joined": "2026-04-01T00:00:00Z",
+      "email": "",
+      "first_name": "",
+      "last_name": ""
+    }
+  },
+  {
     "model": "game.stationrun",
     "pk": 2001,
     "fields": {
       "player": 1001,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 95.2,
       "created_at": "2026-04-09T08:00:00Z"
     }
@@ -16,7 +258,9 @@
     "fields": {
       "player": 1002,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 88.7,
       "created_at": "2026-04-09T08:04:00Z"
     }
@@ -27,7 +271,9 @@
     "fields": {
       "player": 1003,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 81.4,
       "created_at": "2026-04-09T08:08:00Z"
     }
@@ -38,7 +284,9 @@
     "fields": {
       "player": 1004,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 74.0,
       "created_at": "2026-04-09T08:12:00Z"
     }
@@ -49,7 +297,9 @@
     "fields": {
       "player": 1005,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 66.9,
       "created_at": "2026-04-09T08:16:00Z"
     }
@@ -60,7 +310,9 @@
     "fields": {
       "player": 1006,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 59.5,
       "created_at": "2026-04-09T08:20:00Z"
     }
@@ -71,7 +323,9 @@
     "fields": {
       "player": 1007,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 52.3,
       "created_at": "2026-04-09T08:24:00Z"
     }
@@ -82,7 +336,9 @@
     "fields": {
       "player": 1008,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 45.1,
       "created_at": "2026-04-09T08:28:00Z"
     }
@@ -93,7 +349,9 @@
     "fields": {
       "player": 1009,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 38.0,
       "created_at": "2026-04-09T08:32:00Z"
     }
@@ -104,12 +362,13 @@
     "fields": {
       "player": 1010,
       "station_id": "final_report",
-      "params": {"submission": "fixture"},
+      "params": {
+        "submission": "fixture"
+      },
       "score": 31.2,
       "created_at": "2026-04-09T08:36:00Z"
     }
   },
-
   {
     "model": "game.finalstationresult",
     "pk": 3001,
@@ -200,14 +459,15 @@
       "false_positives": 298
     }
   },
-
   {
     "model": "game.stationrun",
     "pk": 2101,
     "fields": {
       "player": 1011,
       "station_id": "normalize",
-      "params": {"normalization": "median"},
+      "params": {
+        "normalization": "median"
+      },
       "score": 0.5,
       "created_at": "2026-04-10T10:00:00Z"
     }
@@ -218,7 +478,9 @@
     "fields": {
       "player": 1012,
       "station_id": "imputer",
-      "params": {"imputation_method": "knn"},
+      "params": {
+        "imputation_method": "knn"
+      },
       "score": 0.7,
       "created_at": "2026-04-10T10:03:00Z"
     }
@@ -229,7 +491,9 @@
     "fields": {
       "player": 1013,
       "station_id": "transform",
-      "params": {"transform_method": "log2"},
+      "params": {
+        "transform_method": "log2"
+      },
       "score": 0.58,
       "created_at": "2026-04-10T10:06:00Z"
     }
@@ -240,7 +504,9 @@
     "fields": {
       "player": 1014,
       "station_id": "filtering",
-      "params": {"remove_contaminants": "yes"},
+      "params": {
+        "remove_contaminants": "yes"
+      },
       "score": 0.2,
       "created_at": "2026-04-10T10:09:00Z"
     }
@@ -251,7 +517,9 @@
     "fields": {
       "player": 1015,
       "station_id": "multiple_testing_corrector",
-      "params": {"correction_method": "fdr_bh"},
+      "params": {
+        "correction_method": "fdr_bh"
+      },
       "score": 0.1,
       "created_at": "2026-04-10T10:12:00Z"
     }
@@ -262,7 +530,9 @@
     "fields": {
       "player": 1016,
       "station_id": "spectral_search",
-      "params": {"tool": "fragpipe"},
+      "params": {
+        "tool": "fragpipe"
+      },
       "score": 0.4,
       "created_at": "2026-04-10T10:15:00Z"
     }
