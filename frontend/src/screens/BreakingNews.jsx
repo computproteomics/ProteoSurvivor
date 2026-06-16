@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import styles from './BreakingNews.module.css';
 import useGameStore from '../store/gameSlice';
-import newsLogo from '../assets/news_logo.png';
-import advertisement1 from '../assets/Protein_separation_ad.png';
-import advertisement2 from '../assets/Grow_hela.png';
-import advertisement4 from '../assets/EscapeRoom.png';
-import advertisement5 from '../assets/proteomics_ad.png';
-import advertisement6 from '../assets/spectrometry_ad.png';
+import newsLogo from '../assets/news_logo.webp';
+import advertisement1 from '../assets/Protein_separation_ad.webp';
+import advertisement2 from '../assets/Grow_hela.webp';
+import advertisement4 from '../assets/EscapeRoom.webp';
+import advertisement5 from '../assets/proteomics_ad.webp';
+import advertisement6 from '../assets/spectrometry_ad.webp';
 
 const NEWS_BROADCAST_DATE = '2026-03-14';
 
