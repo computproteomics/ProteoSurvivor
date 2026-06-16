@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startGame } from '../api/client';
 import useGameStore from '../store/gameSlice';
-import introBackground from '../assets/backgrounds/Introduction.png';
+import introBackground from '../assets/backgrounds/Introduction.webp';
 import styles from './Intro.module.css';
 
 export default function Intro() {
