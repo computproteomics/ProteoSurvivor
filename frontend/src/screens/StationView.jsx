@@ -12,12 +12,20 @@ import {
 } from '../assets/stationConfig';
 import styles from './StationView.module.css';
 
+function resolveMediaUrl(relativePath) {
+  const normalizedBase = import.meta.env.BASE_URL || '/';
+  const baseWithSlash = normalizedBase.endsWith('/') ? normalizedBase : `${normalizedBase}/`;
+  const normalizedPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+  return `${baseWithSlash}${normalizedPath}`;
+}
+
 const INTRO_VIDEO_STATIONS = {
   sample_prep: {
     welcomeTitle: 'Welcome to Sample Preparation',
     welcomeText: 'In this station you will learn how to prep your sample for LC/MS.',
     videoTitle: 'Sample Prep Walkthrough',
-    videoSrc: '/media/sample_prep_vid.mp4',
+    videoSrc: 'media/sample_prep_vid.mp4',
+    videoType: 'video/mp4',
     doneTitle: 'Sample Preparation Completed',
     doneText: 'Finalizing sample prep with backend validation.',
   },
@@ -25,7 +33,8 @@ const INTRO_VIDEO_STATIONS = {
     welcomeTitle: 'Welcome to Mass Spectrometry',
     welcomeText: 'In this station you will learn the core MS acquisition workflow.',
     videoTitle: 'Mass Spectrometry Walkthrough',
-    videoSrc: '/media/ms_run.mp4',
+    videoSrc: 'media/ms_run.mp4',
+    videoType: 'video/mp4',
     doneTitle: 'Mass Spectrometry Completed',
     doneText: 'Finalizing mass spectrometry with backend validation.',
   },
@@ -195,12 +204,14 @@ export default function StationView() {
           <div className={styles.mediaWrap}>
             <video
               className={styles.video}
-              src={introConfig.videoSrc}
               controls
               autoPlay
               playsInline
               onEnded={() => setVideoEnded(true)}
-            />
+            >
+              <source src={resolveMediaUrl(introConfig.videoSrc)} type={introConfig.videoType} />
+              Your browser does not support HTML5 video playback.
+            </video>
           </div>
           <p className={styles.info}>Watch the video above or skip to the next steps ahead.</p>
           {renderObjectiveAndExpectations()}

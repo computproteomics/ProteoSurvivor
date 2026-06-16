@@ -2,6 +2,8 @@
 Game logic: scoring, answer evaluation, and proteomics station simulations.
 """
 
+from __future__ import annotations
+
 import random
 from pathlib import Path
 from typing import Any, cast
