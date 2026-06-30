@@ -19,6 +19,7 @@ import {
 import styles from './WorldMap.module.css';
 
 const CLICK_WALK_STEP_MS = 130;
+const TWEEN_DURATION_MS = 150;
 const WALK_NEIGHBORS = [
   { dc: 0, dr: -1, direction: 0 },
   { dc: 1, dr: 0, direction: 1 },
@@ -106,6 +107,9 @@ export default function WorldMap() {
   const clickWalkPathRef = useRef([]);
   const clickWalkTimerRef = useRef(null);
   const clickWalkArrivalActionRef = useRef(null);
+  const visualPosRef = useRef({ col: player.col, row: player.row });
+  const tweenRef = useRef({ fromCol: player.col, fromRow: player.row, toCol: player.col, toRow: player.row, startTime: 0 });
+  const activeKeyRef = useRef(null);
   const [animState, setAnimState] = useState({
     isMoving: false,
     direction: 2, // 0=up, 1=right, 2=down, 3=left
@@ -187,23 +191,39 @@ export default function WorldMap() {
   }, []);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
-    const context = canvas.getContext('2d');
-    if (!context) return;
+  const context = canvas.getContext('2d');
+  if (!context) return;
 
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
 
-    let animationFrame;
+  let animationFrame;
 
-    function loop() {
-      renderWorld(context, player, completedSet, animState);
-      animationFrame = requestAnimationFrame(loop);
+  function loop(now) {
+    const tween = tweenRef.current;
+    if (tween.toCol !== player.col || tween.toRow !== player.row) {
+      tweenRef.current = {
+        fromCol: visualPosRef.current.col,
+        fromRow: visualPosRef.current.row,
+        toCol: player.col,
+        toRow: player.row,
+        startTime: now,
+      };
     }
+    const t = tweenRef.current;
+    const progress = Math.min((now - t.startTime) / TWEEN_DURATION_MS, 1);
+    visualPosRef.current = {
+      col: t.fromCol + (t.toCol - t.fromCol) * progress,
+      row: t.fromRow + (t.toRow - t.fromRow) * progress,
+    };
+    renderWorld(context, visualPosRef.current, completedSet, animState);
+    animationFrame = requestAnimationFrame(loop);
+  }
 
-    loop();
+  animationFrame = requestAnimationFrame(loop);
 
     function handleResize() {
       fitCanvasToViewport(canvas);
@@ -247,6 +267,9 @@ export default function WorldMap() {
       if (!delta) return;
 
       event.preventDefault();
+      if (activeKeyRef.current && activeKeyRef.current !== key) return;
+      activeKeyRef.current = key;
+
       setMapPlayerPosition((prev) => {
         const nextCol = prev.col + delta[0];
         const nextRow = prev.row + delta[1];
@@ -266,8 +289,21 @@ export default function WorldMap() {
       });
     }
 
+    function handleKeyUp(event) {
+      const key = event.key.toLowerCase();
+      if (!MOVE_KEYS[key]) return;
+      if (activeKeyRef.current === key) {
+      activeKeyRef.current = null;
+      }
+      setAnimState((prevAnim) => ({ ...prevAnim, isMoving: false }));
+    }
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, [navigate, player.col, player.row, setMapPlayerPosition]);
 
   useEffect(() => {
