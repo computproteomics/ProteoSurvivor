@@ -416,24 +416,6 @@
     }
   },
   {
-    "model": "game.finalstationresult",
-    "pk": 3009,
-    "fields": {
-      "station_run": 2009,
-      "true_positives": 360,
-      "false_positives": 255
-    }
-  },
-  {
-    "model": "game.finalstationresult",
-    "pk": 3010,
-    "fields": {
-      "station_run": 2010,
-      "true_positives": 305,
-      "false_positives": 298
-    }
-  },
-  {
     "model": "game.stationrun",
     "pk": 2101,
     "fields": {
