@@ -21,7 +21,7 @@ import left2 from '../assets/avatar_sprites/left_2.png';
 // ===============================
 // Map Configuration
 // ===============================
-export const TILE = 48;
+export const TILE = 64;
 
 // O = bench/table obstacle (non-interactive)
 // X = walkable floor
@@ -874,31 +874,18 @@ function drawTile(context, col, row, tileType) {
   }
 
   if (tileType === 3) {
-    // Wooden obstacle tiles: full tile in light wood with dark borders
-    // only on edges that touch non-wood tiles (X/station/wall/void).
+    // Wooden obstacle tiles: full tile in light wood without dark borders and with rounded corners
     context.fillStyle = COLORS.woodLight;
-    context.fillRect(x, y, TILE, TILE);
-
-    const touchesNonWood = (nCol, nRow) => {
-      if (nRow < 0 || nRow >= ROWS || nCol < 0 || nCol >= COLS) return true;
-      return MAP[nRow][nCol] !== 3;
-    };
-
-    const edge = 6;
-    context.fillStyle = COLORS.woodDark;
-
-    if (touchesNonWood(col, row - 1)) {
-      context.fillRect(x, y, TILE, edge);
-    }
-    if (touchesNonWood(col + 1, row)) {
-      context.fillRect(x + TILE - edge, y, edge, TILE);
-    }
-    if (touchesNonWood(col, row + 1)) {
-      context.fillRect(x, y + TILE - edge, TILE, edge);
-    }
-    if (touchesNonWood(col - 1, row)) {
-      context.fillRect(x, y, edge, TILE);
-    }
+    const tileSize = TILE - WALK_TILE_INSET * 2;
+    drawRoundedRect(
+      context,
+      x + WALK_TILE_INSET,
+      y + WALK_TILE_INSET,
+      tileSize,
+      tileSize,
+      WALK_TILE_RADIUS
+    );
+    context.fill();
     return;
   }
 
