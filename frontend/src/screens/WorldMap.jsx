@@ -5,12 +5,12 @@ import { STATION_IDS } from '../assets/stationConfig';
 import {
   WIDTH,
   HEIGHT,
+  TILE,
   MOVE_KEYS,
   KEY_TO_DIRECTION,
   canMove,
   getNearbyStation,
   getStationAtTile,
-  fitCanvasToViewport,
   loadSprites,
   pointerToTile,
   renderWorld,
@@ -104,12 +104,14 @@ export default function WorldMap() {
   const setMapPlayerPosition = useGameStore((s) => s.setMapPlayerPosition);
   const resetGame = useGameStore((s) => s.resetGame);
   const canvasRef = useRef(null);
+  const canvasFrameRef = useRef(null);
   const clickWalkPathRef = useRef([]);
   const clickWalkTimerRef = useRef(null);
   const clickWalkArrivalActionRef = useRef(null);
   const visualPosRef = useRef({ col: player.col, row: player.row });
   const tweenRef = useRef({ fromCol: player.col, fromRow: player.row, toCol: player.col, toRow: player.row, startTime: 0 });
   const activeKeyRef = useRef(null);
+  const [hoveredStation, setHoveredStation] = useState(null);
   const [animState, setAnimState] = useState({
     isMoving: false,
     direction: 2, // 0=up, 1=right, 2=down, 3=left
@@ -219,22 +221,21 @@ export default function WorldMap() {
       col: t.fromCol + (t.toCol - t.fromCol) * progress,
       row: t.fromRow + (t.toRow - t.fromRow) * progress,
     };
+    const frame = canvasFrameRef.current;
+    if (frame) {
+      const targetLeft = visualPosRef.current.col * TILE + TILE / 2 - frame.clientWidth / 2;
+      const targetTop = visualPosRef.current.row * TILE + TILE / 2 - frame.clientHeight / 2;
+      frame.scrollLeft = Math.max(0, Math.min(targetLeft, frame.scrollWidth - frame.clientWidth));
+      frame.scrollTop = Math.max(0, Math.min(targetTop, frame.scrollHeight - frame.clientHeight));
+    }
     renderWorld(context, visualPosRef.current, completedSet, animState);
     animationFrame = requestAnimationFrame(loop);
   }
 
   animationFrame = requestAnimationFrame(loop);
 
-    function handleResize() {
-      fitCanvasToViewport(canvas);
-    }
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-
     return () => {
       cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', handleResize);
     };
   }, [player, completedSet, animState]);
 
@@ -341,6 +342,24 @@ export default function WorldMap() {
     }
   }
 
+  function handleCanvasMouseMove(event) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const { col, row } = pointerToTile(canvas, event.clientX, event.clientY);
+    const station = getStationAtTile(col, row);
+    if (!station) {
+      setHoveredStation(null);
+      return;
+    }
+
+    setHoveredStation({
+      label: station.label,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
   const nearbyStation = getNearbyStation(player.col, player.row);
   const completedCount = completedStations.length;
   const totalStations = STATION_IDS.length;
@@ -383,14 +402,26 @@ export default function WorldMap() {
           </div>
         </div>
 
-        <div className={styles.canvasFrame}>
+        <div className={styles.canvasFrame} ref={canvasFrameRef}>
           <canvas
             ref={canvasRef}
             className={styles.canvas}
+            width={WIDTH}
+            height={HEIGHT}
             onClick={handleCanvasClick}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseLeave={() => setHoveredStation(null)}
             role="img"
             aria-label="2D world map"
           />
+          {hoveredStation ? (
+            <div
+              className={styles.stationTooltip}
+              style={{ left: hoveredStation.x, top: hoveredStation.y }}
+            >
+              {hoveredStation.label}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

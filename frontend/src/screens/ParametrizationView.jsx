@@ -26,10 +26,11 @@ function ParameterLabel({ field, value }) {
       {field.tooltip ? (
         <span
           className={styles.tooltipIcon}
-          title={field.tooltip}
           aria-label={`Info: ${field.tooltip}`}
+          tabIndex={0}
         >
           ?
+          <span className={styles.tooltipBubble}>{field.tooltip}</span>
         </span>
       ) : null}
     </label>

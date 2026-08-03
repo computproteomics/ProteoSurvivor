@@ -21,7 +21,7 @@ import left2 from '../assets/avatar_sprites/left_2.png';
 // ===============================
 // Map Configuration
 // ===============================
-export const TILE = 48;
+export const TILE = 64;
 
 // O = bench/table obstacle (non-interactive)
 // X = walkable floor
@@ -808,34 +808,6 @@ export const MAP = ASCII_LAYOUT.map((rowString) => {
 const WALK_TILE_INSET = 1.5;
 const WALK_TILE_RADIUS = 7;
 
-export function fitCanvasToViewport(canvas) {
-  const parent = canvas.parentElement;
-  let maxWidth = window.innerWidth * 0.94;
-
-  if (parent) {
-    const parentStyles = window.getComputedStyle(parent);
-    const parentPaddingX =
-      parseFloat(parentStyles.paddingLeft) + parseFloat(parentStyles.paddingRight);
-    const parentBorderX =
-      parseFloat(parentStyles.borderLeftWidth) + parseFloat(parentStyles.borderRightWidth);
-    const canvasStyles = window.getComputedStyle(canvas);
-    const canvasMarginX =
-      parseFloat(canvasStyles.marginLeft) + parseFloat(canvasStyles.marginRight);
-
-    // Use the parent's content box width and reserve canvas margins.
-    maxWidth = Math.max(
-      parent.getBoundingClientRect().width - parentPaddingX - parentBorderX - canvasMarginX,
-      0
-    );
-  }
-
-  const maxHeight = window.innerHeight * 0.75;
-  const scale = Math.min(maxWidth / WIDTH, maxHeight / HEIGHT);
-  canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
-  canvas.style.height = `${Math.floor(HEIGHT * scale)}px`;
-}
-
-
 // Finds a station exactly on one tile, used for direct click-to-enter.
 export function getStationAtTile(col, row) {
   return STATIONS.find((station) => station.col === col && station.row === row);
@@ -874,31 +846,18 @@ function drawTile(context, col, row, tileType) {
   }
 
   if (tileType === 3) {
-    // Wooden obstacle tiles: full tile in light wood with dark borders
-    // only on edges that touch non-wood tiles (X/station/wall/void).
+    // Wooden obstacle tiles: full tile in light wood without dark borders and with rounded corners
     context.fillStyle = COLORS.woodLight;
-    context.fillRect(x, y, TILE, TILE);
-
-    const touchesNonWood = (nCol, nRow) => {
-      if (nRow < 0 || nRow >= ROWS || nCol < 0 || nCol >= COLS) return true;
-      return MAP[nRow][nCol] !== 3;
-    };
-
-    const edge = 6;
-    context.fillStyle = COLORS.woodDark;
-
-    if (touchesNonWood(col, row - 1)) {
-      context.fillRect(x, y, TILE, edge);
-    }
-    if (touchesNonWood(col + 1, row)) {
-      context.fillRect(x + TILE - edge, y, edge, TILE);
-    }
-    if (touchesNonWood(col, row + 1)) {
-      context.fillRect(x, y + TILE - edge, TILE, edge);
-    }
-    if (touchesNonWood(col - 1, row)) {
-      context.fillRect(x, y, edge, TILE);
-    }
+    const tileSize = TILE - WALK_TILE_INSET * 2;
+    drawRoundedRect(
+      context,
+      x + WALK_TILE_INSET,
+      y + WALK_TILE_INSET,
+      tileSize,
+      tileSize,
+      WALK_TILE_RADIUS
+    );
+    context.fill();
     return;
   }
 
@@ -944,7 +903,6 @@ export const MOVE_KEYS = {
 // Finds a station exactly on one tile, used for direct click-to-enter.
 export function pointerToTile(canvas, clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  // The canvas is visually scaled with CSS, so convert back to logical pixels.
   const scaleX = WIDTH / rect.width;
   const scaleY = HEIGHT / rect.height;
   const x = (clientX - rect.left) * scaleX;
