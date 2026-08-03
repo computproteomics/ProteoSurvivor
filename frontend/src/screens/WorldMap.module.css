@@ -99,6 +99,7 @@
   display: flex;
   gap: 1.2rem;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .legend {
@@ -135,10 +136,11 @@
 }
 
 .canvasFrame {
+  position: relative;
   flex: 1;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-start;
   padding: 0.8rem;
   border-radius: 16px;
   border: 1px solid #9bb2c9;
@@ -146,17 +148,36 @@
     radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 35%),
     linear-gradient(180deg, #f7fbff 0%, #e8f1f9 100%);
   box-shadow: 0 20px 45px rgba(32, 58, 86, 0.18);
-  min-height: fit-content;
-  overflow: auto;
+  max-height: calc(100dvh - 9rem);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stationTooltip {
+  position: fixed;
+  z-index: 2;
+  transform: translate(12px, -50%);
+  max-width: 220px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #7d98b5;
+  border-radius: 8px;
+  background: rgba(247, 251, 255, 0.96);
+  color: #1c2d40;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.25;
+  box-shadow: 0 10px 24px rgba(27, 47, 70, 0.2);
+  pointer-events: none;
 }
 
 .canvas {
   display: block;
+  flex: 0 0 auto;
   box-sizing: border-box;
   border: 1px solid #7d98b5;
   border-radius: 10px;
   box-shadow: 0 10px 24px rgba(27, 47, 70, 0.24);
-  image-rendering: crisp-edges;
+  image-rendering: pixelated;
   cursor: crosshair;
   touch-action: manipulation;
 }
@@ -234,8 +255,4 @@
     border-radius: 12px;
   }
 
-  .canvas {
-    max-width: 100%;
-    height: auto;
-  }
 }

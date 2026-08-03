@@ -808,34 +808,6 @@ export const MAP = ASCII_LAYOUT.map((rowString) => {
 const WALK_TILE_INSET = 1.5;
 const WALK_TILE_RADIUS = 7;
 
-export function fitCanvasToViewport(canvas) {
-  const parent = canvas.parentElement;
-  let maxWidth = window.innerWidth * 0.94;
-
-  if (parent) {
-    const parentStyles = window.getComputedStyle(parent);
-    const parentPaddingX =
-      parseFloat(parentStyles.paddingLeft) + parseFloat(parentStyles.paddingRight);
-    const parentBorderX =
-      parseFloat(parentStyles.borderLeftWidth) + parseFloat(parentStyles.borderRightWidth);
-    const canvasStyles = window.getComputedStyle(canvas);
-    const canvasMarginX =
-      parseFloat(canvasStyles.marginLeft) + parseFloat(canvasStyles.marginRight);
-
-    // Use the parent's content box width and reserve canvas margins.
-    maxWidth = Math.max(
-      parent.getBoundingClientRect().width - parentPaddingX - parentBorderX - canvasMarginX,
-      0
-    );
-  }
-
-  const maxHeight = window.innerHeight * 0.75;
-  const scale = Math.min(maxWidth / WIDTH, maxHeight / HEIGHT);
-  canvas.style.width = `${Math.floor(WIDTH * scale)}px`;
-  canvas.style.height = `${Math.floor(HEIGHT * scale)}px`;
-}
-
-
 // Finds a station exactly on one tile, used for direct click-to-enter.
 export function getStationAtTile(col, row) {
   return STATIONS.find((station) => station.col === col && station.row === row);
@@ -931,7 +903,6 @@ export const MOVE_KEYS = {
 // Finds a station exactly on one tile, used for direct click-to-enter.
 export function pointerToTile(canvas, clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  // The canvas is visually scaled with CSS, so convert back to logical pixels.
   const scaleX = WIDTH / rect.width;
   const scaleY = HEIGHT / rect.height;
   const x = (clientX - rect.left) * scaleX;
