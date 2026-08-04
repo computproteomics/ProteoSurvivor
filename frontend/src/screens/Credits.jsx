@@ -7,7 +7,7 @@ const RESEARCH_GROUPS = [
     name: 'Computational Proteomics Group',
     url: 'https://computproteomics.bmb.sdu.dk',
     description: 'Methods and software for large-scale analysis of proteomics data.',
-  },
+ },
   {
     name: 'Protein Research Group',
     url: 'https://www.sdu.dk/en/forskning/protein',
@@ -22,6 +22,7 @@ const RESEARCH_GROUPS = [
 
 const CONTRIBUTORS = [
   { name: 'Christine Lærke Jensen',    github: 'chje118' },
+  { name: 'Edgar Luis Lämmerhirt',    github: 'zahnpasta-aus-der-tube' },    
   { name: 'Jakob Gad Spoorendonk',     github: 'Trenchcoat-capybara' },
   { name: 'Lev Levitsky',              github: 'levitsky' },
   { name: 'Magnus Mørkeberg',          github: 'Mmoerkeberg' },
