@@ -1,7 +1,7 @@
 # ProteoSurviver
 
 A browser-based proteomics education game where players step into the role of a
-computational proteomics researcher.  
+computational proteomics researcher.
 Navigate a 2D lab map, visit stations in any order, configure each step of the
 workflow — from sample preparation through mass spectrometry, database search,
 and statistical analysis — then hand in your report to your supervisor.
@@ -114,7 +114,7 @@ cp .env.example .env          # set VITE_API_URL=http://localhost:8000/api
 npm run dev
 ```
 
-The frontend dev server starts on **http://localhost:5173**.
+The frontend dev server starts on **http://localhost:3000**.
 
 ---
 
