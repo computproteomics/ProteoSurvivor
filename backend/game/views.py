@@ -109,6 +109,9 @@ def enter_station_view(request, station_id):
             )
 
     request.session["current_station"] = station_id
+    # Entering a station fresh (from the map) means the next run should treat the
+    # current dataset as its input, not reuse a stale "adjust parameters" snapshot.
+    request.session.pop("last_run_station_id", None)
     return Response(
         {
             "success": True,
