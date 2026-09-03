@@ -138,7 +138,7 @@ function Canvas() {    // the title box plus the Page
 
 export default function News() {
   const adPic1 = advertisement5
-  const adTitle1 = "RESEARCHER DON'T WANT YOU TO KNOW"
+  const adTitle1 = "RESEARCHERS DON'T WANT YOU TO KNOW"
   const adText1 = "Who needs school, when you can, with the click of a button, perform the most advanced research in the world."
   const adPic2 = advertisement6
   const adTitle2 = "GET IT NOW OR MISS THE OPPORTUNITY!!!"
