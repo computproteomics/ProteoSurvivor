@@ -322,7 +322,17 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     Returns a dictionary with the simulation results.
     """
     print(f"Running station '{station_id}' with parameters: {params}")
-    dataset = request.session.get("current_dataset", None)
+
+    # "Adjust parameters" re-runs the same station without re-entering it from the
+    # map, so it must start from the dataset that existed before the prior run,
+    # not from that run's own output. Re-entering the station (enter_station_view)
+    # clears this tracking so a deliberate fresh run still uses the current dataset.
+    if request.session.get("last_run_station_id") == station_id:
+        dataset = request.session.get("pre_run_dataset", None)
+    else:
+        dataset = request.session.get("current_dataset", None)
+        request.session["pre_run_dataset"] = dataset
+        request.session["last_run_station_id"] = station_id
     if dataset is not None:
         dataset = DataFrameSessionSerializer.loads(dataset)
     runner = STATION_SIMULATORS.get(station_id)
