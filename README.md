@@ -116,6 +116,37 @@ npm run dev
 
 The frontend dev server starts on **http://localhost:3000**.
 
+### Generate a game report
+
+The Django management command reads the active database and writes a report with
+CSV summaries, PNG figures, `summary.md`, and `summary.html`.
+
+From the repository root, using the usual development database:
+
+```bash
+backend/venv/bin/python backend/manage.py generate_game_report \
+    --output-dir reports/game_report
+```
+
+The development database defaults to `backend/db.sqlite3`. To analyse a copied
+database in the repository root, set `SQLITE_DB_PATH` to its path relative to
+the `backend/` directory:
+
+```bash
+SQLITE_DB_PATH=../db.sqlite3 \
+backend/venv/bin/python backend/manage.py generate_game_report \
+    --output-dir reports/game_report
+```
+
+The report excludes seed accounts whose usernames start with `seed_player_`,
+retains duplicate and retry runs, and excludes anonymous runs by default. Add
+`--include-anonymous` to include runs without a player account.
+
+Open `reports/game_report/summary.html` in a browser, or use
+`reports/game_report/summary.md` in a Markdown viewer. The output also includes
+`participant_key.csv`, which maps the generic participant IDs shown in the
+figures to their database accounts.
+
 ---
 
 ## Project Structure
