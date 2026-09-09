@@ -119,7 +119,7 @@ The frontend dev server starts on **http://localhost:3000**.
 ### Generate a game report
 
 The Django management command reads the active database and writes a report with
-CSV summaries, PNG figures, `summary.md`, and `summary.html`.
+CSV summaries, PNG and SVG figures, `summary.md`, and `summary.html`.
 
 From the repository root, using the usual development database:
 

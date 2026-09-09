@@ -134,7 +134,12 @@ class Command(BaseCommand):
         return StationRun.objects.filter(keep).order_by("created_at", "id")
 
     def _clean_old_outputs(self, out):
-        for pattern in ("parameter_choice_heatmap.png", "parameter_choices_*.png"):
+        for pattern in (
+            "parameter_choice_heatmap.png",
+            "parameter_choice_heatmap.svg",
+            "parameter_choices_*.png",
+            "parameter_choices_*.svg",
+        ):
             for path in out.glob(pattern):
                 path.unlink()
 
@@ -289,7 +294,7 @@ class Command(BaseCommand):
         ax.set(xlabel="Accounts reaching station (%)", ylabel="")
         ax.bar_label(ax.containers[0], fmt="%.0f%%", padding=3)
         fig.tight_layout()
-        fig.savefig(out / "station_reach.png", dpi=300)
+        self._save_figure(fig, out, "station_reach.png")
         plt.close(fig)
 
     def _plot_station_runs_to_final(self, run_df, final_df, station_order, out):
@@ -309,7 +314,7 @@ class Command(BaseCommand):
         ax.set(xlabel="Runs from accounts with at least one final report", ylabel="")
         ax.bar_label(ax.containers[0], fmt="%.0f", padding=3)
         fig.tight_layout()
-        fig.savefig(out / "station_runs_to_final.png", dpi=300)
+        self._save_figure(fig, out, "station_runs_to_final.png")
         plt.close(fig)
 
     def _plot_retries(self, station_summary, out):
@@ -323,7 +328,7 @@ class Command(BaseCommand):
         )
         ax.set(xlabel="Mean attempts per account that reached station", ylabel="")
         fig.tight_layout()
-        fig.savefig(out / "retry_burden.png", dpi=300)
+        self._save_figure(fig, out, "retry_burden.png")
         plt.close(fig)
 
     def _plot_final_scores(self, final_df, out):
@@ -334,7 +339,7 @@ class Command(BaseCommand):
         sns.stripplot(y=final_df["score"], color="#222222", size=4, jitter=0.15, ax=ax)
         ax.set(xlabel="", ylabel="Final-report score per submission", ylim=(0, 1.02))
         fig.tight_layout()
-        fig.savefig(out / "final_score_distribution.png", dpi=300)
+        self._save_figure(fig, out, "final_score_distribution.png")
         plt.close(fig)
 
     def _plot_tp_fp(self, final_df, out):
@@ -362,7 +367,7 @@ class Command(BaseCommand):
                 fontsize=6,
             )
         fig.tight_layout()
-        fig.savefig(out / "true_vs_false_positives.png", dpi=300)
+        self._save_figure(fig, out, "true_vs_false_positives.png")
         plt.close(fig)
 
     def _plot_effort_vs_score(self, run_df, final_df, out):
@@ -414,7 +419,7 @@ class Command(BaseCommand):
         if legend:
             legend.set_title("Stations reached")
         fig.tight_layout()
-        fig.savefig(out / "effort_vs_final_score.png", dpi=300)
+        self._save_figure(fig, out, "effort_vs_final_score.png")
         plt.close(fig)
 
     def _plot_parameter_bars(self, param_df, out):
@@ -450,10 +455,14 @@ class Command(BaseCommand):
             ax.set(xlabel="Runs", ylabel="")
             ax.legend(title="")
             fig.tight_layout()
-            fig.savefig(out / filename, dpi=300)
+            self._save_figure(fig, out, filename)
             plt.close(fig)
             figures.append(filename)
         return figures
+
+    def _save_figure(self, fig, out, filename):
+        fig.savefig(out / filename, dpi=300)
+        fig.savefig((out / filename).with_suffix(".svg"))
 
     def _write_summary(
         self,
@@ -529,7 +538,13 @@ class Command(BaseCommand):
             )
             for figure in parameter_figures
         ]
-        lines += ["", "## Generated Figures", ""]
+        lines += [
+            "",
+            "## Generated Figures",
+            "",
+            "Each figure is written in both PNG and SVG format.",
+            "",
+        ]
         for filename, title, description in figure_descriptions:
             lines += [f"### {title}", "", f"![{title}]({filename})", "", description, ""]
         lines += [
@@ -600,7 +615,11 @@ class Command(BaseCommand):
             "<ul>",
         ]
         page += [f"<li>{html.escape(item)}</li>" for item in items]
-        page += ["</ul>", "<h2>Generated Figures</h2>"]
+        page += [
+            "</ul>",
+            "<h2>Generated Figures</h2>",
+            "<p>Each figure is written in both PNG and SVG format.</p>",
+        ]
         for filename, title, description in figure_descriptions:
             page += [
                 f"<figure><h3>{html.escape(title)}</h3><img src=\"{html.escape(filename)}\" alt=\"{html.escape(title)}\"><figcaption>{html.escape(description)}</figcaption></figure>"
