@@ -45,11 +45,7 @@ class Command(BaseCommand):
             type=Path,
             help="Directory for summary.md, CSVs, and PNG figures.",
         )
-        parser.add_argument(
-            "--include-anonymous",
-            action="store_true",
-            help="Include runs without a player account.",
-        )
+
 
     def handle(self, *args, **options):
         out = options["output_dir"]
@@ -57,7 +53,7 @@ class Command(BaseCommand):
         self._clean_old_outputs(out)
         sns.set_theme(style="whitegrid")
 
-        runs = self._runs(options["include_anonymous"])
+        runs = self._runs()
         if not runs.exists():
             raise CommandError("No non-seed station runs found.")
 
@@ -125,12 +121,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Report written to {out}"))
         self.stdout.write(f"Database: {connection.settings_dict.get('NAME')}")
 
-    def _runs(self, include_anonymous):
+    def _runs(self):
         keep = Q(player__username__isnull=False) & ~Q(
             player__username__startswith="seed_player_"
         )
-        if include_anonymous:
-            keep |= Q(player__isnull=True)
         return StationRun.objects.filter(keep).order_by("created_at", "id")
 
     def _clean_old_outputs(self, out):
