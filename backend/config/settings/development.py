@@ -12,10 +12,14 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "computproteomics.bmb.sdu.
 _db_engine = os.environ.get("DB_ENGINE", "django.db.backends.sqlite3")
 
 if _db_engine == "django.db.backends.sqlite3":
+    _sqlite_path = Path(os.environ.get("SQLITE_DB_PATH", BASE_DIR / "db.sqlite3"))  # noqa: F405
+    if not _sqlite_path.is_absolute():
+        _sqlite_path = BASE_DIR / _sqlite_path  # noqa: F405
+    _sqlite_path = _sqlite_path.resolve()
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
+            "NAME": _sqlite_path,
         }
     }
 else:

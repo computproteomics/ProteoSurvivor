@@ -24,6 +24,7 @@ env/
 db.sqlite3
 staticfiles/
 media/
+reports/
 
 # Node / React
 node_modules/
