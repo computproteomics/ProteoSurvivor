@@ -805,8 +805,9 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             feedback = "✅ Reference sample normalization applied. The data now bows politely to a common baseline."
 
         elif method == "zscore":
-            std = df[relevant_cols].std().replace(0, np.nan)
-            df[relevant_cols] = (df[relevant_cols] - df[relevant_cols].mean()) / std
+            values = df[relevant_cols].replace([np.inf, -np.inf], np.nan)
+            std = values.std().replace(0, np.nan)
+            df[relevant_cols] = (values - values.mean()) / std
             success = True
             feedback = "✅ Z-score normalization applied. The intensities have been standardized into statistically respectable behavior."
 
