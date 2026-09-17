@@ -49,6 +49,21 @@
   margin-bottom: 0.35rem;
 }
 
+.list a {
+  color: #0000CD;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-thickness 0.15s ease;
+}
+
+.list a:hover {
+  color: #FF1493;
+  text-decoration-thickness: 2.5px;
+}
+
 .startButton {
   margin-top: 0.9rem;
   padding: 0.85rem 1.5rem;

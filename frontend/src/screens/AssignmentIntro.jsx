@@ -46,12 +46,27 @@ export default function AssignmentIntro() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Links to further educational material</h2>
           <ul className={styles.list}>
-            <li><a href="https://training.bmb.sdu.dk/courses/course-v1:University_of_Southern_Denmark+SDU_BMB_COMPPROT+2022_KI/about" target="_blank" rel="noopener noreferrer">
-              Online course: Computational Proteomics (University of Southern Denmark, sign up for free)
-            </a></li>
-            <li><a href="https://tess.elixir-europe.org/search?q=proteomics#materials" target="_blank" rel="noopener noreferrer">
-              Proteomics training materials (ELIXIR Training eSupport System)
-            </a></li>
+            <li>
+              <a
+               href="https://training.bmb.sdu.dk/courses/course-v1:University_of_Southern_Denmark+SDU_BMB_COMPPROT+2022_KI/about"
+               target="_blank"
+               rel="noopener noreferrer"
+              >
+                Online course: Computational Proteomics
+              </a>
+              <span> — University of Southern Denmark, sign up for free</span>
+            </li>
+
+            <li>
+              <a
+                href="https://tess.elixir-europe.org/search?q=proteomics#materials"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Proteomics training materials
+              </a>
+              <span> — ELIXIR Training eSupport System</span>
+            </li>
           </ul>
         </section>
 
