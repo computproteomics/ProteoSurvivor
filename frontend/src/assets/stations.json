@@ -48,15 +48,13 @@
         "label": "Search Tool",
         "type": "select",
         "options": [
-          "fragpipe",
-          "maxquant"
+          "fragpipe"
         ],
         "optionLabels": {
-          "fragpipe": "FragPipe",
-          "maxquant": "MaxQuant"
+          "fragpipe": "FragPipe"
         },
         "defaultValue": "fragpipe",
-        "tooltip": "Search engines differ in scoring models and feature support."
+        "tooltip": "Searches are run using FragPipe."
       },
       {
         "id": "match_between_runs",
@@ -97,12 +95,12 @@
         "options": [
           "0.01",
           "0.02",
-          "0.03"
+          "0.05"
         ],
         "optionLabels": {
           "0.01": "0.01 Da",
           "0.02": "0.02 Da",
-          "0.03": "0.03 Da"
+          "0.05": "0.05 Da"
         },
         "defaultValue": "0.01",
         "tooltip": "Fragment tolerance controls how closely fragment peaks must align. Tight windows increase specificity for high-resolution MS/MS, while wider windows are more forgiving but less selective."
