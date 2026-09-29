@@ -8,9 +8,11 @@ from unittest.mock import patch
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.management import call_command
 from django.test import TestCase
 from django.test import TestCase
 from django.test.client import RequestFactory
+from io import StringIO
 import itertools
 import json
 import numpy as np
@@ -42,7 +44,7 @@ from game.services import (
     TOT_PEP,
     _squeeze_var,
 )
-from game.models import StationRun
+from game.models import FinalStationResult, StationRun
 from game.serializers import DataFrameSessionSerializer
 
 _DUMMY_IMG = "dummy_base64_image"
@@ -1287,3 +1289,158 @@ class TestRunStationAnonymousUser(TestCase):
         request.session.save()
         request.user = AnonymousUser()
         return request
+
+
+# ---------------------------------------------------------------------------
+# Management command: recalculate
+# ---------------------------------------------------------------------------
+
+
+def _fake_simulators(score_map: dict, true_positives: int = 0, false_positives: int = 0):
+    """Build fake STATION_SIMULATORS entries that just echo back fixed scores/TP/FP."""
+
+    def _make(station_id):
+        def _sim(dataset, params):
+            return {
+                "success": True,
+                "score": score_map[station_id],
+                "dataset": dataset,
+                "true_positives": true_positives,
+                "false_positives": false_positives,
+            }
+
+        return _sim
+
+    return {station_id: _make(station_id) for station_id in score_map}
+
+
+class TestRecalculateCommand(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="recalc_user")
+
+    def test_no_runs_reports_nothing_to_update(self):
+        out = StringIO()
+        call_command("recalculate", stdout=out)
+        self.assertIn("No differences found", out.getvalue())
+
+    def test_unchanged_score_is_not_reported_as_a_change(self):
+        StationRun.objects.create(
+            player=self.user, station_id="sample_prep", params={}, score=0
+        )
+        simulators = _fake_simulators({"sample_prep": 0})
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            call_command("recalculate", stdout=out)
+        self.assertIn("1 unchanged", out.getvalue())
+        self.assertIn("No differences found", out.getvalue())
+
+    def test_score_change_is_reported_and_prompts_for_confirmation(self):
+        run = StationRun.objects.create(
+            player=self.user, station_id="sample_prep", params={}, score=99
+        )
+        simulators = _fake_simulators({"sample_prep": 0})
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            with patch("builtins.input", return_value="n") as mock_input:
+                call_command("recalculate", stdout=out)
+        mock_input.assert_called_once()
+        run.refresh_from_db()
+        self.assertEqual(run.score, 99, "score must stay unchanged when aborted")
+        output = out.getvalue()
+        self.assertIn("Station run score changes", output)
+        self.assertIn("99.0000", output)
+        self.assertIn("Aborted", output)
+
+    def test_score_change_is_applied_when_confirmed(self):
+        run = StationRun.objects.create(
+            player=self.user, station_id="sample_prep", params={}, score=99
+        )
+        simulators = _fake_simulators({"sample_prep": 42})
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            with patch("builtins.input", return_value="y"):
+                call_command("recalculate", stdout=out)
+        run.refresh_from_db()
+        self.assertEqual(run.score, 42)
+        self.assertIn("Updated 1 station run score", out.getvalue())
+
+    def test_yes_flag_skips_confirmation_prompt(self):
+        run = StationRun.objects.create(
+            player=self.user, station_id="sample_prep", params={}, score=1
+        )
+        simulators = _fake_simulators({"sample_prep": 2})
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            with patch("builtins.input") as mock_input:
+                call_command("recalculate", "--yes", stdout=out)
+        mock_input.assert_not_called()
+        run.refresh_from_db()
+        self.assertEqual(run.score, 2)
+
+    def test_final_result_tp_fp_change_detected_and_applied(self):
+        run = StationRun.objects.create(
+            player=self.user, station_id="final_report", params={}, score=0.5
+        )
+        final_result = FinalStationResult.objects.create(
+            station_run=run, true_positives=3, false_positives=1
+        )
+        simulators = _fake_simulators(
+            {"final_report": 0.5}, true_positives=5, false_positives=2
+        )
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            with patch("builtins.input", return_value="y"):
+                call_command("recalculate", stdout=out)
+        final_result.refresh_from_db()
+        self.assertEqual(final_result.true_positives, 5)
+        self.assertEqual(final_result.false_positives, 2)
+        output = out.getvalue()
+        self.assertIn("Final result changes", output)
+        self.assertIn("Updated 0 station run score(s) and 1 final result(s)", output)
+
+    def test_unchanged_final_result_is_not_reported_as_a_change(self):
+        run = StationRun.objects.create(
+            player=self.user, station_id="final_report", params={}, score=0.5
+        )
+        FinalStationResult.objects.create(
+            station_run=run, true_positives=5, false_positives=2
+        )
+        simulators = _fake_simulators(
+            {"final_report": 0.5}, true_positives=5, false_positives=2
+        )
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", simulators, clear=True):
+            call_command("recalculate", stdout=out)
+        self.assertIn("No differences found", out.getvalue())
+
+    def test_unknown_station_id_is_skipped_with_warning(self):
+        StationRun.objects.create(
+            player=self.user, station_id="mystery_station", params={}, score=0
+        )
+        out = StringIO()
+        err = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", {}, clear=True):
+            call_command("recalculate", stdout=out, stderr=err)
+        self.assertIn("unknown station", err.getvalue())
+        self.assertIn("No differences found", out.getvalue())
+
+    def test_dataset_is_threaded_between_consecutive_runs_in_order(self):
+        calls = []
+
+        def sim_a(dataset, params):
+            calls.append(("a", dataset))
+            return {"success": True, "score": 0, "dataset": "dataset-from-a"}
+
+        def sim_b(dataset, params):
+            calls.append(("b", dataset))
+            return {"success": True, "score": 0, "dataset": "dataset-from-b"}
+
+        StationRun.objects.create(player=self.user, station_id="a", params={}, score=0)
+        StationRun.objects.create(player=self.user, station_id="b", params={}, score=0)
+
+        with patch.dict(
+            "game.services.STATION_SIMULATORS", {"a": sim_a, "b": sim_b}, clear=True
+        ):
+            call_command("recalculate", "--yes", stdout=StringIO())
+
+        self.assertEqual(calls, [("a", None), ("b", "dataset-from-a")])
