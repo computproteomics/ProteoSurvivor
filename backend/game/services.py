@@ -463,7 +463,8 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         }
 
     # Load the corresponding data file and extract results
-    dataset = pd.read_csv(DATA_DIR / data_file_name, sep="\t")
+    zeros = {col: "0" for col in COND_A + COND_B}
+    dataset = pd.read_table(DATA_DIR / data_file_name, na_values=zeros)
 
     # Making plots
     imgs = []
@@ -526,20 +527,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
             imgs.append(tr_hist)
 
         success = True
-        feedback = None
-
-    except Exception as e:
-        success = False
-        feedback = f"Error plotting spectra counts: {str(e)}"
-
-    return {
-        "success": success,
-        "dataset": dataset,
-        "num_prot": int(dataset[PROTEIN].nunique()),
-        "num_pep": int(dataset[TOT_PEP].sum()),
-        "img": imgs,
-        "score": 0,
-        "feedback": """
+        feedback = """
         ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
         FragPipe is a software tool that</br></br>
         1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical
@@ -555,7 +543,20 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         Do you see differences for the different species? </br/>
         Do the values look reasonable?</br/>
         Do you see any differences between species?
-        """,
+        """
+
+    except Exception as e:
+        success = False
+        feedback = f"Error plotting spectra counts: {str(e)}"
+
+    return {
+        "success": success,
+        "dataset": dataset,
+        "num_prot": int(dataset[PROTEIN].nunique()),
+        "num_pep": int(dataset[TOT_PEP].sum()),
+        "img": imgs,
+        "score": 0,
+        "feedback": feedback,
     }
 
 
