@@ -65,7 +65,7 @@ def _make_dataset() -> pd.DataFrame:
         "Entry Name": ["A_YEAST", "B_YEAST", "C_ECOLI", "D_HUMAN"],
         "Gene": ["GEN1", "GEN2", "GEN3", "GEN4"],
         "Protein Length": [300, 400, 250, 500],
-        "Organism": ["Yeast", "Yeast", "E. coli", "Human"],
+        "Organism": ["Yeast", "Yeast", "E. coli", "Homo sapiens"],
         "Protein Existence": ["Evidence at protein level"] * 4,
         "Description": ["Prot A", "Prot B", "Prot C", "Prot D"],
         "Protein Probability": [0.99, 0.98, 0.97, 0.96],
@@ -842,7 +842,7 @@ class TestFinalReportStation(TestCase):
         with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
             # All Human → all false positives
             df = _make_dataset_with_stats()
-            df[ORGANISM] = "Human"
+            df[ORGANISM] = "Homo sapiens"
             result = _simulate_final_report(df, {})
         self.assertEqual(result["score"], 0)
 
@@ -850,7 +850,7 @@ class TestFinalReportStation(TestCase):
         with patch("game.services.plot_scores", return_value=_DUMMY_IMG):
             low_tp_df = pd.DataFrame(
                 {
-                    ORGANISM: ["Yeast", "Human"],
+                    ORGANISM: ["Yeast", "Homo sapiens"],
                     FC: [-1.0, 0.2],
                 }
             )
@@ -867,7 +867,7 @@ class TestFinalReportStation(TestCase):
                         "E. coli",
                         "E. coli",
                         "E. coli",
-                        "Human",
+                        "Homo sapiens",
                     ],
                     FC: [-1.0, -1.2, -0.5, -0.9, -1.4, 0.6, 1.0, 0.8, 1.3, 0.4, 0.2],
                 }
@@ -1178,7 +1178,7 @@ def _read_csv_for_spectral_search(path, *args, **kwargs):
 @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
 @patch("game.services.tr_boxplot", return_value=_DUMMY_IMG)
 @patch("game.services._create_histogram", return_value=_DUMMY_IMG)
-@patch("game.services.pd.read_csv", side_effect=_read_csv_for_spectral_search)
+@patch("game.services.pd.read_table", side_effect=_read_csv_for_spectral_search)
 class TestFullWorkflow(TestCase):
     """
     Chains every station in the canonical pipeline order and verifies that data

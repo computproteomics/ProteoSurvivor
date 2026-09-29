@@ -60,6 +60,9 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
+HUMAN = "Homo sapiens"
+YEAST = "Yeast"
+ECOLI = "E. coli"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -1175,17 +1178,17 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
             "img": imgs,
         }
 
-    true_yeast = significant[(significant[ORGANISM] == "Yeast") & (significant[FC] < 0)]
+    true_yeast = significant[(significant[ORGANISM] == YEAST) & (significant[FC] < 0)]
     true_ecoli = significant[
-        (significant[ORGANISM] == "E. coli") & (significant[FC] > 0)
+        (significant[ORGANISM] == ECOLI) & (significant[FC] > 0)
     ]
     false_yeast = significant[
-        (significant[ORGANISM] == "Yeast") & (significant[FC] >= 0)
+        (significant[ORGANISM] == YEAST) & (significant[FC] >= 0)
     ]
     false_ecoli = significant[
-        (significant[ORGANISM] == "E. coli") & (significant[FC] <= 0)
+        (significant[ORGANISM] == ECOLI) & (significant[FC] <= 0)
     ]
-    false_human = significant[significant[ORGANISM] == "Human"]
+    false_human = significant[significant[ORGANISM] == HUMAN]
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)
