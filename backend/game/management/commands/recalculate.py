@@ -51,7 +51,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        score_changes, final_changes, unchanged_runs, unchanged_finals, errors, skipped = (
+        score_changes, final_changes, unchanged_runs, unchanged_finals, errors, skipped, failures = (
             self._recalculate_all(repeat_runs=options["repeat_runs"])
         )
 
@@ -64,6 +64,16 @@ class Command(BaseCommand):
 
         for error in errors:
             self.stderr.write(self.style.WARNING(error))
+
+        if failures:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\n{len(failures)} station run(s) reported success=False "
+                    "during recalculation:"
+                )
+            )
+            for failure in failures:
+                self.stdout.write(f"  - {failure}")
 
         self.stdout.write(
             f"\nRecalculated {len(score_changes) + unchanged_runs} station run(s): "
@@ -79,6 +89,16 @@ class Command(BaseCommand):
             return
 
         self._print_summary(score_changes, final_changes)
+
+        if failures or errors:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"\nNot committing changes: {len(errors)} error(s) and "
+                    f"{len(failures)} failure status(es) occurred during "
+                    "recalculation. Resolve these and re-run the command."
+                )
+            )
+            return
 
         if not options["yes"]:
             answer = input(
@@ -103,6 +123,7 @@ class Command(BaseCommand):
         unchanged_runs = 0
         unchanged_finals = 0
         errors = []
+        failures = []
         skipped = 0
 
         for user in User.objects.order_by("id"):
@@ -132,6 +153,13 @@ class Command(BaseCommand):
                         f"station '{run.station_id}'): recalculation raised {exc!r}."
                     )
                     continue
+
+                if result.get("success") is False:
+                    failures.append(
+                        f"StationRun {run.pk} ({user.username}, "
+                        f"station '{run.station_id}'): simulator reported "
+                        f"success=False with feedback: {result.get('feedback')!r}"
+                    )
 
                 dataset = result.get("dataset", dataset)
 
@@ -178,6 +206,7 @@ class Command(BaseCommand):
             unchanged_finals,
             errors,
             skipped,
+            failures,
         )
 
     def _print_summary(self, score_changes, final_changes):
