@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
 import { getStationResultsRenderer } from './resultRenderer';
+import { commitPendingRun } from '../api/client';
 import styles from './StationResults.module.css';
 
 export default function StationResults() {
@@ -30,6 +31,11 @@ export default function StationResults() {
     if (didRunSucceed) {
       markStationComplete(stationId);
     }
+    // Leaving the results screen makes the last run permanent: tell the backend
+    // to persist the pending run now that it can no longer be adjusted.
+    commitPendingRun().catch(() => {
+      // Non-fatal: the backend also drops pending runs on the next enter/run.
+    });
     navigate('/world');
   }
 
