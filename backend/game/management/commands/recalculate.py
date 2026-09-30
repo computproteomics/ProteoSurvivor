@@ -16,6 +16,16 @@ from game.models import StationRun
 from game.services import STATION_SIMULATORS
 
 
+def _keep_last_per_station(runs):
+    """Filter a chronologically ordered run list, keeping only the last run of
+    each station_id. Returns (filtered_runs, number_of_skipped_runs)."""
+    last_index_per_station = {}
+    for index, run in enumerate(runs):
+        last_index_per_station[run.station_id] = index
+    kept = [run for index, run in enumerate(runs) if last_index_per_station[run.station_id] == index]
+    return kept, len(runs) - len(kept)
+
+
 class Command(BaseCommand):
     help = (
         "Re-run every user's recorded station history through the current station "
@@ -29,11 +39,28 @@ class Command(BaseCommand):
             action="store_true",
             help="Apply changes without an interactive confirmation prompt.",
         )
+        parser.add_argument(
+            "--repeat-runs",
+            action="store_true",
+            help=(
+                "Replay every StationRun, including repeated runs of the same "
+                "station by the same user. By default only the last run of each "
+                "station per user is recalculated (assuming repeats were parameter "
+                "adjustments on the same dataset)."
+            ),
+        )
 
     def handle(self, *args, **options):
-        score_changes, final_changes, unchanged_runs, unchanged_finals, errors = (
-            self._recalculate_all()
+        score_changes, final_changes, unchanged_runs, unchanged_finals, errors, skipped = (
+            self._recalculate_all(repeat_runs=options["repeat_runs"])
         )
+
+        if skipped:
+            self.stdout.write(
+                f"Skipped {skipped} repeated station run(s) (only the last run of "
+                "each station per user is recalculated; use --repeat-runs to "
+                "include them)."
+            )
 
         for error in errors:
             self.stderr.write(self.style.WARNING(error))
@@ -70,12 +97,13 @@ class Command(BaseCommand):
             )
         )
 
-    def _recalculate_all(self):
+    def _recalculate_all(self, repeat_runs=False):
         score_changes = []
         final_changes = []
         unchanged_runs = 0
         unchanged_finals = 0
         errors = []
+        skipped = 0
 
         for user in User.objects.order_by("id"):
             runs = list(
@@ -83,6 +111,9 @@ class Command(BaseCommand):
                 .select_related("final_result")
                 .order_by("created_at", "id")
             )
+            if not repeat_runs:
+                runs, skipped_count = _keep_last_per_station(runs)
+                skipped += skipped_count
             dataset = None
             for run in runs:
                 simulator = STATION_SIMULATORS.get(run.station_id)
@@ -140,7 +171,14 @@ class Command(BaseCommand):
                             }
                         )
 
-        return score_changes, final_changes, unchanged_runs, unchanged_finals, errors
+        return (
+            score_changes,
+            final_changes,
+            unchanged_runs,
+            unchanged_finals,
+            errors,
+            skipped,
+        )
 
     def _print_summary(self, score_changes, final_changes):
         if score_changes:
