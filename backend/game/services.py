@@ -319,6 +319,38 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     }
 
 
+def commit_pending_station_run(request) -> dict | None:
+    """Persist the pending station run (if any) for the authenticated player.
+
+    Called when the player returns to the map, the point after which the last
+    station run can no longer be undone via "Adjust parameters". Anonymous
+    players have nothing to attribute the run to, so pending data is discarded.
+    """
+    pending = request.session.pop("pending_station_run", None)
+    if not pending or not request.user.is_authenticated:
+        return None
+
+    run = StationRun(
+        player=request.user,
+        station_id=pending["station_id"],
+        params=pending.get("params", {}),
+        score=pending.get("score", 0),
+    )
+    run.save()
+    print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+
+    if pending.get("final"):
+        final_result = FinalStationResult(
+            station_run=run,
+            true_positives=pending.get("true_positives", 0),
+            false_positives=pending.get("false_positives", 0),
+        )
+        final_result.save()
+        print(f"Saved FinalStationResult for StationRun ID {run.id}")
+
+    return {"station_id": run.station_id, "score": run.score}
+
+
 def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
@@ -346,26 +378,23 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
-        if request.user.is_authenticated:
-            run = StationRun(
-                player=request.user,
-                station_id=station_id,
-                params=params,
-                score=result.get(
-                    "score", 0
-                ),  # Score can be calculated based on results if needed
-            )
-
-            run.save()
-            print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-            if settings.STATIONS_CONFIG[station_id].get("final", False):
-                final_result = FinalStationResult(
-                    station_run=run,
-                    true_positives=result.get("true_positives", 0),
-                    false_positives=result.get("false_positives", 0),
-                )
-                final_result.save()
-                print(f"Saved FinalStationResult for StationRun ID {run.id}")
+        # "Adjust parameters" lets the player redo the same station, and the previous
+        # attempt no longer survives in the dataset. Persisting the run immediately
+        # would make an experiment that was reverted by a re-run look permanent.
+        # Instead the run is stashed as "pending" in the session and only written
+        # to the database when the player returns to the map (commit_pending_run),
+        # at which point the result can no longer be undone. A re-run simply
+        # overwrites the pending record.
+        pending_run = {
+            "station_id": station_id,
+            "params": params,
+            "score": result.get("score", 0),
+        }
+        if settings.STATIONS_CONFIG[station_id].get("final", False):
+            pending_run["final"] = True
+            pending_run["true_positives"] = result.get("true_positives", 0)
+            pending_run["false_positives"] = result.get("false_positives", 0)
+        request.session["pending_station_run"] = pending_run
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )

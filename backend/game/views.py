@@ -16,7 +16,7 @@ from .serializers import (
 )
 from .leaderboard import get_leaderboard_information
 from .helper_functions import plot_scores, get_visited_stations
-from .services import run_station
+from .services import commit_pending_station_run, run_station
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -142,6 +142,27 @@ def run_station_view(request, station_id):
         params=validated_data["params"],
     )
     return Response(result, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@authentication_classes([CsrfExemptSessionAuthentication])
+@permission_classes([AllowAny])
+def commit_run_view(request):
+    """Persist the pending station run when the player returns to the map.
+
+    Runs are kept as session-pending until this point so that "Adjust
+    parameters" can freely overwrite the previous attempt without leaving a
+    stale database record behind.
+    """
+    committed = commit_pending_station_run(request)
+    return Response(
+        {
+            "success": True,
+            "committed": committed is not None,
+            "station_id": committed.get("station_id") if committed else None,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 class LeaderboardView(APIView):
