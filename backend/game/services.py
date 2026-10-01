@@ -335,6 +335,7 @@ def commit_pending_station_run(request) -> dict | None:
         station_id=pending["station_id"],
         params=pending.get("params", {}),
         score=pending.get("score", 0),
+        success=pending.get("success"),
     )
     run.save()
     print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
@@ -344,6 +345,7 @@ def commit_pending_station_run(request) -> dict | None:
             station_run=run,
             true_positives=pending.get("true_positives", 0),
             false_positives=pending.get("false_positives", 0),
+            success=pending.get("success"),
         )
         final_result.save()
         print(f"Saved FinalStationResult for StationRun ID {run.id}")
@@ -388,6 +390,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
                 station_id=station_id,
                 params=params,
                 score=result.get("score", 0),
+                success=result.get("success"),
             )
             if request.user.is_authenticated:
                 run.save()
@@ -396,6 +399,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
                     station_run=run,
                     true_positives=result.get("true_positives", 0),
                     false_positives=result.get("false_positives", 0),
+                    success=result.get("success"),
                 )
                 final_result.save()
                 print(f"Saved FinalStationResult for StationRun ID {run.id}")
@@ -411,6 +415,7 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
                 "station_id": station_id,
                 "params": params,
                 "score": result.get("score", 0),
+                "success": result.get("success"),
             }
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
