@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
@@ -13,6 +13,11 @@ export default function StationResults() {
   // Pull the latest station output and completion action from shared state.
   const { stationResults, markStationComplete } = useGameStore();
   const [zoomedImageIndex, setZoomedImageIndex] = useState(null);
+  // Tracks which station run has already been finalized, so StrictMode's
+  // double-invoked effects (and any re-render) cannot commit the pending run
+  // twice — two concurrent commits would both read the session's pending run
+  // and save duplicate StationRun rows.
+  const finalizedStationRef = useRef(null);
 
   const title = getStationTitle(stationId);
   const stationBackground = getStationBackgroundImage(stationId);
@@ -32,6 +37,8 @@ export default function StationResults() {
   // of how the screen is exited.
   useEffect(() => {
     if (!stationId || !didRunSucceed) return;
+    if (finalizedStationRef.current === stationId) return;
+    finalizedStationRef.current = stationId;
     markStationComplete(stationId);
     commitPendingRun().catch(() => {
       // Non-fatal: the backend also drops pending runs on the next enter/run.
