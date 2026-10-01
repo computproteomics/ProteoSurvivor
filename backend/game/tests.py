@@ -1444,3 +1444,58 @@ class TestRecalculateCommand(TestCase):
             call_command("recalculate", "--yes", stdout=StringIO())
 
         self.assertEqual(calls, [("a", None), ("b", "dataset-from-a")])
+
+    def test_skip_repeated_runs_recalculates_scores_but_does_not_thread_dataset(self):
+        calls = []
+
+        def sim_a(dataset, params):
+            calls.append(("a", dataset))
+            return {"success": True, "score": params["score"], "dataset": "dataset-from-a"}
+
+        def sim_b(dataset, params):
+            calls.append(("b", dataset))
+            return {"success": True, "score": 0, "dataset": "dataset-from-b"}
+
+        run_a1 = StationRun.objects.create(
+            player=self.user, station_id="a", params={"score": 1}, score=1
+        )
+        run_a2 = StationRun.objects.create(
+            player=self.user, station_id="a", params={"score": 2}, score=2
+        )
+        run_a3 = StationRun.objects.create(
+            player=self.user, station_id="a", params={"score": 3}, score=3
+        )
+        run_b = StationRun.objects.create(player=self.user, station_id="b", params={}, score=0)
+
+        out = StringIO()
+        with patch.dict(
+            "game.services.STATION_SIMULATORS", {"a": sim_a, "b": sim_b}, clear=True
+        ):
+            call_command("recalculate", "--yes", "--skip-repeated-runs", stdout=out)
+
+        # Every run is recalculated: each "a" run receives the dataset
+        # preceding the consecutive group (None), since repeats' datasets are
+        # not threaded within the group; only the last "a" run's dataset is
+        # applied and threaded into "b".
+        self.assertEqual(
+            calls,
+            [
+                ("a", None),
+                ("a", None),
+                ("a", None),
+                ("b", "dataset-from-a"),
+            ],
+        )
+
+        # All scores were recalculated and applied.
+        run_a1.refresh_from_db()
+        run_a2.refresh_from_db()
+        run_a3.refresh_from_db()
+        run_b.refresh_from_db()
+        self.assertEqual(run_a1.score, 1)
+        self.assertEqual(run_a2.score, 2)
+        self.assertEqual(run_a3.score, 3)
+        self.assertEqual(run_b.score, 0)
+
+        # The repeated runs are reported as skipped for dataset threading.
+        self.assertIn("Skipped 2 repeated station run(s)", out.getvalue())

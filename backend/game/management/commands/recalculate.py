@@ -16,16 +16,6 @@ from game.models import StationRun
 from game.services import STATION_SIMULATORS
 
 
-def _keep_last_per_station(runs):
-    """Filter a chronologically ordered run list, keeping only the last run of
-    each station_id. Returns (filtered_runs, number_of_skipped_runs)."""
-    last_index_per_station = {}
-    for index, run in enumerate(runs):
-        last_index_per_station[run.station_id] = index
-    kept = [run for index, run in enumerate(runs) if last_index_per_station[run.station_id] == index]
-    return kept, len(runs) - len(kept)
-
-
 class Command(BaseCommand):
     help = (
         "Re-run every user's recorded station history through the current station "
@@ -40,26 +30,24 @@ class Command(BaseCommand):
             help="Apply changes without an interactive confirmation prompt.",
         )
         parser.add_argument(
-            "--repeat-runs",
+            "--skip-repeated-runs",
             action="store_true",
             help=(
-                "Replay every StationRun, including repeated runs of the same "
-                "station by the same user. By default only the last run of each "
-                "station per user is recalculated (assuming repeats were parameter "
-                "adjustments on the same dataset)."
+                "Do not apply changes to the dataset from repeated runs of the same "
+                "station by the same user, assuming repeats were parameter "
+                "adjustments on the same dataset."
             ),
         )
 
     def handle(self, *args, **options):
         score_changes, final_changes, unchanged_runs, unchanged_finals, errors, skipped, failures = (
-            self._recalculate_all(repeat_runs=options["repeat_runs"])
+            self._recalculate_all(skip_repeated_runs=options["skip_repeated_runs"])
         )
 
         if skipped:
             self.stdout.write(
                 f"Skipped {skipped} repeated station run(s) (only the last run of "
-                "each station per user is recalculated; use --repeat-runs to "
-                "include them)."
+                "each station per user is applied)."
             )
 
         for error in errors:
@@ -117,7 +105,7 @@ class Command(BaseCommand):
             )
         )
 
-    def _recalculate_all(self, repeat_runs=False):
+    def _recalculate_all(self, skip_repeated_runs=False):
         score_changes = []
         final_changes = []
         unchanged_runs = 0
@@ -132,11 +120,12 @@ class Command(BaseCommand):
                 .select_related("final_result")
                 .order_by("created_at", "id")
             )
-            if not repeat_runs:
-                runs, skipped_count = _keep_last_per_station(runs)
-                skipped += skipped_count
+
             dataset = None
-            for run in runs:
+            for run_index, run in enumerate(runs):
+                next_station_id = (
+                    runs[run_index + 1].station_id if run_index + 1 < len(runs) else None
+                )
                 simulator = STATION_SIMULATORS.get(run.station_id)
                 if simulator is None:
                     errors.append(
@@ -161,7 +150,14 @@ class Command(BaseCommand):
                         f"success=False with feedback: {result.get('feedback')!r}"
                     )
 
-                dataset = result.get("dataset", dataset)
+                # With --skip-repeated-runs, only the LAST run of a consecutive
+                # same-station group applies its dataset; earlier repeats are
+                # recalculated on the pre-group dataset but their output is
+                # discarded.
+                if not skip_repeated_runs or next_station_id != run.station_id:
+                    dataset = result.get("dataset", dataset)
+                else:
+                    skipped += 1
 
                 old_score = float(run.score)
                 new_score = float(result.get("score", 0) or 0)
