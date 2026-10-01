@@ -56,7 +56,7 @@ class Command(BaseCommand):
         if failures:
             self.stdout.write(
                 self.style.WARNING(
-                    f"\n{len(failures)} station run(s) reported success=False "
+                    f"\n{len(failures)} previously successful station run(s) reported success=False "
                     "during recalculation:"
                 )
             )
@@ -78,10 +78,10 @@ class Command(BaseCommand):
 
         self._print_summary(score_changes, final_changes)
 
-        if errors:
+        if errors or failures:
             self.stdout.write(
                 self.style.ERROR(
-                    f"\nNot committing changes: {len(errors)} error(s) occurred during "
+                    f"\nNot committing changes: {len(errors)} error(s) and {len(failures)} new failure(s) occurred during "
                     "recalculation. Resolve these and re-run the command."
                 )
             )
@@ -142,9 +142,9 @@ class Command(BaseCommand):
                     )
                     continue
 
-                if result.get("success") is False:
+                if result.get("success") is False and run.success is True:
                     failures.append(
-                        f"StationRun {run.pk} ({user.username}, "
+                        f"Previously successful StationRun {run.pk} ({user.username}, "
                         f"station '{run.station_id}'): simulator reported "
                         f"success=False with feedback: {result.get('feedback')!r}"
                     )

@@ -1413,6 +1413,48 @@ class TestRecalculateCommand(TestCase):
             call_command("recalculate", stdout=out)
         self.assertIn("No differences found", out.getvalue())
 
+    def test_previously_successful_run_now_failing_blocks_commit(self):
+        StationRun.objects.create(
+            player=self.user, station_id="a", params={}, score=1, success=True
+        )
+
+        def sim_a(dataset, params):
+            return {
+                "success": False,
+                "score": 0,
+                "dataset": None,
+                "feedback": "invalid params",
+            }
+
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", {"a": sim_a}, clear=True):
+            with patch("builtins.input", return_value="y") as mock_input:
+                call_command("recalculate", stdout=out)
+
+        # The failure is reported and the changes are not committed, even
+        # though a confirmation was (or would have been) given.
+        mock_input.assert_not_called()
+        output = out.getvalue()
+        self.assertIn("1 previously successful station run(s) reported success=False", output)
+        self.assertIn("invalid params", output)
+        self.assertIn("Not committing changes", output)
+
+    def test_run_already_failed_stays_failed_is_not_a_new_failure(self):
+        StationRun.objects.create(
+            player=self.user, station_id="a", params={}, score=0, success=False
+        )
+
+        def sim_a(dataset, params):
+            return {"success": False, "score": 0, "dataset": None, "feedback": "still bad"}
+
+        out = StringIO()
+        with patch.dict("game.services.STATION_SIMULATORS", {"a": sim_a}, clear=True):
+            call_command("recalculate", stdout=out)
+
+        output = out.getvalue()
+        self.assertNotIn("reported success=False", output)
+        self.assertIn("No differences found", output)
+
     def test_unknown_station_id_is_skipped_with_warning(self):
         StationRun.objects.create(
             player=self.user, station_id="mystery_station", params={}, score=0
