@@ -147,6 +147,25 @@ Open `reports/game_report/summary.html` in a browser, or use
 `participant_key.csv`, which maps the generic participant IDs shown in the
 figures to their database accounts.
 
+
+### Recalculate scores after updating
+
+If you update to a new version of the game or apply some local changes,
+you can use the following command to recalculate the existing scores in the leaderboard:
+
+```bash
+backend/venv/bin/python backend/manage.py recalculate
+```
+This will "replay" all existing user actions and show you a summary of changes.
+They will only be committed after your confirmation. For safety, if any errors happen during
+the recalculation, or if runs previously marked as successful fail,
+the results will not be overwritten.
+
+**Note:** if recalculating results from before #133 was merged, consider adding `--skip-repeated-runs`.
+"Repeated runs" refers to consecutive runs of the same station. Prior to that PR, runs were still saved
+to the database if the user clicked "Adjust parameters" to effectively start over, so this key is necessary
+to avoid reapplying the same operations to the dataset.
+
 ---
 
 ## Project Structure
