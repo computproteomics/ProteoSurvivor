@@ -90,6 +90,16 @@ def enter_station_view(request, station_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    # Entering a station (from the map or results screen) means any previous run
+    # is now permanently accepted: commit the pending run so the visited-station
+    # checks below (and the leaderboard) see it.
+    commit_pending_station_run(request)
+
+    request.session["current_station"] = station_id
+    # Entering a station fresh (from the map) means the next run should treat the
+    # current dataset as its input, not reuse a stale "adjust parameters" snapshot.
+    request.session.pop("last_run_station_id", None)
+
     station_config = settings.STATIONS_CONFIG[station_id]
     visited_stations = get_visited_stations(request.user)
     for requirement in station_config.get("requires", []):

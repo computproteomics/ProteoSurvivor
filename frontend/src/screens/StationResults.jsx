@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
@@ -26,16 +26,19 @@ export default function StationResults() {
     : undefined;
   const didRunSucceed = stationResults?.success === true;
 
-  function handleBackToMap() {
-    // Only successful runs should count as completed stations.
-    if (didRunSucceed) {
-      markStationComplete(stationId);
-    }
-    // Leaving the results screen makes the last run permanent: tell the backend
-    // to persist the pending run now that it can no longer be adjusted.
+  // The player can leave the results screen without clicking "Back to map"
+  // (e.g. by navigating directly to /world). Finalize the run the same way
+  // handleBackToMap does, so visited stations are marked complete regardless
+  // of how the screen is exited.
+  useEffect(() => {
+    if (!stationId || !didRunSucceed) return;
+    markStationComplete(stationId);
     commitPendingRun().catch(() => {
       // Non-fatal: the backend also drops pending runs on the next enter/run.
     });
+  }, [stationId, didRunSucceed, markStationComplete]);
+
+  function handleBackToMap() {
     navigate('/world');
   }
 
