@@ -472,7 +472,7 @@ class Command(BaseCommand):
         finals = player_summary[player_summary["submitted_final"]]
         final_scores = final_df["score"].astype(float) if not final_df.empty else pd.Series(dtype=float)
         lines = [
-            "# ProteoSurviver Game Report",
+            "# ProteoSurvivor Game Report",
             "",
             f"- Database: `{connection.settings_dict.get('NAME')}`",
             f"- Non-seed accounts with runs: {players}",
@@ -603,9 +603,9 @@ class Command(BaseCommand):
         page = [
             "<!doctype html>",
             '<html lang="en"><head><meta charset="utf-8">',
-            "<title>ProteoSurviver Game Report</title>",
+            "<title>ProteoSurvivor Game Report</title>",
             "<style>body{font:16px system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#222}img{max-width:100%;height:auto}figure{margin:1.5rem 0}table{border-collapse:collapse;width:100%;margin-bottom:2rem}th,td{border:1px solid #ccc;padding:.35rem;text-align:left}th{background:#eee}code{background:#f2f2f2;padding:.1rem .25rem}</style>",
-            "</head><body><h1>ProteoSurviver Game Report</h1>",
+            "</head><body><h1>ProteoSurvivor Game Report</h1>",
             "<ul>",
         ]
         page += [f"<li>{html.escape(item)}</li>" for item in items]

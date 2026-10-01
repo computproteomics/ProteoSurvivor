@@ -391,7 +391,7 @@ def filtering_scatterplot(df, relevant_cols=None):
     ax.set_ylim(x_min, x_max)
     ax.set_xlabel("Condition A mean intensity")
     ax.set_ylabel("Condition B mean intensity")
-    ax.set_title("Condition A vs Condition B")
+    ax.set_title("Quantitative Comparison of Condition A vs Condition B")
     ax.grid(True, alpha=0.25)
 
     return fig_to_base64(fig)

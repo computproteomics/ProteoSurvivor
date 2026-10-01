@@ -8,9 +8,8 @@ import advertisement4 from '../assets/EscapeRoom.webp';
 import advertisement5 from '../assets/proteomics_ad.webp';
 import advertisement6 from '../assets/spectrometry_ad.webp';
 
-const NEWS_BROADCAST_DATE = '2026-03-14';
-
 function Header() {
+  const newsBroadcastDate = new Date().toLocaleDateString();
   return (
     <div className={styles.header}>
       <div className={styles.rightHeader}>
@@ -18,7 +17,7 @@ function Header() {
       </div>
       <div className={styles.leftHeader}>
         <h3>
-          {NEWS_BROADCAST_DATE}
+          {newsBroadcastDate}
         </h3>
       </div>
     </div>

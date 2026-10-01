@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react';
 
 // VITE_BASE_PATH sets the public base URL for the built assets.
 // Use this when the app is served under a sub-path behind a reverse proxy,
-// e.g. VITE_BASE_PATH=/ProteoSurviver/ when nginx proxies /ProteoSurviver/ to
+// e.g. VITE_BASE_PATH=/ProteoSurvivor/ when nginx proxies /ProteoSurvivor/ to
 // the container.  Defaults to / for local development and direct container use.
 const base = process.env.VITE_BASE_PATH || '/';
 
-// Strip trailing slash: '' for '/', '/ProteoSurviver' for '/ProteoSurviver/'.
+// Strip trailing slash: '' for '/', '/ProteoSurvivor' for '/ProteoSurvivor/'.
 // The proxy keys must include the base prefix so that nginx can forward
 // requests without stripping the prefix (proxy_pass without trailing slash).
 const baseStripped = base.replace(/\/$/, '');

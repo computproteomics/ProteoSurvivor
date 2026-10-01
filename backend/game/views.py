@@ -115,7 +115,7 @@ def enter_station_view(request, station_id):
     return Response(
         {
             "success": True,
-            "message": f"Entered station '{station_id}' successfully.",
+            "message": f"",
             "station_id": station_id,
         },
         status=status.HTTP_200_OK,

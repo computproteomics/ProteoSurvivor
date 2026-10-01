@@ -7,7 +7,7 @@ const RESEARCH_GROUPS = [
     name: 'Computational Proteomics Group',
     url: 'https://computproteomics.bmb.sdu.dk',
     description: 'Methods and software for large-scale analysis of proteomics data.',
- },
+  },
   {
     name: 'Protein Research Group',
     url: 'https://www.sdu.dk/en/forskning/protein',
@@ -21,14 +21,14 @@ const RESEARCH_GROUPS = [
 ];
 
 const CONTRIBUTORS = [
-  { name: 'Christine Lærke Jensen',    github: 'chje118' },
-  { name: 'Edgar Luis Lämmerhirt',    github: 'zahnpasta-aus-der-tube' },    
-  { name: 'Jakob Gad Spoorendonk',     github: 'Trenchcoat-capybara' },
-  { name: 'Lev Levitsky',              github: 'levitsky' },
-  { name: 'Magnus Mørkeberg',          github: 'Mmoerkeberg' },
-  { name: 'Maja Lindskow Jessen',      github: 'MajaLindskov' },
-  { name: 'Malthe Letting',            github: 'M-Letting' },
-  { name: 'Veit Schwämmle',            github: 'veitveit' },
+  { name: 'Christine Lærke Jensen', github: 'chje118' },
+  { name: 'Edgar Luis Lämmerhirt', github: 'zahnpasta-aus-der-tube' },
+  { name: 'Jakob Gad Spoorendonk', github: 'Trenchcoat-capybara' },
+  { name: 'Lev Levitsky', github: 'levitsky' },
+  { name: 'Magnus Mørkeberg', github: 'Mmoerkeberg' },
+  { name: 'Maja Lindskow Jessen', github: 'MajaLindskov' },
+  { name: 'Malthe Letting', github: 'M-Letting' },
+  { name: 'Veit Schwämmle', github: 'veitveit' },
 ];
 
 const TECH_STACK = [
@@ -50,7 +50,7 @@ export default function Credits() {
             <p className={styles.kicker}>About this project</p>
             <h1 className={styles.title}>Credits</h1>
             <p className={styles.subtitle}>
-              ProteoSurviver is an open-source browser game for learning computational
+              ProteoSurvivor is an open-source browser game for learning computational
               proteomics — built by researchers and students at the University of Southern Denmark.
             </p>
             <p className={styles.versionBadge}>v{version}</p>
@@ -118,9 +118,9 @@ export default function Credits() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Source Code &amp; License</h2>
           <p className={styles.licenseText}>
-            ProteoSurviver is open source.{' '}
+            ProteoSurvivor is open source.{' '}
             <a
-              href="https://github.com/computproteomics/ProteoSurviver"
+              href="https://github.com/computproteomics/ProteoSurvivor"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.inlineLink}
@@ -129,7 +129,7 @@ export default function Credits() {
             </a>
             {' '}to contribute or inspect the simulation code. Found a bug?{' '}
             <a
-              href="https://github.com/computproteomics/ProteoSurviver/issues"
+              href="https://github.com/computproteomics/ProteoSurvivor/issues"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.inlineLink}
