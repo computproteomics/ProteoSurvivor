@@ -78,11 +78,10 @@ class Command(BaseCommand):
 
         self._print_summary(score_changes, final_changes)
 
-        if failures or errors:
+        if errors:
             self.stdout.write(
                 self.style.ERROR(
-                    f"\nNot committing changes: {len(errors)} error(s) and "
-                    f"{len(failures)} failure status(es) occurred during "
+                    f"\nNot committing changes: {len(errors)} error(s) occurred during "
                     "recalculation. Resolve these and re-run the command."
                 )
             )
