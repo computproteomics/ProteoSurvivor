@@ -452,6 +452,22 @@ class TestNormalizeStation(TestCase):
         self.assertTrue(result["success"])
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
+    def test_vsn_normalization(self, _mock_hc):
+        df = _make_dataset()
+        col = COND_A[0]
+        # Scale one column up to make sure VSN actually rescales samples
+        # instead of just applying the same log transform to everything.
+        df[col] = df[col] * 10
+        result = _simulate_normalize(df.copy(), {"normalization": "vsn"})
+        self.assertTrue(result["success"])
+        out = result["dataset"]
+        # VSN should not be a plain log2(x + 1): rescaling a column before
+        # transforming should no longer leave that column with a much larger
+        # spread than the others, since per-sample gain is calibrated.
+        stds = out[COND_A + COND_B].std()
+        self.assertLess(stds.max() / stds.min(), 3.0)
+
+    @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_unknown_method_fails(self, _mock_hc):
         result = _simulate_normalize(_make_dataset(), {"normalization": "magic"})
         self.assertFalse(result["success"])
