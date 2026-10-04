@@ -60,6 +60,9 @@ TOT_PEP = "Total Peptides"
 SPEC_COUNT = "Spectral Count"
 UNIQUE_SPEC_COUNT = "Unique Spectral Count"
 TOT_SPEC_COUNT = "Total Spectral Count"
+HUMAN = "Homo sapiens"
+YEAST = "Yeast"
+ECOLI = "E. coli"
 # NO_USE_INTENSITY_COND_A_REP_01 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_01 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_02 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_02 Intensity"
 # NO_USE_INTENSITY_COND_A_REP_03 = "LFQ_Orbitrap_DDA_Condition_A_Sample_Alpha_03 Intensity"
@@ -316,6 +319,40 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     }
 
 
+def commit_pending_station_run(request) -> dict | None:
+    """Persist the pending station run (if any) for the authenticated player.
+
+    Called when the player returns to the map, the point after which the last
+    station run can no longer be undone via "Adjust parameters". Anonymous
+    players have nothing to attribute the run to, so pending data is discarded.
+    """
+    pending = request.session.pop("pending_station_run", None)
+    if not pending or not request.user.is_authenticated:
+        return None
+
+    run = StationRun(
+        player=request.user,
+        station_id=pending["station_id"],
+        params=pending.get("params", {}),
+        score=pending.get("score", 0),
+        success=pending.get("success"),
+    )
+    run.save()
+    print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+
+    if pending.get("final"):
+        final_result = FinalStationResult(
+            station_run=run,
+            true_positives=pending.get("true_positives", 0),
+            false_positives=pending.get("false_positives", 0),
+            success=pending.get("success"),
+        )
+        final_result.save()
+        print(f"Saved FinalStationResult for StationRun ID {run.id}")
+
+    return {"station_id": run.station_id, "score": run.score}
+
+
 def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
@@ -343,26 +380,43 @@ def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
 
     print(f"Simulation result for station '{station_id}': {result}")
     if result.get("success"):
-        if request.user.is_authenticated:
+        is_final = settings.STATIONS_CONFIG[station_id].get("final", False)
+        if is_final:
+            # The final station produces the definitive game result (score, TP/FP).
+            # There is no "adjust and redo" to protect, and the leaderboard needs
+            # it immediately, so save StationRun + FinalStationResult right away.
             run = StationRun(
                 player=request.user,
                 station_id=station_id,
                 params=params,
-                score=result.get(
-                    "score", 0
-                ),  # Score can be calculated based on results if needed
+                score=result.get("score", 0),
+                success=result.get("success"),
             )
-
-            run.save()
-            print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-            if settings.STATIONS_CONFIG[station_id].get("final", False):
+            if request.user.is_authenticated:
+                run.save()
+                print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
                 final_result = FinalStationResult(
                     station_run=run,
                     true_positives=result.get("true_positives", 0),
                     false_positives=result.get("false_positives", 0),
+                    success=result.get("success"),
                 )
                 final_result.save()
                 print(f"Saved FinalStationResult for StationRun ID {run.id}")
+        else:
+            # "Adjust parameters" lets the player redo the same station, and the
+            # previous attempt no longer survives in the dataset. Persisting the
+            # run immediately would make an experiment that was reverted by a
+            # re-run look permanent. Instead the run is stashed as "pending" in
+            # the session and written to the database when the player exits the
+            # station (commit_pending_station_run). A re-run simply overwrites
+            # the pending record.
+            request.session["pending_station_run"] = {
+                "station_id": station_id,
+                "params": params,
+                "score": result.get("score", 0),
+                "success": result.get("success"),
+            }
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )
@@ -463,7 +517,8 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         }
 
     # Load the corresponding data file and extract results
-    dataset = pd.read_csv(DATA_DIR / data_file_name, sep="\t")
+    zeros = {col: "0" for col in COND_A + COND_B}
+    dataset = pd.read_table(DATA_DIR / data_file_name, na_values=zeros)
 
     # Making plots
     imgs = []
@@ -526,20 +581,7 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
             imgs.append(tr_hist)
 
         success = True
-        feedback = None
-
-    except Exception as e:
-        success = False
-        feedback = f"Error plotting spectra counts: {str(e)}"
-
-    return {
-        "success": success,
-        "dataset": dataset,
-        "num_prot": int(dataset[PROTEIN].nunique()),
-        "num_pep": int(dataset[TOT_PEP].sum()),
-        "img": imgs,
-        "score": 0,
-        "feedback": """
+        feedback = """
         ✅ Your wizardry has now ran a peptide database search with FragPipe using the given search parameters </br></br>
         FragPipe is a software tool that</br></br>
         1) takes the mass spectra from the mass spectrometer and <i>compares</i> them to theoretical
@@ -555,7 +597,20 @@ def _simulate_spectral_search(dataset: dict, params: dict) -> dict:
         Do you see differences for the different species? </br/>
         Do the values look reasonable?</br/>
         Do you see any differences between species?
-        """,
+        """
+
+    except Exception as e:
+        success = False
+        feedback = f"Error plotting spectra counts: {str(e)}"
+
+    return {
+        "success": success,
+        "dataset": dataset,
+        "num_prot": int(dataset[PROTEIN].nunique()),
+        "num_pep": int(dataset[TOT_PEP].sum()),
+        "img": imgs,
+        "score": 0,
+        "feedback": feedback,
     }
 
 
@@ -1174,17 +1229,17 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
             "img": imgs,
         }
 
-    true_yeast = significant[(significant[ORGANISM] == "Yeast") & (significant[FC] < 0)]
+    true_yeast = significant[(significant[ORGANISM] == YEAST) & (significant[FC] < 0)]
     true_ecoli = significant[
-        (significant[ORGANISM] == "E. coli") & (significant[FC] > 0)
+        (significant[ORGANISM] == ECOLI) & (significant[FC] > 0)
     ]
     false_yeast = significant[
-        (significant[ORGANISM] == "Yeast") & (significant[FC] >= 0)
+        (significant[ORGANISM] == YEAST) & (significant[FC] >= 0)
     ]
     false_ecoli = significant[
-        (significant[ORGANISM] == "E. coli") & (significant[FC] <= 0)
+        (significant[ORGANISM] == ECOLI) & (significant[FC] <= 0)
     ]
-    false_human = significant[significant[ORGANISM] == "Human"]
+    false_human = significant[significant[ORGANISM] == HUMAN]
 
     true_positives = len(true_yeast) + len(true_ecoli)
     false_positives = len(false_yeast) + len(false_ecoli) + len(false_human)

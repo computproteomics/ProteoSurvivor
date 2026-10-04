@@ -14,6 +14,11 @@ class StationRun(models.Model):
     )
     params = models.JSONField(default=dict)
     score = models.FloatField()
+    success = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Whether the station run succeeded. Null for legacy runs.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -31,6 +36,11 @@ class FinalStationResult(models.Model):
     )
     true_positives = models.PositiveIntegerField()
     false_positives = models.PositiveIntegerField()
+    success = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Whether the final station run succeeded. Null for legacy runs.",
+    )
 
     def __str__(self):
         return f"FinalStationResult for StationRun {self.station_run.pk}"

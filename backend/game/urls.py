@@ -8,4 +8,5 @@ urlpatterns = [
     # path("visited", views.VisitedStationsView.as_view(), name="visited-stations"),
     path("stations/<str:station_id>/enter/", views.enter_station_view, name="station-enter"),
     path("stations/<str:station_id>/run/", views.run_station_view, name="station-run"),
+    path("runs/commit/", views.commit_run_view, name="station-commit"),
 ]
