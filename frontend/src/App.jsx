@@ -80,7 +80,7 @@ function RequireAuth({ children }) {
 export default function App() {
   // import.meta.env.BASE_URL is set by Vite's `base` config option (default '/').
   // Strip the trailing slash so React Router's basename works correctly, e.g.
-  // '/ProteoSurviver/' → '/ProteoSurviver', '/' → ''.
+  // '/ProteoSurvivor/' → '/ProteoSurvivor', '/' → ''.
   const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
   return (
     <ErrorBoundary>
