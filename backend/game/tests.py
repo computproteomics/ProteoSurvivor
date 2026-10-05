@@ -8,6 +8,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.conf import settings
 from django.core.management import call_command
 from django.test import TestCase
 from django.test import TestCase
@@ -1289,6 +1290,201 @@ class TestRunStationAnonymousUser(TestCase):
         request.session.save()
         request.user = AnonymousUser()
         return request
+
+    def test_successful_run_is_not_saved_for_anonymous_user(self):
+        result = run_station(self._build_request(), "sample_prep", {})
+        self.assertTrue(result["success"])
+        self.assertEqual(StationRun.objects.count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Direct DB save and in-place "adjust parameters" reruns
+# ---------------------------------------------------------------------------
+
+
+def _scored_simulator(score, success=True):
+    def _sim(dataset, params):
+        return {
+            "success": success,
+            "score": score(params) if callable(score) else score,
+            "dataset": dataset,
+            "true_positives": 3,
+            "false_positives": 1,
+        }
+
+    return _sim
+
+
+class TestStationRunPersistence(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="persist_user")
+        self.client.force_login(self.user)
+        self.csrf_client = self.client_class(enforce_csrf_checks=True)
+        self.csrf_client.force_login(self.user)
+
+    def _post(self, client, path, params, **extra):
+        return client.post(
+            path, data={"params": params}, content_type="application/json", **extra
+        )
+
+    def _run(self, station_id="sample_prep", params=None):
+        return self._post(
+            self.client, f"/api/stations/{station_id}/run/", params or {}
+        )
+
+    def _csrf_headers(self):
+        # Cookie value and header must match for Django's CSRF check.
+        self.csrf_client.cookies["csrftoken"] = "a" * 64
+        return {"HTTP_X_CSRFTOKEN": "a" * 64}
+
+    def _rerun(self, station_id="sample_prep", params=None, csrf=True):
+        extra = self._csrf_headers() if csrf else {}
+        return self._post(
+            self.csrf_client, f"/api/stations/{station_id}/rerun/", params or {}, **extra
+        )
+
+    def _prime_csrf_session(self):
+        # Share the session of the plain client so the rerun sees the earlier run.
+        self.csrf_client.cookies[settings.SESSION_COOKIE_NAME] = self.client.cookies[
+            settings.SESSION_COOKIE_NAME
+        ].value
+
+    def test_successful_run_is_saved_immediately(self):
+        response = self._run(params={"x": 1})
+
+        self.assertEqual(response.status_code, 201)
+        run = StationRun.objects.get()
+        self.assertEqual(run.player, self.user)
+        self.assertEqual(run.station_id, "sample_prep")
+        self.assertEqual(run.params, {"x": 1})
+        self.assertTrue(run.success)
+
+    def test_failed_run_is_not_saved(self):
+        sims = {"sample_prep": _scored_simulator(0, success=False)}
+        with patch.dict("game.services.STATION_SIMULATORS", sims):
+            response = self._run()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(StationRun.objects.count(), 0)
+
+    def test_final_run_saves_final_result_immediately(self):
+        sims = {"final_report": _scored_simulator(42)}
+        with patch.dict("game.services.STATION_SIMULATORS", sims):
+            self._run("final_report")
+
+        run = StationRun.objects.get()
+        self.assertEqual(run.score, 42)
+        self.assertEqual(run.final_result.true_positives, 3)
+        self.assertEqual(run.final_result.false_positives, 1)
+
+    def test_rerun_updates_saved_run_in_place(self):
+        sims = {"sample_prep": _scored_simulator(lambda p: p["v"])}
+        with patch.dict("game.services.STATION_SIMULATORS", sims):
+            self._run(params={"v": 1})
+            first = StationRun.objects.get()
+            self._prime_csrf_session()
+            response = self._rerun(params={"v": 7})
+            self.assertEqual(response.status_code, 200)
+            self._rerun(params={"v": 9})
+
+        run = StationRun.objects.get()
+        self.assertEqual(run.pk, first.pk)
+        self.assertEqual(run.params, {"v": 9})
+        self.assertEqual(run.score, 9)
+
+    def test_final_rerun_updates_final_result_in_place(self):
+        sims = {"final_report": _scored_simulator(lambda p: p["v"])}
+        with patch.dict("game.services.STATION_SIMULATORS", sims):
+            self._run("final_report", {"v": 1})
+            self._prime_csrf_session()
+            self._rerun("final_report", {"v": 5})
+
+        self.assertEqual(StationRun.objects.count(), 1)
+        self.assertEqual(FinalStationResult.objects.count(), 1)
+        self.assertEqual(StationRun.objects.get().score, 5)
+
+    def test_rerun_starts_from_pre_run_dataset(self):
+        seen = []
+
+        def _sim(dataset, params):
+            seen.append(None if dataset is None else len(dataset))
+            return {"success": True, "score": 0, "dataset": _make_dataset()}
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _sim}):
+            self._run()
+            self._prime_csrf_session()
+            self._rerun()
+
+        self.assertEqual(seen, [None, None])
+
+    def test_failed_rerun_keeps_saved_run(self):
+        calls = iter([_scored_simulator(5), _scored_simulator(0, success=False)])
+
+        def _sim(dataset, params):
+            return next(calls)(dataset, params)
+
+        with patch.dict("game.services.STATION_SIMULATORS", {"sample_prep": _sim}):
+            self._run(params={"v": 1})
+            self._prime_csrf_session()
+            response = self._rerun(params={"v": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["success"])
+        run = StationRun.objects.get()
+        self.assertEqual(run.params, {"v": 1})
+        self.assertEqual(run.score, 5)
+
+    def test_rerun_without_csrf_token_is_rejected(self):
+        self._run(params={"v": 1})
+        self._prime_csrf_session()
+
+        response = self._rerun(params={"v": 2}, csrf=False)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(StationRun.objects.get().params, {"v": 1})
+
+    def test_rerun_without_prior_run_is_rejected(self):
+        self._prime_csrf_session_for_fresh_session()
+        response = self._rerun()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(StationRun.objects.count(), 0)
+
+    def _prime_csrf_session_for_fresh_session(self):
+        self.csrf_client.cookies.pop(settings.SESSION_COOKIE_NAME, None)
+        self.csrf_client.force_login(self.user)
+
+    def test_rerun_requires_authentication(self):
+        anonymous = self.client_class(enforce_csrf_checks=True)
+        anonymous.cookies["csrftoken"] = "a" * 64
+
+        response = self._post(
+            anonymous,
+            "/api/stations/sample_prep/rerun/",
+            {},
+            HTTP_X_CSRFTOKEN="a" * 64,
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_rerun_cannot_modify_run_of_another_station(self):
+        self._run("sample_prep")
+        self._prime_csrf_session()
+
+        response = self._rerun("mass_spec")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(StationRun.objects.get().station_id, "sample_prep")
+
+    def test_entering_station_again_disables_rerun(self):
+        self._run()
+        self.client.post("/api/stations/sample_prep/enter/", data={})
+        self._prime_csrf_session()
+
+        response = self._rerun()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(StationRun.objects.count(), 1)
 
 
 # ---------------------------------------------------------------------------

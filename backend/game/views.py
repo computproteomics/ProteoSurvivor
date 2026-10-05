@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +16,7 @@ from .serializers import (
 )
 from .leaderboard import get_leaderboard_information
 from .helper_functions import plot_scores, get_visited_stations
-from .services import commit_pending_station_run, run_station
+from .services import RerunNotAllowed, run_station
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -90,16 +90,6 @@ def enter_station_view(request, station_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # Entering a station (from the map or results screen) means any previous run
-    # is now permanently accepted: commit the pending run so the visited-station
-    # checks below (and the leaderboard) see it.
-    commit_pending_station_run(request)
-
-    request.session["current_station"] = station_id
-    # Entering a station fresh (from the map) means the next run should treat the
-    # current dataset as its input, not reuse a stale "adjust parameters" snapshot.
-    request.session.pop("last_run_station_id", None)
-
     station_config = settings.STATIONS_CONFIG[station_id]
     visited_stations = get_visited_stations(request.user)
     for requirement in station_config.get("requires", []):
@@ -119,9 +109,8 @@ def enter_station_view(request, station_id):
             )
 
     request.session["current_station"] = station_id
-    # Entering a station fresh (from the map) means the next run should treat the
-    # current dataset as its input, not reuse a stale "adjust parameters" snapshot.
-    request.session.pop("last_run_station_id", None)
+    # Entering a station fresh means an earlier run can no longer be adjusted.
+    request.session.pop("last_saved_run", None)
     return Response(
         {
             "success": True,
@@ -155,24 +144,34 @@ def run_station_view(request, station_id):
 
 
 @api_view(["POST"])
-@authentication_classes([CsrfExemptSessionAuthentication])
-@permission_classes([AllowAny])
-def commit_run_view(request):
-    """Persist the pending station run when the player returns to the map.
+@authentication_classes([SessionAuthentication])  # enforces CSRF
+@permission_classes([IsAuthenticated])
+def rerun_station_view(request, station_id):
+    """"Adjust parameters": re-run the last saved run of a station and update it in place."""
+    if station_id not in settings.STATIONS_CONFIG:
+        return Response(
+            {"success": False, "feedback": f"Unknown station '{station_id}'.", "score": 0},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
-    Runs are kept as session-pending until this point so that "Adjust
-    parameters" can freely overwrite the previous attempt without leaving a
-    stale database record behind.
-    """
-    committed = commit_pending_station_run(request)
-    return Response(
-        {
-            "success": True,
-            "committed": committed is not None,
-            "station_id": committed.get("station_id") if committed else None,
-        },
-        status=status.HTTP_200_OK,
-    )
+    serializer = RunStationSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    validated_data = cast(dict, serializer.validated_data)
+
+    try:
+        result = run_station(
+            request,
+            station_id=station_id,
+            params=validated_data["params"],
+            rerun=True,
+        )
+    except RerunNotAllowed as exc:
+        return Response(
+            {"success": False, "feedback": str(exc), "score": 0},
+            status=status.HTTP_409_CONFLICT,
+        )
+    return Response(result, status=status.HTTP_200_OK)
 
 
 class LeaderboardView(APIView):
