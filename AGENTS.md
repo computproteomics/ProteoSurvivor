@@ -2,7 +2,7 @@
 
 ## Project
 
-ProteoSurviver: a browser-based proteomics education game. Players configure lab
+ProteoSurvivor: a browser-based proteomics education game. Players configure lab
 workflow stations (sample prep → mass spec → spectral search → stats → final report).
 **React + Vite** frontend, **Django + DRF** backend, SQLite dev / PostgreSQL prod.
 
@@ -42,7 +42,7 @@ docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 - **State**: `src/store/gameSlice.js` (single Zustand store)
 - **HTTP**: `src/api/client.js` — Axios instance, CSRF cookie interceptor, base URL from `VITE_API_URL` or `BASE_URL + 'api'`
 - **Station config**: `src/assets/stations.json` — read by both frontend and backend
-- **Vite config**: `vite.config.js` — `VITE_BASE_PATH` env var sets sub-path for production (`/ProteoSurviver/`), proxy rewrites strip it before hitting Django
+- **Vite config**: `vite.config.js` — `VITE_BASE_PATH` env var sets sub-path for production (`/ProteoSurvivor/`), proxy rewrites strip it before hitting Django
 
 ### Backend (`backend/`)
 
