@@ -1,5 +1,5 @@
-django>=4.2,<5.0
-djangorestframework
+django>=6.1,<7.0
+djangorestframework>=3.18
 django-cors-headers
 python-dotenv
 pandas

@@ -243,6 +243,6 @@ reads the same file at startup via `STATIONS_CONFIG`.
 | Layer     | Technology                                              |
 |-----------|---------------------------------------------------------|
 | Frontend  | React 18, Vite, React Router 6, Recharts, Zustand, Axios |
-| Backend   | Django 4.2, Django REST Framework, pandas, numpy, Faker  |
+| Backend   | Django 6.1, Django REST Framework, pandas, numpy, Faker  |
 | Database  | SQLite (dev) / PostgreSQL (prod)                        |
 | Container | Docker (single multi-stage image, nginx + supervisord)  |

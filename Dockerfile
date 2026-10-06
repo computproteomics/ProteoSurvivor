@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Production-ready container: build the React bundle (dist/), serve it via
 # vite preview on port 3000 (proxies /api → Django), run Django on port 8000.
