@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { runStation } from '../api/client';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { runStation, rerunStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import {
   getStationBackgroundImage,
@@ -131,6 +131,7 @@ function getRunFailureResult(title, values, err) {
 export default function ParametrizationView() {
   const { stationId } = useParams();
   const navigate = useNavigate();
+  const isRerun = useLocation().state?.rerun === true;
   const { setStationParams, setStationResults } = useGameStore();
 
   const schema = getStationParameters(stationId);
@@ -160,7 +161,7 @@ export default function ParametrizationView() {
     let runSuccess;
 
     try {
-      const res = await runStation(stationId, values);
+      const res = await (isRerun ? rerunStation : runStation)(stationId, values);
       const responseData = res.data ?? {};
       resultPayload = responseData.results ?? responseData;
       runSuccess = responseData.success ?? resultPayload.success;
@@ -174,6 +175,8 @@ export default function ParametrizationView() {
       setStationResults({
         ...resultPayload,
         success: runSuccess,
+        // A failed rerun leaves the saved run intact, so it stays adjustable.
+        rerunnable: isRerun,
       });
       navigate(`/station/${stationId}/results`);
     } catch (err) {

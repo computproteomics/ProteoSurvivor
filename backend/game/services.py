@@ -319,104 +319,75 @@ def _simulate_data_review(dataset: pd.DataFrame | None, params: dict) -> dict:
     }
 
 
-def commit_pending_station_run(request) -> dict | None:
-    """Persist the pending station run (if any) for the authenticated player.
+class RerunNotAllowed(Exception):
+    """Raised when a rerun does not target the player's last saved run of the station."""
 
-    Called when the player returns to the map, the point after which the last
-    station run can no longer be undone via "Adjust parameters". Anonymous
-    players have nothing to attribute the run to, so pending data is discarded.
-    """
-    pending = request.session.pop("pending_station_run", None)
-    if not pending or not request.user.is_authenticated:
-        return None
 
-    run = StationRun(
-        player=request.user,
-        station_id=pending["station_id"],
-        params=pending.get("params", {}),
-        score=pending.get("score", 0),
-        success=pending.get("success"),
-    )
+def _save_run_result(run: StationRun, station_id: str, params: dict, result: dict) -> None:
+    """Write a successful result into `run` (creating or updating the final result too)."""
+    run.params = params
+    run.score = result.get("score", 0)
+    run.success = result.get("success")
     run.save()
-    print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-
-    if pending.get("final"):
-        final_result = FinalStationResult(
+    if settings.STATIONS_CONFIG[station_id].get("final", False):
+        FinalStationResult.objects.update_or_create(
             station_run=run,
-            true_positives=pending.get("true_positives", 0),
-            false_positives=pending.get("false_positives", 0),
-            success=pending.get("success"),
+            defaults={
+                "true_positives": result.get("true_positives", 0),
+                "false_positives": result.get("false_positives", 0),
+                "success": result.get("success"),
+            },
         )
-        final_result.save()
-        print(f"Saved FinalStationResult for StationRun ID {run.id}")
-
-    return {"station_id": run.station_id, "score": run.score}
 
 
-def run_station(request, station_id: str, params: dict) -> dict[str, Any]:
+def run_station(
+    request, station_id: str, params: dict, rerun: bool = False
+) -> dict[str, Any]:
     """
     Simulate the execution of a proteomics lab station with the given parameters.
+
+    A successful run is saved immediately. With `rerun=True` the station is re-run
+    from the dataset it originally started with and the saved run is updated in
+    place; this is only possible for the last successful run of that station.
     Returns a dictionary with the simulation results.
     """
     print(f"Running station '{station_id}' with parameters: {params}")
 
-    # "Adjust parameters" re-runs the same station without re-entering it from the
-    # map, so it must start from the dataset that existed before the prior run,
-    # not from that run's own output. Re-entering the station (enter_station_view)
-    # clears this tracking so a deliberate fresh run still uses the current dataset.
-    if request.session.get("last_run_station_id") == station_id:
-        dataset = request.session.get("pre_run_dataset", None)
-    else:
-        dataset = request.session.get("current_dataset", None)
-        request.session["pre_run_dataset"] = dataset
-        request.session["last_run_station_id"] = station_id
-    if dataset is not None:
-        dataset = DataFrameSessionSerializer.loads(dataset)
     runner = STATION_SIMULATORS.get(station_id)
     if runner is None:
         raise ValueError(f"Unknown station '{station_id}'.")
 
+    saved_run = None
+    if rerun:
+        last_run = request.session.get("last_saved_run") or {}
+        if request.user.is_authenticated and last_run.get("station_id") == station_id:
+            saved_run = StationRun.objects.filter(
+                pk=last_run.get("run_id"), player=request.user, station_id=station_id
+            ).first()
+        if saved_run is None:
+            raise RerunNotAllowed(f"No saved run of '{station_id}' to adjust.")
+        dataset = request.session.get("pre_run_dataset", None)
+    else:
+        dataset = request.session.get("current_dataset", None)
+        request.session["pre_run_dataset"] = dataset
+        request.session.pop("last_saved_run", None)
+    if dataset is not None:
+        dataset = DataFrameSessionSerializer.loads(dataset)
+
     result = runner(dataset, params)
 
     print(f"Simulation result for station '{station_id}': {result}")
-    if result.get("success"):
-        is_final = settings.STATIONS_CONFIG[station_id].get("final", False)
-        if is_final:
-            # The final station produces the definitive game result (score, TP/FP).
-            # There is no "adjust and redo" to protect, and the leaderboard needs
-            # it immediately, so save StationRun + FinalStationResult right away.
-            run = StationRun(
-                player=request.user,
-                station_id=station_id,
-                params=params,
-                score=result.get("score", 0),
-                success=result.get("success"),
-            )
-            if request.user.is_authenticated:
-                run.save()
-                print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
-                final_result = FinalStationResult(
-                    station_run=run,
-                    true_positives=result.get("true_positives", 0),
-                    false_positives=result.get("false_positives", 0),
-                    success=result.get("success"),
-                )
-                final_result.save()
-                print(f"Saved FinalStationResult for StationRun ID {run.id}")
-        else:
-            # "Adjust parameters" lets the player redo the same station, and the
-            # previous attempt no longer survives in the dataset. Persisting the
-            # run immediately would make an experiment that was reverted by a
-            # re-run look permanent. Instead the run is stashed as "pending" in
-            # the session and written to the database when the player exits the
-            # station (commit_pending_station_run). A re-run simply overwrites
-            # the pending record.
-            request.session["pending_station_run"] = {
-                "station_id": station_id,
-                "params": params,
-                "score": result.get("score", 0),
-                "success": result.get("success"),
-            }
+    if result.get("success") and request.user.is_authenticated:
+        run = saved_run or StationRun(player=request.user, station_id=station_id)
+        _save_run_result(run, station_id, params, result)
+        request.session["last_saved_run"] = {"station_id": station_id, "run_id": run.pk}
+        print(f"Saved StationRun with ID {run.id} for user {request.user.username}")
+
+    # A failed rerun keeps the saved run and the dataset it produced untouched.
+    if rerun and not result.get("success"):
+        response_payload = {key: value for key, value in result.items() if key != "dataset"}
+        return cast(dict[str, Any], _to_json_safe(response_payload))
+
     request.session["current_dataset"] = DataFrameSessionSerializer.dumps(
         result.get("dataset", dataset)
     )

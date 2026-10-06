@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { enterStation, runStation, commitPendingRun } from '../api/client';
+import { enterStation, runStation } from '../api/client';
 import useGameStore from '../store/gameSlice';
 import {
   getStationBackgroundImage,
@@ -137,9 +137,6 @@ export default function StationView() {
     if (stationResult?.success === true) {
       markStationComplete(stationId);
     }
-    // Exiting the station makes the last run permanent: commit the pending run
-    // to the database so downstream stations that require this one unlock.
-    commitPendingRun().catch(() => {});
     navigate('/world');
   }
 

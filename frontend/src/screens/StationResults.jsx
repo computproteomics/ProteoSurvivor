@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/gameSlice';
 import { getStationBackgroundImage, getStationTitle } from '../assets/stationConfig';
 import { getStationResultsRenderer } from './resultRenderer';
-import { commitPendingRun } from '../api/client';
 import styles from './StationResults.module.css';
 
 export default function StationResults() {
@@ -13,10 +12,8 @@ export default function StationResults() {
   // Pull the latest station output and completion action from shared state.
   const { stationResults, markStationComplete } = useGameStore();
   const [zoomedImageIndex, setZoomedImageIndex] = useState(null);
-  // Tracks which station run has already been finalized, so StrictMode's
-  // double-invoked effects (and any re-render) cannot commit the pending run
-  // twice — two concurrent commits would both read the session's pending run
-  // and save duplicate StationRun rows.
+  // Tracks which station run has already been marked complete, so double-invoked
+  // effects (StrictMode) do not repeat it.
   const finalizedStationRef = useRef(null);
 
   const title = getStationTitle(stationId);
@@ -32,17 +29,12 @@ export default function StationResults() {
   const didRunSucceed = stationResults?.success === true;
 
   // The player can leave the results screen without clicking "Back to map"
-  // (e.g. by navigating directly to /world). Finalize the run the same way
-  // handleBackToMap does, so visited stations are marked complete regardless
-  // of how the screen is exited.
+  // (e.g. by navigating directly to /world), so mark completion here.
   useEffect(() => {
     if (!stationId || !didRunSucceed) return;
     if (finalizedStationRef.current === stationId) return;
     finalizedStationRef.current = stationId;
     markStationComplete(stationId);
-    commitPendingRun().catch(() => {
-      // Non-fatal: the backend also drops pending runs on the next enter/run.
-    });
   }, [stationId, didRunSucceed, markStationComplete]);
 
   function handleBackToMap() {
@@ -50,8 +42,9 @@ export default function StationResults() {
   }
 
   function handleRetry() {
-    // Let the user adjust the same station parameters again.
-    navigate(`/station/${stationId}/params`);
+    // Only a saved run (successful, or kept after a failed rerun) can be updated in place.
+    const rerun = didRunSucceed || stationResults?.rerunnable === true;
+    navigate(`/station/${stationId}/params`, { state: { rerun } });
   }
 
   if (!stationResults) {

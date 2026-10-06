@@ -35,9 +35,9 @@ export const enterStation = (stationId, sessionId) =>
 export const runStation = (stationId, params) =>
   api.post(`/stations/${stationId}/run/`, { params });
 
-// Persist the pending station run once the player leaves the station results
-// (returns to the map), after which the run can no longer be adjusted.
-export const commitPendingRun = () => api.post('/runs/commit/');
+// "Adjust parameters": re-run the saved run of a station and update it in place.
+export const rerunStation = (stationId, params) =>
+  api.post(`/stations/${stationId}/rerun/`, { params });
 
 export const getLeaderboard = () => api.get('/leaderboard/');
 
