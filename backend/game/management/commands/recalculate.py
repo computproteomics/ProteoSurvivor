@@ -164,8 +164,8 @@ class Command(BaseCommand):
                     terminated = True
                     break
 
-                if result.get("success") is False and run.success is True:
-                    failures.append(
+                if result.get("success") is False and run.success is not False:  # historic runs without a recorded success
+                    failures.append(                                             # are successful too
                         f"Previously successful StationRun {run.pk} ({user.username}, "
                         f"station '{run.station_id}'): simulator reported "
                         f"success=False with feedback: {result.get('feedback')!r}"
