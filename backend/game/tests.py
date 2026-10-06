@@ -1455,8 +1455,8 @@ class TestRecalculateCommand(TestCase):
         self.assertNotIn("reported success=False", output)
         self.assertIn("No differences found", output)
 
-    def test_unknown_station_id_is_skipped_with_warning(self):
-        StationRun.objects.create(
+    def test_unknown_station_id_terminates_with_error(self):
+        run = StationRun.objects.create(
             player=self.user, station_id="mystery_station", params={}, score=0
         )
         out = StringIO()
@@ -1464,7 +1464,41 @@ class TestRecalculateCommand(TestCase):
         with patch.dict("game.services.STATION_SIMULATORS", {}, clear=True):
             call_command("recalculate", stdout=out, stderr=err)
         self.assertIn("unknown station", err.getvalue())
-        self.assertIn("No differences found", out.getvalue())
+        self.assertIn("Terminating without replaying any further runs", err.getvalue())
+        self.assertNotIn("No differences found", out.getvalue())
+
+    def test_simulator_exception_terminates_and_later_runs_are_not_replayed(self):
+        other_user = get_user_model().objects.create_user(username="recalc_user2")
+        run_a = StationRun.objects.create(player=self.user, station_id="a", params={}, score=0)
+        run_b = StationRun.objects.create(player=self.user, station_id="b", params={}, score=0)
+        run_a2 = StationRun.objects.create(player=other_user, station_id="a", params={}, score=0)
+
+        sim_calls = []
+
+        def sim_a(dataset, params):
+            sim_calls.append(("a", dataset))
+            return {"success": True, "score": 0, "dataset": "dataset-from-a"}
+
+        def sim_b(dataset, params):
+            sim_calls.append(("b", dataset))
+            raise ValueError("boom")
+
+        out = StringIO()
+        err = StringIO()
+        with patch.dict(
+            "game.services.STATION_SIMULATORS", {"a": sim_a, "b": sim_b}, clear=True
+        ):
+            call_command("recalculate", "--yes", stdout=out, stderr=err)
+
+        # The command terminated at the failing run: user 1's run_b raised, and
+        # neither user 1's later runs nor user 2's runs were replayed afterwards.
+        self.assertEqual(sim_calls, [("a", None), ("b", "dataset-from-a")])
+        for run in (run_a, run_b, run_a2):
+            run.refresh_from_db()
+            self.assertEqual(run.score, 0)
+        self.assertIn("recalculation raised ValueError('boom')", err.getvalue())
+        self.assertIn("Terminating without replaying any further runs", err.getvalue())
+        self.assertNotIn("Updated", out.getvalue())
 
     def test_dataset_is_threaded_between_consecutive_runs_in_order(self):
         calls = []

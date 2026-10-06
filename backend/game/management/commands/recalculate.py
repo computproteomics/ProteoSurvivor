@@ -4,6 +4,9 @@ Replays each user's station history (in the order it was originally run) through
 the current station simulators, threading the resulting dataset from one station
 into the next, and compares the recalculated values against what is stored in the
 database. Differences are presented for confirmation before anything is written.
+
+Replay terminates immediately, with nothing changed, if a simulator cannot be run
+(unknown station id or an exception); the error is reported and the command exits.
 """
 
 import math
@@ -40,9 +43,16 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        score_changes, final_changes, unchanged_runs, unchanged_finals, errors, skipped, failures = (
-            self._recalculate_all(skip_repeated_runs=options["skip_repeated_runs"])
-        )
+        (
+            score_changes,
+            final_changes,
+            unchanged_runs,
+            unchanged_finals,
+            errors,
+            skipped,
+            failures,
+            terminated,
+        ) = self._recalculate_all(skip_repeated_runs=options["skip_repeated_runs"])
 
         if skipped:
             self.stdout.write(
@@ -52,6 +62,15 @@ class Command(BaseCommand):
 
         for error in errors:
             self.stderr.write(self.style.WARNING(error))
+
+        if terminated:
+            self.stderr.write(
+                self.style.ERROR(
+                    "\nTerminating without replaying any further runs. "
+                    "Resolve the error above and re-run the command."
+                )
+            )
+            return
 
         if failures:
             self.stdout.write(
@@ -112,6 +131,7 @@ class Command(BaseCommand):
         errors = []
         failures = []
         skipped = 0
+        terminated = False
 
         for user in User.objects.order_by("id"):
             runs = list(
@@ -128,22 +148,24 @@ class Command(BaseCommand):
                 simulator = STATION_SIMULATORS.get(run.station_id)
                 if simulator is None:
                     errors.append(
-                        f"Skipping StationRun {run.pk} ({user.username}): "
+                        f"StationRun {run.pk} ({user.username}): "
                         f"unknown station '{run.station_id}'."
                     )
-                    continue
+                    terminated = True
+                    break
 
                 try:
                     result = simulator(dataset, run.params or {})
                 except Exception as exc:
                     errors.append(
-                        f"Skipping StationRun {run.pk} ({user.username}, "
+                        f"StationRun {run.pk} ({user.username}, "
                         f"station '{run.station_id}'): recalculation raised {exc!r}."
                     )
-                    continue
+                    terminated = True
+                    break
 
-                if result.get("success") is False and run.success is True:
-                    failures.append(
+                if result.get("success") is False and run.success is not False:  # historic runs without a recorded success
+                    failures.append(                                             # are successful too
                         f"Previously successful StationRun {run.pk} ({user.username}, "
                         f"station '{run.station_id}'): simulator reported "
                         f"success=False with feedback: {result.get('feedback')!r}"
@@ -194,6 +216,9 @@ class Command(BaseCommand):
                             }
                         )
 
+            if terminated:
+                break
+
         return (
             score_changes,
             final_changes,
@@ -202,6 +227,7 @@ class Command(BaseCommand):
             errors,
             skipped,
             failures,
+            terminated,
         )
 
     def _print_summary(self, score_changes, final_changes):
