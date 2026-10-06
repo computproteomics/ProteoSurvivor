@@ -56,7 +56,7 @@ const useGameStore = create(
       resetGame: () => set(INITIAL_STATE),
     }),
     {
-      name: 'proteosurviver-game-state',
+      name: 'ProteoSurvivor-game-state',
       partialize: (state) => ({
         userId: state.userId,
         userName: state.userName,

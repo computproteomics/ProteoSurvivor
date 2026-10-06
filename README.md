@@ -1,4 +1,4 @@
-# ProteoSurviver
+# ProteoSurvivor
 
 A browser-based proteomics education game where players step into the role of a
 computational proteomics researcher.
@@ -18,8 +18,8 @@ The repository ships with a single `Dockerfile` that builds the React bundle and
 serves it via **Vite** on port **3000**, proxying API and admin requests to the
 Django backend running on port **8000** inside the same container.
 
-The app is deployed at `/ProteoSurviver/` by default (matching
-`https://computproteomics.bmb.sdu.dk/ProteoSurviver/`).
+The app is deployed at `/ProteoSurvivor/` by default (matching
+`https://computproteomics.bmb.sdu.dk/ProteoSurvivor/`).
 
 ```bash
 cp backend/.env.example backend/.env   # set SECRET_KEY at minimum
@@ -64,7 +64,7 @@ empty database automatically.
 The nginx `location` block that proxies to the container:
 
 ```nginx
-location /ProteoSurviver/ {
+location /ProteoSurvivor/ {
     proxy_pass http://127.0.0.1:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -171,7 +171,7 @@ to avoid reapplying the same operations to the dataset.
 ## Project Structure
 
 ```
-ProteoSurviver/
+ProteoSurvivor/
 ├── backend/
 │   ├── config/          Django settings (base / development / production)
 │   ├── game/            Model (StationRun), views, serializers, station simulators

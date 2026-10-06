@@ -3,7 +3,7 @@ FROM python:3.13-slim
 # Production-ready container: build the React bundle (dist/), serve it via
 # vite preview on port 3000 (proxies /api → Django), run Django on port 8000.
 #
-ARG VITE_BASE_PATH=/ProteoSurviver/
+ARG VITE_BASE_PATH=/ProteoSurvivor/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor curl gnupg ca-certificates libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
