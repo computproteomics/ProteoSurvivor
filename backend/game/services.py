@@ -1170,9 +1170,37 @@ def _simulate_multiple_testing_corrector(dataset: pd.DataFrame, params: dict) ->
 
 
 def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
+    def format_cuttofs(fc_raw, fc, pval, fc_transform):
+        if fc_transform == "log2":
+            fc_str = f"log2({fc_raw} = {fc})"
+        elif fc_transform == "ln":
+            fc_str = f"ln({fc_raw} = {fc})"
+        else:
+            fc_str = str(fc)
+        return f"Fold-change: {fc_str}, p-value: {pval}"
 
-    fc = float(params.get("fold_change_cutoff", 1))
+    fc_raw = float(params.get("fold_change_cutoff", 1))
     pval = float(params.get("pvalue_cutoff", 0.05))
+    fc_transform = params.get("fc_threshold_transform", "none")
+    if fc_transform not in ("none", "log2", "ln"):
+        return {
+            "summary": "Unknown fold-change threshold transformation.",
+            "success": False,
+            "score": 0,
+            "cutoffs": "N/A",
+            "dataset": pd.DataFrame(),
+            "feedback": f"⚠️ Unknown fold-change threshold transformation '{fc_transform}'. The cutter only sharpens its blade with none, log2 and ln.",
+            "img": [],
+            "true_positives": 0,
+            "false_positives": 0,
+            "final_hits": 0,
+        }
+    if fc_transform == "log2":
+        fc = float(np.log2(fc_raw))
+    elif fc_transform == "ln":
+        fc = float(np.log(fc_raw))
+    else:
+        fc = fc_raw
     dataset = dataset.copy() if dataset is not None else pd.DataFrame()
     imgs = []
     if FC not in dataset.columns:
@@ -1180,7 +1208,7 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
             "summary": "Dataset missing required columns for cutter station.",
             "success": False,
             "score": 0,
-            "cutoffs": {"log2FC": fc, "FDR": pval},
+            "cutoffs": format_cuttofs(fc_raw, fc, pval, fc_transform),
             "dataset": dataset,
             "feedback": "⚠️ No fold-change column found. The cutter cannot separate signal from noise without something sharp to work with.",
             "img": imgs,
@@ -1198,7 +1226,7 @@ def _simulate_the_cutter(dataset: pd.DataFrame, params: dict) -> dict:
         "summary": "Final candidate selection complete.",
         "success": True,
         "score": 0,
-        "cutoffs": {"log2FC": fc, "FDR": pval},
+        "cutoffs": format_cuttofs(fc_raw, fc, pval, fc_transform),
         "dataset": significant,
         "feedback": f"✅ Candidate selection complete. You identified {len(significant)} proteins worthy of surviving the cutoffs, while the rest were quietly returned to statistical oblivion.",
         "img": imgs,
@@ -1385,6 +1413,17 @@ def _squeeze_var(
 def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
 
     test = params.get("statistical_test", "none")
+    fc_method = params.get("fc_method", "division")
+    if fc_method not in ("division", "subtraction"):
+        return {
+            "success": False,
+            "num_pro": None,
+            "num_pep": None,
+            "feedback": f"⚠️ Unknown fold-change method '{fc_method}'. The station only knows how to divide and subtract.",
+            "img": [],
+            "score": 0,
+            "dataset": pd.DataFrame(),
+        }
     success = False
     imgs = []
     score = 0
@@ -1423,10 +1462,19 @@ def _simulate_statistical_analysis(dataset: pd.DataFrame, params: dict) -> dict:
         # Replace ±inf (e.g. log(0)) with NaN so dropna() removes them before tests
         expr = expr.replace([np.inf, -np.inf], np.nan)
 
-        # Compute log2 fold-change: log2(mean condition B / mean condition A)
+        # Compute the fold-change between condition means. "division" returns
+        # the plain ratio meanB / meanA on the linear scale; "subtraction"
+        # returns meanB − meanA, which equals the log2 fold change only for
+        # log-transformed intensities.
         mean_a = expr[COND_A].mean(axis=1, skipna=True)
         mean_b = expr[COND_B].mean(axis=1, skipna=True)
-        df[FC] = mean_b - mean_a
+        if fc_method == "division":
+            with np.errstate(divide="ignore", invalid="ignore"):
+                df[FC] = mean_b / mean_a
+            # Ratios with a zero denominator have no finite fold change.
+            df[FC] = df[FC].replace([np.inf, -np.inf], np.nan)
+        else:
+            df[FC] = mean_b - mean_a
 
         p_values = np.full(len(expr), np.nan)
 

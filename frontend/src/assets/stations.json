@@ -427,23 +427,40 @@
     "parameters": [
       {
         "id": "fold_change_cutoff",
-        "label": "Fold-Change Cutoff (log2 scale)",
+        "label": "Fold-Change Cutoff",
         "type": "slider",
         "min": 0,
         "max": 7,
-        "step": 1,
+        "step": 0.1,
         "defaultValue": 1,
         "tooltip": "Higher fold-change cutoffs prioritize larger biological effects but reduce hit counts. Lower cutoffs retain subtle changes but may include weaker candidates."
       },
       {
         "id": "pvalue_cutoff",
-        "label": "Adjusted p-value (FDR) Cutoff",
+        "label": "p-value Cutoff",
         "type": "slider",
         "min": 0,
         "max": 1,
         "step": 0.01,
         "defaultValue": 0.05,
         "tooltip": "The adjusted p-value threshold sets statistical stringency after correction. Lower values reduce false discoveries but can miss weaker true effects."
+      },
+      {
+        "id": "fc_threshold_transform",
+        "label": "Apply transformation to fold-change threshold",
+        "type": "select",
+        "options": [
+          "none",
+          "log2",
+          "ln"
+        ],
+        "optionLabels": {
+          "none": "None (threshold used as is)",
+          "log2": "Log2 of threshold",
+          "ln": "Natural log of threshold"
+        },
+        "defaultValue": "none",
+        "tooltip": "Transforms the fold-change cutoff before filtering. Use log2 or ln when the fold-change column is on a log scale but the cutoff is entered as a plain ratio, e.g. a cutoff of 4 with log2 gives 2."
       }
     ],
     "objective": "Set fold-change and adjusted p-value cutoffs to define a robust candidate list.",
@@ -486,6 +503,21 @@
         },
         "defaultValue": "welch",
         "tooltip": "Choose a test based on distribution assumptions and sample size. Welch is a robust default for unequal variances; non-parametric or permutation approaches can be safer for non-normal data."
+      },
+      {
+        "id": "fc_method",
+        "label": "Fold-Change Calculation Method",
+        "type": "select",
+        "options": [
+          "division",
+          "subtraction"
+        ],
+        "optionLabels": {
+          "division": "Division (mean B / mean A)",
+          "subtraction": "Subtraction (mean B − mean A)"
+        },
+        "defaultValue": "division",
+        "tooltip": "Division computes the plain ratio of the condition means, so a twofold change yields 2. Subtraction computes the difference of the condition means, which equals the log2 fold change only for log-transformed intensities."
       }
     ],
     "objective": "Choose and run an appropriate statistical test to detect regulated proteins.",

@@ -620,6 +620,60 @@ class TestTheCutterStation(TestCase):
         )
         self.assertEqual(len(result["dataset"]), 0)
 
+    @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
+    def test_log2_threshold_transform(self, _mock_plot):
+        df = _make_dataset_with_stats()
+        # A plain cutoff of 3 transformed with log2 becomes ~1.585, which keeps
+        # only P0003 (FC=1.8, p=0.02): P0001's FC=-1.5 falls below the threshold.
+        result = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": 3.0, "pvalue_cutoff": 0.05,
+             "fc_threshold_transform": "log2"},
+        )
+        self.assertEqual(list(result["dataset"][PROTEIN]), ["P0003"])
+        # An equivalent untransformed cutoff keeps the same rows.
+        as_is = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": float(np.log2(3.0)), "pvalue_cutoff": 0.05},
+        )
+        self.assertEqual(list(result["dataset"][PROTEIN]), list(as_is["dataset"][PROTEIN]))
+
+    @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
+    def test_ln_threshold_transform(self, _mock_plot):
+        df = _make_dataset_with_stats()
+        result = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": 3.0, "pvalue_cutoff": 0.05,
+             "fc_threshold_transform": "ln"},
+        )
+        as_is = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": float(np.log(3.0)), "pvalue_cutoff": 0.05},
+        )
+        self.assertEqual(list(result["dataset"][PROTEIN]), list(as_is["dataset"][PROTEIN]))
+
+    @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
+    def test_none_threshold_transform_uses_cutoff_as_is(self, _mock_plot):
+        df = _make_dataset_with_stats()
+        result = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": 1.0, "pvalue_cutoff": 0.05,
+             "fc_threshold_transform": "none"},
+        )
+        plain = _simulate_the_cutter(
+            df,
+            {"fold_change_cutoff": 1.0, "pvalue_cutoff": 0.05},
+        )
+        self.assertEqual(list(result["dataset"][PROTEIN]), list(plain["dataset"][PROTEIN]))
+
+    def test_unknown_threshold_transform_fails(self):
+        result = _simulate_the_cutter(
+            _make_dataset_with_stats(),
+            {"fold_change_cutoff": 1.0, "pvalue_cutoff": 0.05,
+             "fc_threshold_transform": "magic"},
+        )
+        self.assertFalse(result["success"])
+
 
 # ---------------------------------------------------------------------------
 # Station: statistical_analysis
@@ -698,6 +752,58 @@ class TestStatisticalAnalysisStation(TestCase):
     def test_unknown_test_fails(self, _mock_vp):
         result = _simulate_statistical_analysis(
             _make_dataset(), {"statistical_test": "magic"}
+        )
+        self.assertFalse(result["success"])
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_division_method_computes_mean_ratio(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "welch", "method": "division"}
+        )
+        self.assertTrue(result["success"])
+        expected = df[COND_B].mean(axis=1) / df[COND_A].mean(axis=1)
+        np.testing.assert_allclose(result["dataset"][FC], expected)
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_division_method_yields_nan_for_zero_denominator(self, _mock_vp):
+        """A ratio with a zero mean denominator has no finite fold change."""
+        df = _make_dataset()
+        df.loc[0, COND_A] = 0.0
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "welch", "method": "division"}
+        )
+        self.assertTrue(result["success"])
+        self.assertTrue(np.isnan(result["dataset"].loc[0, FC]))
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_subtraction_method_computes_mean_difference(self, _mock_vp):
+        df = _make_dataset()
+        result = _simulate_statistical_analysis(
+            df, {"statistical_test": "welch", "method": "subtraction"}
+        )
+        self.assertTrue(result["success"])
+        expected = df[COND_B].mean(axis=1) - df[COND_A].mean(axis=1)
+        np.testing.assert_allclose(result["dataset"][FC], expected)
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_default_method_is_division(self, _mock_vp):
+        """Omitting 'method' must behave identically to an explicit 'division'."""
+        df = _make_dataset()
+        default = _simulate_statistical_analysis(df, {"statistical_test": "welch"})
+        explicit = _simulate_statistical_analysis(
+            df, {"statistical_test": "welch", "method": "division"}
+        )
+        self.assertTrue(default["success"])
+        self.assertTrue(explicit["success"])
+        pd.testing.assert_series_equal(
+            default["dataset"][FC], explicit["dataset"][FC], check_names=False
+        )
+
+    @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
+    def test_unknown_method_fails(self, _mock_vp):
+        result = _simulate_statistical_analysis(
+            _make_dataset(), {"statistical_test": "welch", "method": "magic"}
         )
         self.assertFalse(result["success"])
 
@@ -998,12 +1104,25 @@ class TestStationParameterConfigurations(TestCase):
 
     @patch("game.services.plot_significant_proteins", return_value=_DUMMY_IMG)
     def test_the_cutter_parameter_configurations(self, _mock_sig):
-        # Slider parameters are continuous; test representative grid with cap 10.
+        # Slider parameters are continuous; test a representative grid.
+        # fc_threshold_transform options come from stations.json.
+        transform_options = next(
+            p["options"]
+            for p in self.station_options["the_cutter"]["parameters"]
+            if p["id"] == "fc_threshold_transform"
+        )
         fold_changes = list(range(0, 8))
         pvals = [0.0, 0.01, 0.05, 0.5, 1.0]
         combos = []
         for fc_cut, p_cut in itertools.product(fold_changes, pvals):
-            combos.append({"fold_change_cutoff": fc_cut, "pvalue_cutoff": p_cut})
+            for transform in transform_options:
+                combos.append(
+                    {
+                        "fold_change_cutoff": fc_cut,
+                        "pvalue_cutoff": p_cut,
+                        "fc_threshold_transform": transform,
+                    }
+                )
             if len(combos) >= _MAX_CONFIG_CASES:
                 break
 
@@ -1018,23 +1137,17 @@ class TestStationParameterConfigurations(TestCase):
 
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_statistical_analysis_parameter_configurations(self, _mock_vp):
-        options = self.station_options["statistical_analysis"]["parameters"][0][
-            "options"
-        ]
-        expected_success = {
-            "welch": True,
-            "limma": True,
-            "mannwhitneyu": True,
-            "permutation": True,
-            "sam": True,
-        }
-        for test_name in options:
-            with self.subTest(statistical_test=test_name):
-                result = _simulate_statistical_analysis(
-                    _make_dataset(),
-                    {"statistical_test": test_name},
-                )
-                self.assertEqual(result["success"], expected_success[test_name])
+        params_cfg = self.station_options["statistical_analysis"]["parameters"]
+        option_map = {p["id"]: p["options"] for p in params_cfg}
+        combos = _build_bounded_combinations(option_map)
+        expected_tests = {"welch", "limma", "mannwhitneyu", "permutation", "sam"}
+        for combo in combos:
+            with self.subTest(combo=combo):
+                result = _simulate_statistical_analysis(_make_dataset(), combo)
+                self.assertTrue(result["success"])
+                # Every listed statistical test must remain accepted alongside
+                # every fold-change method option.
+                self.assertIn(combo["statistical_test"], expected_tests)
 
 
 # ---------------------------------------------------------------------------
@@ -1116,8 +1229,10 @@ class TestFullWorkflowIntegration(TestCase):
             df = result["dataset"]
             print_stats("imputer", df)
 
-            # Statistical analysis (Welch's t-test)
-            result = _simulate_statistical_analysis(df, {"statistical_test": "welch"})
+            # Statistical analysis (Welch's t-test, log2 mean-ratio fold changes)
+            result = _simulate_statistical_analysis(
+                df, {"statistical_test": "welch", "method": "subtraction"}
+            )
             self.assertTrue(result["success"])
             df = result["dataset"]
             print_stats("statistical_analysis", df)
@@ -1465,6 +1580,44 @@ class TestRecalculateCommand(TestCase):
             call_command("recalculate", stdout=out, stderr=err)
         self.assertIn("unknown station", err.getvalue())
         self.assertIn("No differences found", out.getvalue())
+
+    def test_statistical_analysis_run_without_fc_method_uses_subtraction(self):
+        """Runs recorded before the fold-change 'method' parameter existed must
+        be replayed with the legacy 'subtraction' default."""
+        StationRun.objects.create(
+            player=self.user, station_id="statistical_analysis", params={}, score=0
+        )
+        observed = {}
+
+        def sim(dataset, params):
+            observed["fc_method"] = params.get("fc_method")
+            return {"success": True, "score": 0, "dataset": None}
+
+        with patch.dict(
+            "game.services.STATION_SIMULATORS", {"statistical_analysis": sim}, clear=True
+        ):
+            call_command("recalculate", stdout=StringIO())
+        self.assertEqual(observed["fc_method"], "subtraction")
+
+    def test_statistical_analysis_run_with_explicit_method_is_kept(self):
+        """A stored explicit 'method' must win over the legacy default."""
+        StationRun.objects.create(
+            player=self.user,
+            station_id="statistical_analysis",
+            params={"fc_method": "division"},
+            score=0,
+        )
+        observed = {}
+
+        def sim(dataset, params):
+            observed["fc_method"] = params.get("fc_method")
+            return {"success": True, "score": 0, "dataset": None}
+
+        with patch.dict(
+            "game.services.STATION_SIMULATORS", {"statistical_analysis": sim}, clear=True
+        ):
+            call_command("recalculate", stdout=StringIO())
+        self.assertEqual(observed["fc_method"], "division")
 
     def test_dataset_is_threaded_between_consecutive_runs_in_order(self):
         calls = []
