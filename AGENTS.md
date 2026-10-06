@@ -46,7 +46,7 @@ docker run --env-file backend/.env -p 3000:3000 proteosurvivor
 
 ### Backend (`backend/`)
 
-- **Framework**: Django 4.2 + DRF
+- **Framework**: Django 6.1 + DRF
 - **Settings split**: `config/settings/base.py`, `development.py`, `production.py`
 - **Single app**: `game/` — models, views, serializers, station simulators in `services.py`
 - **Data dir**: `backend/data/` — `ParameterTable.csv` + `ParameterSet_*.tsv` reference datasets
