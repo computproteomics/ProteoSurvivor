@@ -838,9 +838,32 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             feedback = "✅ Z-score normalization applied. The intensities have been standardized into statistically respectable behavior."
 
         elif method == "vsn":
-            df[relevant_cols] = np.log2(df[relevant_cols].clip(lower=0) + 1.0)
+            MAD_TO_STD_SCALE = 1.4826  # consistency factor so MAD estimates the std. dev.
+            data = df[relevant_cols].astype(float)
+            medians = data.median()
+            # Robust per-sample scale estimate.
+            mads = data.sub(medians, axis=1).abs().median() * MAD_TO_STD_SCALE
+            zero_or_missing_mad = mads.isna() | (mads == 0)
+            valid_mads = mads[~zero_or_missing_mad]
+            degenerate_scale = valid_mads.empty
+            target_scale = valid_mads.median() if not degenerate_scale else 1.0
+            # Per-sample gain/offset so every column is put on a common scale before
+            # the variance-stabilizing arcsinh (generalized log) transform is applied.
+            # Samples whose MAD could not be estimated (e.g. zero or all-NaN) are
+            # left at a neutral gain of 1.0 (scaling by an undefined factor is
+            # avoided) and are only centered on their own median via the offset,
+            # so they may not end up on exactly the same scale as calibrated
+            # samples, but remain well-behaved rather than arbitrarily scaled.
+            gains = pd.Series(1.0, index=mads.index)
+            gains[~zero_or_missing_mad] = target_scale / valid_mads
+            offsets = -medians * gains
+            calibrated = data.mul(gains, axis=1).add(offsets, axis=1)
+            df[relevant_cols] = np.arcsinh(calibrated)
             success = True
-            feedback = "✅ VSN-like normalization applied. The dynamic range has been calmed before it could do anything theatrical."
+            if degenerate_scale:
+                feedback = "✅ VSN normalization applied, but every sample had a near-zero spread, so only centering (no rescaling) could be performed before the arcsinh transform."
+            else:
+                feedback = "✅ VSN normalization applied. Each sample's gain and offset were calibrated so variance no longer scales with intensity, then stabilized with an arcsinh transform."
 
         else:
             success = False

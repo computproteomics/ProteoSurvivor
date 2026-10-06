@@ -312,7 +312,7 @@
           "zscore": "Standardization (Z-scores)"
         },
         "defaultValue": "none",
-        "tooltip": "Normalization corrects technical shifts between samples. Simple methods (median, total intensity) are robust and easy to understand, while more complex methods (VSN, quantile) can better handle certain data structures but risk overfitting and removing real biological variation if not used carefully."
+        "tooltip": "Normalization corrects technical shifts between samples. Simple methods (median, total intensity) are robust and easy to understand. VSN performs a stronger, non-linear per-sample recalibration (gain/offset plus a variance-stabilizing transform) that can noticeably reshape the data - use with care, as it may distort small differences or remove real biological variation if applied without checking the result. Quantile normalization is also powerful but carries similar overfitting risks."
       }
     ],
     "objective": "Normalize sample intensities to reduce technical shifts while preserving biological signal.",
