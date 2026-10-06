@@ -780,7 +780,7 @@ class TestStatisticalAnalysisStation(TestCase):
     def test_subtraction_method_computes_mean_difference(self, _mock_vp):
         df = _make_dataset()
         result = _simulate_statistical_analysis(
-            df, {"statistical_test": "welch", "method": "subtraction"}
+            df, {"statistical_test": "welch", "fc_method": "subtraction"}
         )
         self.assertTrue(result["success"])
         expected = df[COND_B].mean(axis=1) - df[COND_A].mean(axis=1)
@@ -803,7 +803,7 @@ class TestStatisticalAnalysisStation(TestCase):
     @patch("game.services.volcano_plot", return_value=_DUMMY_IMG)
     def test_unknown_method_fails(self, _mock_vp):
         result = _simulate_statistical_analysis(
-            _make_dataset(), {"statistical_test": "welch", "method": "magic"}
+            _make_dataset(), {"statistical_test": "welch", "fc_method": "magic"}
         )
         self.assertFalse(result["success"])
 
