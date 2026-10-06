@@ -216,6 +216,9 @@ class Command(BaseCommand):
                             }
                         )
 
+            if terminated:
+                break
+
         return (
             score_changes,
             final_changes,

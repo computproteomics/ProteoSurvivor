@@ -1471,16 +1471,17 @@ class TestRecalculateCommand(TestCase):
         other_user = get_user_model().objects.create_user(username="recalc_user2")
         run_a = StationRun.objects.create(player=self.user, station_id="a", params={}, score=0)
         run_b = StationRun.objects.create(player=self.user, station_id="b", params={}, score=0)
-        StationRun.objects.create(player=other_user, station_id="a", params={}, score=0)
+        run_a2 = StationRun.objects.create(player=other_user, station_id="a", params={}, score=0)
+
+        sim_calls = []
 
         def sim_a(dataset, params):
-            raise ValueError("boom")
-
-        sim_b_calls = []
+            sim_calls.append(("a", dataset))
+            return {"success": True, "score": 0, "dataset": "dataset-from-a"}
 
         def sim_b(dataset, params):
-            sim_b_calls.append(dataset)
-            return {"success": True, "score": 7, "dataset": None}
+            sim_calls.append(("b", dataset))
+            raise ValueError("boom")
 
         out = StringIO()
         err = StringIO()
@@ -1489,13 +1490,12 @@ class TestRecalculateCommand(TestCase):
         ):
             call_command("recalculate", "--yes", stdout=out, stderr=err)
 
-        # The command terminated at the failing run: no further runs were
-        # replayed and nothing was written to the database.
-        self.assertEqual(sim_b_calls, [])
-        run_a.refresh_from_db()
-        run_b.refresh_from_db()
-        self.assertEqual(run_a.score, 0)
-        self.assertEqual(run_b.score, 0)
+        # The command terminated at the failing run: user 1's run_b raised, and
+        # neither user 1's later runs nor user 2's runs were replayed afterwards.
+        self.assertEqual(sim_calls, [("a", None), ("b", "dataset-from-a")])
+        for run in (run_a, run_b, run_a2):
+            run.refresh_from_db()
+            self.assertEqual(run.score, 0)
         self.assertIn("recalculation raised ValueError('boom')", err.getvalue())
         self.assertIn("Terminating without replaying any further runs", err.getvalue())
         self.assertNotIn("Updated", out.getvalue())
