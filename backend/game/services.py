@@ -813,13 +813,17 @@ def _simulate_normalize(dataset: pd.DataFrame, params: dict) -> dict:
             feedback = "✅ Total intensity normalization applied. Each sample has been rescaled so abundance stays proportionate."
 
         elif method == "quantile":
+            # rank() marks NaN and ±inf as NaN; astype(int) then raises
+            # IntCastingNaNError, so treat ±inf as missing and drop NaN ranks
+            # before building the rank-mean lookup (group keys and ranks stay
+            # aligned because both stacks skip the same NaN ranks).
+            values = df[relevant_cols].replace([np.inf, -np.inf], np.nan)
+            if values.notna().to_numpy().sum() == 0:
+                raise ValueError("no finite intensity values to normalize")
             rank_means = (
-                df[relevant_cols]
-                .stack()
-                .groupby(df[relevant_cols].rank(method="first").stack().astype(int))
-                .mean()
+                values.stack().groupby(values.rank(method="first").stack()).mean()
             )
-            ranks = df[relevant_cols].rank(method="min").stack().astype(int)
+            ranks = values.rank(method="min").stack()
             df[relevant_cols] = ranks.map(rank_means).unstack()
             success = True
             feedback = "✅ Quantile normalization applied. The distributions have been forced into suspiciously elegant agreement."
