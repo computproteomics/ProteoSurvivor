@@ -694,7 +694,7 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
         }
 
     num_pro_before = int(dataset[PROTEIN_ID].nunique())
-    num_pep = int(dataset[TOT_PEP].sum())
+    num_pep_before = int(dataset[TOT_PEP].sum())
 
     # Find intensity columns
     relevant_cols = COND_A + COND_B
@@ -703,7 +703,7 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
         return {
             "success": False,
             "num_pro": num_pro_before,
-            "num_pep": num_pep,
+            "num_pep": num_pep_before,
             "feedback": "⚠️ No usable intensity columns found. The filter has nothing measurable to judge.",
             "img": imgs,
             "score": 0,
@@ -723,6 +723,7 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
         df_filtered = df_filtered[df_filtered[TOT_PEP] >= min_pep_num]
 
         num_pro_after = int(df_filtered[PROTEIN_ID].nunique())
+        num_pep_after = int(df_filtered[TOT_PEP].sum())
         removed_count = num_pro_before - num_pro_after
 
         success = True
@@ -742,12 +743,13 @@ def _simulate_filtering(dataset: pd.DataFrame, params: dict) -> dict:
         success = False
         df_filtered = df
         num_pro_after = num_pro_before
+        num_pep_after = num_pep_before
         feedback = f"⚠️ Filtering failed mid-procedure: {str(e)}. The dataset escaped containment."
 
     return {
         "success": success,
         "num_pro": num_pro_after,
-        "num_pep": num_pep,
+        "num_pep": num_pep_after,
         "feedback": feedback,
         "img": imgs,
         "score": 0,
