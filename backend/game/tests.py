@@ -471,6 +471,29 @@ class TestNormalizeStation(TestCase):
         self.assertLess(stds.max() / stds.min(), 3.0)
 
     @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
+    def test_quantile_normalization_with_missing_values(self, _mock_hc):
+        df = _make_dataset()
+        df.loc[1, COND_A[0]] = np.nan
+        result = _simulate_normalize(df, {"normalization": "quantile"})
+        self.assertTrue(result["success"])
+        out = result["dataset"]
+        # Missing values stay missing: quantile normalization cannot invent
+        # a value for an entry that was never measured.
+        self.assertTrue(np.isnan(out.loc[1, COND_A[0]]))
+        # Every measured value must be replaced by the mean of the values that
+        # shared its rank across all samples.
+        stacked = df[COND_A + COND_B].stack()
+        rank_means = stacked.groupby(df[COND_A + COND_B].rank(method="first").stack()).mean()
+        for col in COND_A + COND_B:
+            for idx in df.index:
+                if pd.isna(df.loc[idx, col]):
+                    continue
+                rank = df[COND_A + COND_B].rank(method="min").loc[idx, col]
+                self.assertAlmostEqual(
+                    out.loc[idx, col], rank_means[rank], places=10
+                )
+
+    @patch("game.services.histogram_compare", return_value=[_DUMMY_IMG])
     def test_unknown_method_fails(self, _mock_hc):
         result = _simulate_normalize(_make_dataset(), {"normalization": "magic"})
         self.assertFalse(result["success"])
