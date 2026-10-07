@@ -18,6 +18,15 @@ from django.db import transaction
 from game.models import StationRun
 from game.services import STATION_SIMULATORS
 
+# Runs recorded before a parameter existed were computed with the simulator's
+# previous implicit default; replay them with that default so their scores are
+# reproduced instead of silently changing.
+LEGACY_PARAM_DEFAULTS = {
+    # Statistical analysis used subtraction on the condition means before the
+    # fold-change "fc_method" parameter (default "division") was introduced.
+    "statistical_analysis": {"fc_method": "subtraction"},
+}
+
 
 class Command(BaseCommand):
     help = (
@@ -155,7 +164,12 @@ class Command(BaseCommand):
                     break
 
                 try:
-                    result = simulator(dataset, run.params or {})
+                    params = run.params or {}
+                    for legacy_key, legacy_value in LEGACY_PARAM_DEFAULTS.get(
+                        run.station_id, {}
+                    ).items():
+                        params = {legacy_key: legacy_value, **params}
+                    result = simulator(dataset, params)
                 except Exception as exc:
                     errors.append(
                         f"StationRun {run.pk} ({user.username}, "
