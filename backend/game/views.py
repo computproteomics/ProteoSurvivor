@@ -10,6 +10,7 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.middleware.csrf import get_token
+from django.utils.crypto import get_random_string
 from .serializers import (
     NewPlayerSerializer,
     RunStationSerializer,
@@ -61,7 +62,10 @@ class NewPlayerView(APIView):
         username = _build_unique_user_id(user_name)
         user = User.objects.create_user(
             username=username,
-            password=User.objects.make_random_password(),
+            # Django 6.1 removed BaseUserManager.make_random_password();
+            # get_random_string() is the recommended replacement. The player
+            # never logs in with this password, it just satisfies the model.
+            password=get_random_string(32),
             first_name=user_name,
         )
 
