@@ -36,7 +36,7 @@ RUN printf '[supervisord]\n\
     logfile_maxbytes=0\n\
     \n\
     [program:django]\n\
-    command=sh -c "python manage.py migrate --noinput && if [ -f game/fixtures/leaderboard_seed.json ]; then python manage.py loaddata leaderboard_seed; fi && python manage.py runserver 0.0.0.0:8000"\n\
+    command=sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"\n\
     directory=/app/backend\n\
     environment=DJANGO_SETTINGS_MODULE="config.settings.development"\n\
     autostart=true\n\

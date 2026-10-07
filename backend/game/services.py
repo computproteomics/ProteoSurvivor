@@ -80,6 +80,11 @@ STATION_SIMULATORS = {}
 HIGH_CONFIDENCE_PROTEIN_PROBABILITY = 0.99
 SIGNIFICANCE_THRESHOLD = 0.05
 
+# Number of regulated (Yeast + E. coli) proteins assumed as ground truth for the
+# final F1 score. See the comment in _simulate_final_report for how this was
+# estimated and why it is deliberately conservative.
+REGULATED_PROTEIN_COUNT = 2000
+
 DATA_REVIEW_COLUMN_EXPLANATIONS = {
     PROTEIN: "Protein group label reported by the search engine for this row.",
     PROTEIN_ID: "Stable identifier for the leading protein in the group.",
@@ -1277,11 +1282,34 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
         true_positives / precision_denominator if precision_denominator > 0 else 0
     )
 
-    # Reward larger high-quality hit sets so tiny TP counts with zero FP are not optimal.
-    tp_volume_factor = (
-        true_positives / (true_positives + 10) if true_positives > 0 else 0
-    )
-    score = precision * tp_volume_factor
+    # Final score: F1 score against the set of regulated proteins.
+    #
+    # Ground truth: the spiked-in Yeast and E. coli proteins are the regulated
+    # ones (Yeast down, E. coli up), Human proteins are pure background noise.
+    # Instead of the former ad-hoc "precision x TP/(TP+K)" hybrid, the score is
+    # now the standard F1 score, which balances precision against recall and
+    # needs no magic tuning constant in the numerator.
+    #
+    # Estimation of REGULATED_PROTEIN_COUNT (N):
+    # - The raw identification ceiling (Yeast + E. coli rows in the
+    #   ParameterSet_*.tsv spectral-search results) is ~2,750-2,900
+    #   (mean ~2,827 across all 576 parameter sets).
+    # - Not all of those are attainable: ~2% fold-change in the "wrong"
+    #   direction, and the player's own filtering/imputation choices drop
+    #   further regulated rows along the pipeline. The direction-matched,
+    #   quantified subset measured on the data is ~2,250-2,300.
+    # - N = 2,000 is deliberately conservative: it sits below the crossover
+    #   points where high-FP "wide net" runs overtake clean precision runs
+    #   (e.g. a TP=1641/FP=4349 run ties a TP=662/FP=37 run only at
+    #   N ~ 2,879), so the leaderboard keeps rewarding clean parameter
+    #   choices rather than recall at any cost. Sensitivity analysis showed
+    #   the top-10 ranking is otherwise stable for any N in 2,000-3,500.
+    # - TP is capped at N so that runs cannot exceed a perfect F1 of 1.0.
+    tp = min(true_positives, REGULATED_PROTEIN_COUNT)
+    fn = REGULATED_PROTEIN_COUNT - tp
+    recall = tp / REGULATED_PROTEIN_COUNT if tp > 0 else 0
+    f1_denominator = 2 * tp + false_positives + fn
+    score = (2 * tp / f1_denominator) if f1_denominator > 0 else 0
     min_fdr = 1e-3
     # Use min_fdr for FDR if FP == 0, otherwise calculate normally
     if precision_denominator > 0:
@@ -1296,14 +1324,13 @@ def _simulate_final_report(dataset: pd.DataFrame, params: dict) -> dict:
         '✅ You made it to The "Please Let This Be Significant" Lounge. '
         "Against all expectation, the pipeline held together and your report looks statistically defensible.<br/><br/>"
         "<strong>Final score breakdown</strong><br/>"
-        f"TP = {true_positives}, FP = {false_positives}<br/>"
+        f"TP = {true_positives}, FP = {false_positives}, FN = {fn} (of {REGULATED_PROTEIN_COUNT} regulated proteins)<br/>"
         "Precision = TP / (TP + FP)<br/>"
         f"= {true_positives} / ({true_positives} + {false_positives}) = {precision:.4f}<br/>"
         f"FDR = FP / (TP + FP) = {false_positives} / ({true_positives} + {false_positives}) = {fdr:.6f}<br/><br/>"
-        "TP volume factor = TP / (TP + 10)<br/>"
-        f"= {true_positives} / ({true_positives} + 10) = {tp_volume_factor:.4f}<br/><br/>"
-        "Final score = Precision × TP volume factor<br/>"
-        f"= {precision:.4f} × {tp_volume_factor:.4f} = <strong>{score:.4f}</strong><br/><br/>"
+        f"Recall = TP / {REGULATED_PROTEIN_COUNT} = {recall:.4f}<br/>"
+        "Final score = F1 = 2 x TP / (2 x TP + FP + FN)<br/>"
+        f"= 2 x {tp} / (2 x {tp} + {false_positives} + {fn}) = <strong>{score:.4f}</strong><br/><br/>"
         "If high enough, you will see your score in the leaderboard and earn the respect of the proteome. If not, well... at least you made it here and learned something, and that's something to be proud of, right?"
     )
 
