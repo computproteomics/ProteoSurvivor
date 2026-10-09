@@ -83,8 +83,29 @@ class Command(BaseCommand):
                 on="player_id",
                 how="left",
             )
-        if not final_df.empty:
             final_df.to_csv(out / "final_results.csv", index=False)
+
+        # All statistics are reported for three cohorts:
+        #   (a) all users    – every non-seed account that started the game
+        #   (b) finishers    – accounts with at least one final_report score
+        #   (c) final runs   – individual runs of the final_report station
+        final_players = set(final_df["player_id"]) if not final_df.empty else set()
+        final_run_ids = set(final_df["run_id"]) if not final_df.empty else set()
+        run_df["is_final_report"] = run_df["station_id"] == "final_report"
+        run_df["from_final_run"] = run_df["id"].isin(final_run_ids)
+        run_df["from_final_report_account"] = run_df["player_id"].isin(final_players)
+        run_df["to_final_run"] = False
+        if not final_df.empty:
+            # A run belongs to cohort (c) if it was executed before one of the
+            # same player's final-report submissions, i.e. it is part of a
+            # playthrough that actually reached the final station.
+            for final in final_df.itertuples():
+                mask = (
+                    (run_df["player_id"] == final.player_id)
+                    & (run_df["created_at"] <= final.created_at)
+                )
+                run_df.loc[mask, "to_final_run"] = True
+        run_df.to_csv(out / "station_runs.csv", index=False)
 
         station_order = self._station_order(run_df)
         station_summary = self._station_summary(run_df, station_order)
@@ -95,7 +116,6 @@ class Command(BaseCommand):
         participant_key = self._participant_counts(participant_key, run_df, final_df)
         participant_key.to_csv(out / "participant_key.csv", index=False)
 
-        final_players = set(final_df["player_id"]) if not final_df.empty else set()
         param_df = self._parameter_summary(run_df, final_players)
         parameter_figures = []
         if not param_df.empty:
@@ -158,11 +178,12 @@ class Command(BaseCommand):
                 "station_run__created_at": "created_at",
             }
         )
+        final_df = final_df.rename(columns={"station_run_id": "run_id"})
         final_df["created_at"] = pd.to_datetime(final_df["created_at"])
         final_df["score"] = pd.to_numeric(final_df["score"])
         total = final_df["true_positives"] + final_df["false_positives"]
         final_df["fdr_like"] = final_df["false_positives"].div(total).fillna(0)
-        return final_df.sort_values(["created_at", "station_run_id"])
+        return final_df.sort_values(["created_at", "run_id"])
 
     def _participant_key(self, run_df):
         users = (
@@ -193,20 +214,39 @@ class Command(BaseCommand):
 
     def _station_summary(self, run_df, station_order):
         rows = []
+        # The percentages use three denominators (cohorts):
+        #   all users, accounts with at least one final-report score,
+        #   and runs of the final_report station (final runs only).
         total_players = run_df["player_id"].nunique()
+        final_players = run_df[run_df["from_final_report_account"]]["player_id"].unique()
+        finishers = len(final_players)
         for station in station_order:
             df = run_df[run_df["station_id"] == station]
             players = df["player_id"].nunique()
+            finisher_players = df[df["player_id"].isin(final_players)][
+                "player_id"
+            ].nunique()
             attempts = df.groupby("player_id").size()
+            final_attempts = df[df["from_final_run"]].groupby("player_id").size()
             rows.append(
                 {
                     "station_id": station,
                     "runs": len(df),
+                    "runs_from_final_report_accounts": int(
+                        df["from_final_report_account"].sum()
+                    ),
                     "players": players,
                     "players_percent": 100 * players / total_players,
+                    "finishers": finisher_players,
+                    "finishers_percent": 100 * finisher_players / finishers
+                    if finishers
+                    else float("nan"),
                     "mean_attempts_per_player": attempts.mean(),
                     "retried_players": int((attempts > 1).sum()),
                     "max_attempts": int(attempts.max()),
+                    "mean_attempts_per_final_run": final_attempts.mean()
+                    if not final_attempts.empty
+                    else float("nan"),
                     "mean_score": df["score"].mean(),
                     "median_score": df["score"].median(),
                     "min_score": df["score"].min(),
@@ -259,6 +299,10 @@ class Command(BaseCommand):
                         "parameter": key,
                         "value": str(value),
                         "from_final_report_account": run.player_id in final_players,
+                        # Cohort (c): the run happened before one of this
+                        # player's final-report submissions, i.e. it belongs to
+                        # at least one completed playthrough.
+                        "from_completed_playthrough": bool(run.to_final_run),
                     }
                 )
         if not rows:
@@ -267,6 +311,7 @@ class Command(BaseCommand):
         summary = df.groupby(["station_id", "parameter", "value"]).agg(
             runs=("player_id", "size"),
             runs_from_final_report_accounts=("from_final_report_account", "sum"),
+            runs_from_completed_playthroughs=("from_completed_playthrough", "sum"),
         )
         return (
             summary.reset_index()
@@ -291,13 +336,31 @@ class Command(BaseCommand):
         self._save_figure(fig, out, "station_reach.png")
         plt.close(fig)
 
+        if "finishers_percent" not in station_summary:
+            return
+        finishers = station_summary.dropna(subset=["finishers_percent"])
+        if finishers.empty:
+            return
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.barplot(
+            data=finishers,
+            y="station_id",
+            x="finishers_percent",
+            color="#4C78A8",
+            ax=ax,
+        )
+        ax.set(xlabel="Finishers reaching station (%)", ylabel="")
+        ax.bar_label(ax.containers[0], fmt="%.0f%%", padding=3)
+        fig.tight_layout()
+        self._save_figure(fig, out, "station_reach_finishers.png")
+        plt.close(fig)
+
     def _plot_station_runs_to_final(self, run_df, final_df, station_order, out):
         if final_df.empty:
             return
-        final_players = set(final_df["player_id"])
-        df = run_df[run_df["player_id"].isin(final_players)]
         counts = (
-            df.groupby("station_id")
+            run_df[run_df["from_final_report_account"]]
+            .groupby("station_id")
             .size()
             .reindex(station_order)
             .dropna()
@@ -325,6 +388,24 @@ class Command(BaseCommand):
         self._save_figure(fig, out, "retry_burden.png")
         plt.close(fig)
 
+        if "mean_attempts_per_final_run" not in station_summary:
+            return
+        final_runs = station_summary.dropna(subset=["mean_attempts_per_final_run"])
+        if final_runs.empty:
+            return
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.barplot(
+            data=final_runs,
+            y="station_id",
+            x="mean_attempts_per_final_run",
+            color="#F58518",
+            ax=ax,
+        )
+        ax.set(xlabel="Mean station runs per final report submission", ylabel="")
+        fig.tight_layout()
+        self._save_figure(fig, out, "retry_burden_final_runs.png")
+        plt.close(fig)
+
     def _plot_final_scores(self, final_df, out):
         if final_df.empty:
             return
@@ -334,6 +415,49 @@ class Command(BaseCommand):
         ax.set(xlabel="", ylabel="Final-report score per submission", ylim=(0, 1.02))
         fig.tight_layout()
         self._save_figure(fig, out, "final_score_distribution.png")
+        plt.close(fig)
+
+        if "run_id" not in final_df:
+            return
+        # Best final score per account (cohort b) alongside every submission (cohort c).
+        best = (
+            final_df.sort_values(["player_id", "score", "created_at", "run_id"])
+            .groupby("player_id", as_index=False)
+            .tail(1)
+        )
+        fig, ax = plt.subplots(figsize=(5.2, 4.8))
+        sns.violinplot(
+            data=pd.DataFrame(
+                {
+                    "group": ["Best score per account"] * len(best)
+                    + ["All submissions"] * len(final_df),
+                    "score": pd.concat([best["score"], final_df["score"]]),
+                }
+            ),
+            x="group",
+            y="score",
+            color="#72B7B2",
+            inner=None,
+            ax=ax,
+        )
+        sns.stripplot(
+            data=pd.DataFrame(
+                {
+                    "group": ["Best score per account"] * len(best)
+                    + ["All submissions"] * len(final_df),
+                    "score": pd.concat([best["score"], final_df["score"]]),
+                }
+            ),
+            x="group",
+            y="score",
+            color="#222222",
+            size=4,
+            jitter=0.15,
+            ax=ax,
+        )
+        ax.set(xlabel="", ylabel="Final-report score", ylim=(0, 1.02))
+        fig.tight_layout()
+        self._save_figure(fig, out, "final_score_distribution_groups.png")
         plt.close(fig)
 
     def _plot_tp_fp(self, final_df, out):
@@ -379,11 +503,19 @@ class Command(BaseCommand):
                     "runs": len(runs),
                     "stations": runs["station_id"].nunique(),
                     "participant": final.participant,
+                    "is_latest": True,
                 }
             )
         df = pd.DataFrame(efforts)
         if df.empty:
             return
+        if "run_id" in final_df:
+            latest_ids = set(
+                final_df.sort_values(["player_id", "created_at", "run_id"])
+                .groupby("player_id", as_index=False)
+                .tail(1)["run_id"]
+            )
+            df["is_latest"] = final_df["run_id"].isin(latest_ids).tolist()
         fig, ax = plt.subplots(figsize=(5.6, 4.8))
         sns.scatterplot(
             data=df,
@@ -391,7 +523,9 @@ class Command(BaseCommand):
             y="score",
             size="stations",
             sizes=(35, 180),
-            color="#54A24B",
+            style="is_latest",
+            hue="is_latest",
+            palette={True: "#54A24B", False: "#9AA9A2"},
             alpha=0.75,
             ax=ax,
             legend="brief",
@@ -411,7 +545,22 @@ class Command(BaseCommand):
         )
         legend = ax.get_legend()
         if legend:
-            legend.set_title("Stations reached")
+            legend.remove()
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            new_labels = []
+            for label in labels:
+                if label == "Stations reached" or label == "stations":
+                    new_labels.append("Stations reached")
+                elif label == "is_latest":
+                    new_labels.append("Submission")
+                elif label in ("True", "False"):
+                    new_labels.append(
+                        "Latest per account" if label == "True" else "Earlier submission"
+                    )
+                else:
+                    new_labels.append(label)
+            ax.legend(handles=handles, labels=new_labels, title="")
         fig.tight_layout()
         self._save_figure(fig, out, "effort_vs_final_score.png")
         plt.close(fig)
@@ -420,19 +569,22 @@ class Command(BaseCommand):
         if param_df.empty:
             return []
         figures = []
+        rename_map = {
+            "runs": "(a) All non-seed runs",
+            "runs_from_final_report_accounts": "(b) Runs from final-report accounts",
+            "runs_from_completed_playthroughs": "(c) Runs before a final submission",
+        }
         for station, df in param_df.groupby("station_id", sort=False):
             rows = df.copy()
             rows["choice"] = rows["parameter"] + "=" + rows["value"]
             rows = rows.sort_values(["parameter", "runs"], ascending=[True, False])
-            rows = rows.rename(
-                columns={
-                    "runs": "All non-seed runs",
-                    "runs_from_final_report_accounts": "Runs from final-report accounts",
-                }
-            )
+            rows = rows.rename(columns=rename_map)
+            available = [
+                name for name in rename_map.values() if name in rows.columns
+            ]
             plot_rows = rows.melt(
                 id_vars=["choice"],
-                value_vars=["All non-seed runs", "Runs from final-report accounts"],
+                value_vars=available,
                 var_name="run_group",
                 value_name="count",
             )
@@ -443,7 +595,7 @@ class Command(BaseCommand):
                 y="choice",
                 x="count",
                 hue="run_group",
-                palette=["#4C78A8", "#F58518"],
+                palette=["#4C78A8", "#F58518", "#54A24B"],
                 ax=ax,
             )
             ax.set(xlabel="Runs", ylabel="")
@@ -470,7 +622,9 @@ class Command(BaseCommand):
     ):
         players = run_df["player_id"].nunique()
         finals = player_summary[player_summary["submitted_final"]]
-        final_scores = final_df["score"].astype(float) if not final_df.empty else pd.Series(dtype=float)
+        final_run_scores = (
+            final_df["score"].astype(float) if not final_df.empty else pd.Series(dtype=float)
+        )
         lines = [
             "# ProteoSurvivor Game Report",
             "",
@@ -484,19 +638,42 @@ class Command(BaseCommand):
         ]
         if not final_df.empty:
             fdr = final_df["fdr_like"].astype(float)
+            # Cohort (b): one row per account — its best final-report score.
+            # Cohort (c): every final-report submission, including repeats.
+            per_account = final_df.sort_values(
+                ["player_id", "score", "created_at", "run_id"]
+            ).groupby("player_id", as_index=False).tail(1)
+            per_account_scores = per_account["score"].astype(float)
+            best_tp = per_account["true_positives"]
+            best_fp = per_account["false_positives"]
+            best_total = best_tp + best_fp
+            best_fdr = best_fp.div(best_total).fillna(0)
             lines += [
-                f"- Median final-submission score: {final_scores.median():.3f}",
-                f"- Mean final-submission score: {final_scores.mean():.3f}",
-                f"- Final submissions with score >= 0.90: {(final_scores >= 0.90).sum()} / {len(final_scores)} ({100 * (final_scores >= 0.90).mean():.1f}%)",
-                f"- Median true positives: {final_df['true_positives'].median():.1f}",
-                f"- Median false positives: {final_df['false_positives'].median():.1f}",
-                f"- Median FP / (TP + FP): {fdr.median():.3f}",
+                "",
+                "Final scores are reported for two cohorts:",
+                "(b) accounts with at least one final-report score (best score per account)",
+                "and (c) every final-report submission including repeats.",
+                "",
+                "| Metric | (b) Accounts with final report | (c) All final submissions |",
+                "| --- | --- | --- |",
+                f"| Count | {len(per_account_scores)} | {len(final_df)} |",
+                f"| Median score | {per_account_scores.median():.3f} | {final_run_scores.median():.3f} |",
+                f"| Mean score | {per_account_scores.mean():.3f} | {final_run_scores.mean():.3f} |",
+                f"| Score >= 0.90 | {(per_account_scores >= 0.90).sum()} / {len(per_account_scores)} ({100 * (per_account_scores >= 0.90).mean():.1f}%) | {(final_run_scores >= 0.90).sum()} / {len(final_run_scores)} ({100 * (final_run_scores >= 0.90).mean():.1f}%) |",
+                f"| Median true positives | {best_tp.median():.1f} | {final_df['true_positives'].median():.1f} |",
+                f"| Median false positives | {best_fp.median():.1f} | {final_df['false_positives'].median():.1f} |",
+                f"| Median FP / (TP + FP) | {best_fdr.median():.3f} | {fdr.median():.3f} |",
             ]
         figure_descriptions = [
             (
                 "station_reach.png",
                 "Station reach",
                 "Percentage of non-seed accounts that reached each station at least once. Repeat submissions do not change this figure.",
+            ),
+            (
+                "station_reach_finishers.png",
+                "Station reach among finishers",
+                "Percentage of accounts with at least one final-report score that reached each station at least once (cohort b).",
             ),
             (
                 "station_runs_to_final.png",
@@ -509,9 +686,19 @@ class Command(BaseCommand):
                 "Mean attempts per account among accounts that reached the station. A value of 1 means no retries; larger values mark repeated station runs.",
             ),
             (
+                "retry_burden_final_runs.png",
+                "Retry burden relative to final runs",
+                "Mean station runs per final-report submission (cohort c): for every submitted final report, how many runs of each station preceded it on average.",
+            ),
+            (
                 "final_score_distribution.png",
                 "Final score distribution",
                 "Score distribution for all final-report submissions, including repeated final reports.",
+            ),
+            (
+                "final_score_distribution_groups.png",
+                "Final score distribution by cohort",
+                "Final-report scores split into best score per account (cohort b) and all submissions including repeats (cohort c).",
             ),
             (
                 "true_vs_false_positives.png",
@@ -521,14 +708,14 @@ class Command(BaseCommand):
             (
                 "effort_vs_final_score.png",
                 "Effort versus final score",
-                "Final-report score versus station runs completed before that final submission. Circle size shows how many distinct stations had been reached; point labels are generic participant IDs.",
+                "Final-report score versus station runs completed before that final submission. Circle size shows how many distinct stations had been reached; point labels are generic participant IDs. Filled circles mark the latest submission per account, open circles earlier submissions.",
             ),
         ]
         figure_descriptions += [
             (
                 figure,
                 f"Parameter choices: {figure.removeprefix('parameter_choices_').removesuffix('.png')}",
-                "Parameter-choice counts within one station. Blue bars count all non-seed runs; orange bars count the subset from accounts that submitted at least one final report.",
+                "Parameter-choice counts within one station for the three cohorts: (a) all non-seed runs, (b) runs from accounts that submitted at least one final report, and (c) runs executed before a final-report submission.",
             )
             for figure in parameter_figures
         ]
@@ -589,16 +776,55 @@ class Command(BaseCommand):
             f"Last run: {run_df['created_at'].max()}",
             f"Accounts with final report: {len(finals)} / {players} ({100 * len(finals) / players:.1f}%)",
         ]
+        cohort_tables = []
         if not final_df.empty:
-            scores = final_df["score"].astype(float)
             fdr = final_df["fdr_like"].astype(float)
+            # Cohort (b): best final-report score per account.
+            # Cohort (c): every final-report submission, including repeats.
+            per_account = final_df.sort_values(
+                ["player_id", "score", "created_at", "run_id"]
+            ).groupby("player_id", as_index=False).tail(1)
+            per_account_scores = per_account["score"].astype(float)
+            best_tp = per_account["true_positives"]
+            best_fp = per_account["false_positives"]
+            best_total = best_tp + best_fp
+            best_fdr = best_fp.div(best_total).fillna(0)
+            cohort_df = pd.DataFrame(
+                {
+                    "Metric": [
+                        "Count",
+                        "Median score",
+                        "Mean score",
+                        "Score >= 0.90",
+                        "Median true positives",
+                        "Median false positives",
+                        "Median FP / (TP + FP)",
+                    ],
+                    "(b) Accounts with final report": [
+                        len(per_account_scores),
+                        f"{per_account_scores.median():.3f}",
+                        f"{per_account_scores.mean():.3f}",
+                        f"{(per_account_scores >= 0.90).sum()} / {len(per_account_scores)} ({100 * (per_account_scores >= 0.90).mean():.1f}%)",
+                        f"{best_tp.median():.1f}",
+                        f"{best_fp.median():.1f}",
+                        f"{best_fdr.median():.3f}",
+                    ],
+                    "(c) All final submissions": [
+                        len(final_df),
+                        f"{final_df['score'].median():.3f}",
+                        f"{final_df['score'].mean():.3f}",
+                        f"{(final_df['score'] >= 0.90).sum()} / {len(final_df)} ({100 * (final_df['score'] >= 0.90).mean():.1f}%)",
+                        f"{final_df['true_positives'].median():.1f}",
+                        f"{final_df['false_positives'].median():.1f}",
+                        f"{fdr.median():.3f}",
+                    ],
+                }
+            )
+            cohort_tables = [cohort_df]
             items += [
-                f"Median final-submission score: {scores.median():.3f}",
-                f"Mean final-submission score: {scores.mean():.3f}",
-                f"Final submissions with score >= 0.90: {(scores >= 0.90).sum()} / {len(scores)} ({100 * (scores >= 0.90).mean():.1f}%)",
-                f"Median true positives: {final_df['true_positives'].median():.1f}",
-                f"Median false positives: {final_df['false_positives'].median():.1f}",
-                f"Median FP / (TP + FP): {fdr.median():.3f}",
+                "Final scores are reported for cohort (b) — accounts with at least one "
+                "final-report score, best score per account — and cohort (c) — every "
+                "final-report submission including repeats."
             ]
         page = [
             "<!doctype html>",
@@ -614,6 +840,8 @@ class Command(BaseCommand):
             "<h2>Generated Figures</h2>",
             "<p>Each figure is written in both PNG and SVG format.</p>",
         ]
+        for cohort_table in cohort_tables:
+            page += ["<h2>Final scores by cohort</h2>", self._html_table(cohort_table)]
         for filename, title, description in figure_descriptions:
             page += [
                 f"<figure><h3>{html.escape(title)}</h3><img src=\"{html.escape(filename)}\" alt=\"{html.escape(title)}\"><figcaption>{html.escape(description)}</figcaption></figure>"
