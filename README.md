@@ -6,7 +6,7 @@ Navigate a 2D lab map, visit stations in any order, configure each step of the
 workflow — from sample preparation through mass spectrometry, database search,
 and statistical analysis — then hand in your report to your supervisor.
 
-Find the running version [here](computproteomics.bmb.sdu.dk/ProteoSurvivor)
+Find the running version ![here](computproteomics.bmb.sdu.dk/ProteoSurvivor)
 
 Built with **React + Vite** (frontend) and **Django + Django REST Framework** (backend).
 
